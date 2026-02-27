@@ -1,0 +1,109 @@
+# @tenphi/tasty-eslint-plugin — ESLint Plugin for Tasty
+
+Package: `@tenphi/tasty-eslint-plugin` — ESLint plugin for validating `tasty()`, `tastyStatic()`, `useStyles()`, `useGlobalStyles()`, and related APIs.
+
+## Key Features
+
+- 27 lint rules across property, value, state, structure, and best-practice categories
+- Import-aware detection (only fires on real tasty imports)
+- Project config support via `tasty.config.ts`
+- Recommended and strict presets
+- ESLint 8+ and 9+ (flat config) support
+
+## Project Structure
+
+```
+src/
+  index.ts              # Plugin entry point (rules, configs)
+  configs.ts            # Recommended and strict presets
+  create-rule.ts        # ESLintUtils.RuleCreator wrapper
+  context.ts            # TastyContext — import tracking, style object detection
+  config.ts             # Config loader (tasty.config.ts resolution)
+  constants.ts          # Known properties, units, CSS properties, mappings
+  types.ts              # TastyValidationConfig, ResolvedConfig
+  utils.ts              # Shared validation helpers
+  rules/
+    index.ts            # Re-exports all rules
+    known-property.ts   # P0: Unknown style property names
+    valid-value.ts      # P0: Malformed values (parens, !important)
+    valid-color-token.ts # P0: Color token syntax & existence
+    valid-custom-unit.ts # P0: Unknown custom units
+    valid-state-key.ts  # P0: Invalid state key syntax
+    valid-styles-structure.ts # P0: Invalid styles object structure
+    no-nested-selector.ts # P1: Discourage & selectors
+    valid-custom-property.ts # P1: $name validation
+    valid-preset.ts     # P1: Preset name validation
+    valid-recipe.ts     # P1: Recipe name validation
+    valid-boolean-property.ts # P1: true on wrong properties
+    valid-directional-modifier.ts # P1: Direction on wrong properties
+    valid-radius-shape.ts # P1: Unknown radius shapes
+    no-important.ts     # P1: !important usage
+    valid-sub-element.ts # P1: Sub-element must be object
+    no-nested-state-map.ts # P1: Nested state maps
+    static-no-dynamic-values.ts # P1: Dynamic in tastyStatic
+    static-valid-selector.ts # P1: Invalid selector string
+    prefer-shorthand-property.ts # P2: Use tasty shorthand
+    valid-transition.ts # P2: Unknown transition names
+    require-default-state.ts # P2: Missing '' in state map
+    no-duplicate-state.ts # P2: Duplicate state keys
+    no-unknown-state-alias.ts # P2: Unknown @alias
+    no-raw-color-values.ts # P3: Raw hex/rgb values
+    no-styles-prop.ts   # P3: Direct styles prop usage
+    consistent-token-usage.ts # P3: Raw px vs tokens
+    no-runtime-styles-mutation.ts # P3: Dynamic style values
+```
+
+## Commands
+
+| Command | Description |
+|---|----|
+| `pnpm build` | Build via tsdown (ESM, node target) |
+| `pnpm test` | Run tests once (vitest) |
+| `pnpm test:watch` | Tests in watch mode |
+| `pnpm test:coverage` | Tests with coverage |
+| `pnpm typecheck` | Type-check without emitting |
+| `pnpm lint` | Lint source files |
+| `pnpm lint:fix` | Lint and auto-fix |
+| `pnpm format` | Format code with Prettier |
+| `pnpm format:check` | Check formatting |
+| `pnpm changeset` | Create a changeset |
+| `pnpm release` | Build and publish |
+
+## Stack
+
+- **Build**: tsdown (ESM, unbundled, dts + sourcemaps, node target)
+- **Test**: Vitest 4 with globals enabled
+- **Lint**: ESLint 10 + typescript-eslint + prettier
+- **Format**: Prettier (single quotes, semicolons, trailing commas, 80 cols)
+- **Versioning**: Changesets
+- **Node**: >=20, **Package manager**: pnpm 10
+
+## Code Conventions
+
+- TypeScript strict mode, `consistent-type-imports` enforced
+- Test files use `*.test.ts` suffix, co-located in `src/`
+- Unused vars prefixed with `_` are allowed
+- All rules created via `createRule()` from `src/create-rule.ts`
+- AST detection logic centralized in `TastyContext` class
+- Constants (known properties, units, etc.) in `src/constants.ts`
+
+## Architecture
+
+### TastyContext (src/context.ts)
+Central class for each lint pass. Tracks imports from tasty sources, detects whether an ObjectExpression is a tasty style object by walking up the AST to find recognized call expressions.
+
+### Config (src/config.ts)
+Loads `tasty.config.ts` from project root, supports `extends` chains, mtime-based caching.
+
+### Rule Pattern
+Each rule:
+1. Creates a `TastyContext` in `create()`
+2. Tracks imports via `ImportDeclaration`
+3. Uses `'CallExpression ObjectExpression'` selector to find style objects
+4. Validates properties/values within detected style objects
+
+## Core API Surface
+
+- `plugin.configs.recommended` — flat config preset with error-level rules
+- `plugin.configs.strict` — all recommended + best practice warnings
+- `plugin.rules` — individual rules for manual configuration
