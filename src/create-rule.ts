@@ -2,5 +2,5 @@ import { ESLintUtils } from '@typescript-eslint/utils';
 
 export const createRule = ESLintUtils.RuleCreator(
   (name) =>
-    `https://github.com/tenphi/tasty-eslint-plugin/blob/main/docs/rules/${name}.md`,
+    `https://github.com/tenphi/eslint-plugin-tasty/blob/main/docs/rules/${name}.md`,
 );

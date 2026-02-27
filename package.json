@@ -1,5 +1,5 @@
 {
-  "name": "@tenphi/tasty-eslint-plugin",
+  "name": "@tenphi/eslint-plugin-tasty",
   "version": "0.1.0",
   "description": "ESLint plugin for validating tasty() and tastyStatic() style objects",
   "type": "module",
@@ -35,7 +35,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tenphi/tasty-eslint-plugin.git"
+    "url": "git+https://github.com/tenphi/eslint-plugin-tasty.git"
   },
   "keywords": [
     "eslint",
@@ -50,9 +50,9 @@
   "author": "Andrey Yamanov",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/tenphi/tasty-eslint-plugin/issues"
+    "url": "https://github.com/tenphi/eslint-plugin-tasty/issues"
   },
-  "homepage": "https://github.com/tenphi/tasty-eslint-plugin#readme",
+  "homepage": "https://github.com/tenphi/eslint-plugin-tasty#readme",
   "peerDependencies": {
     "@tenphi/tasty": ">=0.1.3",
     "eslint": ">=8.0.0"

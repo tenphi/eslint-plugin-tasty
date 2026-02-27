@@ -1,6 +1,6 @@
-# @tenphi/tasty-eslint-plugin — ESLint Plugin for Tasty
+# @tenphi/eslint-plugin-tasty — ESLint Plugin for Tasty
 
-Package: `@tenphi/tasty-eslint-plugin` — ESLint plugin for validating `tasty()`, `tastyStatic()`, `useStyles()`, `useGlobalStyles()`, and related APIs.
+Package: `@tenphi/eslint-plugin-tasty` — ESLint plugin for validating `tasty()`, `tastyStatic()`, `useStyles()`, `useGlobalStyles()`, and related APIs.
 
 ## Key Features
 

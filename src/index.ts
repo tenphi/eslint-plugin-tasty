@@ -34,7 +34,7 @@ const ruleMap: Record<string, TSESLint.RuleModule<string, unknown[]>> = {
 
 const plugin = {
   meta: {
-    name: '@tenphi/tasty-eslint-plugin',
+    name: '@tenphi/eslint-plugin-tasty',
     version: '0.1.0',
   },
   rules: ruleMap,

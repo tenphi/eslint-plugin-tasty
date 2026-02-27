@@ -1,4 +1,4 @@
-# @tenphi/tasty-eslint-plugin
+# @tenphi/eslint-plugin-tasty
 
 ESLint plugin for validating `tasty()`, `tastyStatic()`, `useStyles()`, `useGlobalStyles()`, and related APIs from `@tenphi/tasty`.
 
@@ -7,7 +7,7 @@ Catch typos, invalid syntax, and enforce best practices in your tasty style obje
 ## Installation
 
 ```bash
-pnpm add -D @tenphi/tasty-eslint-plugin
+pnpm add -D @tenphi/eslint-plugin-tasty
 ```
 
 ## Usage
@@ -16,7 +16,7 @@ pnpm add -D @tenphi/tasty-eslint-plugin
 
 ```js
 // eslint.config.js
-import tasty from '@tenphi/tasty-eslint-plugin';
+import tasty from '@tenphi/eslint-plugin-tasty';
 
 export default [
   tasty.configs.recommended,
@@ -27,7 +27,7 @@ export default [
 For stricter checks:
 
 ```js
-import tasty from '@tenphi/tasty-eslint-plugin';
+import tasty from '@tenphi/eslint-plugin-tasty';
 
 export default [
   tasty.configs.strict,
@@ -37,7 +37,7 @@ export default [
 ### Manual Rule Configuration
 
 ```js
-import tasty from '@tenphi/tasty-eslint-plugin';
+import tasty from '@tenphi/eslint-plugin-tasty';
 
 export default [
   {

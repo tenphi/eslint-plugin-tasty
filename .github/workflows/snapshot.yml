@@ -60,5 +60,5 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `📦 Snapshot published!\n\n\`\`\`\npnpm add @tenphi/tasty-eslint-plugin@${process.env.SNAPSHOT_VERSION}\n\`\`\``
+              body: `📦 Snapshot published!\n\n\`\`\`\npnpm add @tenphi/eslint-plugin-tasty@${process.env.SNAPSHOT_VERSION}\n\`\`\``
             })
