@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 0.2.1
+
+### Patch Changes
+
+- [`3460a12`](https://github.com/tenphi/eslint-plugin-tasty/commit/3460a123d353a68b4cc14708651ffd246bda9f6e) Thanks [@tenphi](https://github.com/tenphi)! - Fix build output to use `.js`/`.d.ts` extensions instead of `.mjs`/`.d.mts`, matching the `exports` map in `package.json`.
+
 ## 0.2.0
 
 ### Minor Changes
