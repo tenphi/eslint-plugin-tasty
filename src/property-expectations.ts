@@ -40,7 +40,7 @@ const BORDER_STYLE_MODS = [
   'none',
   'hidden',
 ];
-const DIMENSION_MODS = ['min', 'max'];
+const DIMENSION_MODS = ['min', 'max', 'fixed'];
 const FLOW_MODS = [
   'row',
   'column',
@@ -76,11 +76,11 @@ const PASSTHROUGH: PropertyExpectation = {
 };
 
 export const PROPERTY_EXPECTATIONS: Record<string, PropertyExpectation> = {
-  fill: COLOR_ONLY,
-  color: COLOR_ONLY,
+  fill: { acceptsColor: true, acceptsMods: ['none', 'transparent'] },
+  color: { acceptsColor: true, acceptsMods: ['none', 'transparent'] },
   caretColor: COLOR_ONLY,
   accentColor: COLOR_ONLY,
-  shadow: COLOR_ONLY,
+  shadow: { acceptsColor: true, acceptsMods: ['inset'] },
 
   border: {
     acceptsColor: true,

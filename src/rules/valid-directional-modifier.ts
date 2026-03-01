@@ -70,6 +70,8 @@ export default createRule<[], MessageIds>({
           const key = getKeyName(prop.key);
           if (key === null) continue;
 
+          if (!(key in DIRECTIONAL_MODIFIERS)) continue;
+
           // Direct value
           const str = getStringValue(prop.value);
           if (str) {

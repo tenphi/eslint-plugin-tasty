@@ -90,8 +90,10 @@ export const KNOWN_TASTY_PROPERTIES = new Set([
   'lineClamp',
   'aspectRatio',
   'contain',
+  'container',
   'containerType',
   'containerName',
+  'interpolateSize',
   'willChange',
   'isolation',
   'touchAction',
@@ -472,10 +474,13 @@ export const BOOLEAN_TRUE_PROPERTIES = new Set([
   'border',
   'radius',
   'padding',
+  'margin',
   'gap',
   'fill',
   'color',
+  'shadow',
   'outline',
+  'inset',
   'width',
   'height',
   'hide',
@@ -502,6 +507,7 @@ export const DIRECTIONAL_MODIFIERS: Record<string, Set<string>> = {
   padding: new Set(['top', 'right', 'bottom', 'left']),
   margin: new Set(['top', 'right', 'bottom', 'left']),
   fade: new Set(['top', 'right', 'bottom', 'left']),
+  inset: new Set(['top', 'right', 'bottom', 'left']),
 };
 
 /**

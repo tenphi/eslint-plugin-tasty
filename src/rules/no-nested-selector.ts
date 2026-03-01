@@ -37,7 +37,7 @@ export default createRule<[], MessageIds>({
           const key = getKeyName(prop.key);
           if (key === null) continue;
 
-          if (key.startsWith('&')) {
+          if (key.startsWith('&') && !key.startsWith('&::')) {
             context.report({
               node: prop.key,
               messageId: 'noNestedSelector',

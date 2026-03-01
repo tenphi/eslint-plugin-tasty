@@ -57,6 +57,12 @@ export default createRule<[], MessageIds>({
           // Color token definitions
           if (key.startsWith('#')) continue;
 
+          // CSS custom properties (--foo)
+          if (key.startsWith('--')) continue;
+
+          // Vendor-prefixed properties (-webkit-*, -moz-*, etc.)
+          if (key.startsWith('-')) continue;
+
           // Known tasty property
           if (KNOWN_TASTY_PROPERTIES.has(key)) continue;
 

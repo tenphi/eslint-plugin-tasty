@@ -28,12 +28,47 @@ function findProjectRoot(startDir: string): string | null {
   return null;
 }
 
+function resolvePackageDir(
+  packageName: string,
+  startDir: string,
+): string | null {
+  let dir = startDir;
+  while (dir !== dirname(dir)) {
+    const candidate = join(dir, 'node_modules', ...packageName.split('/'));
+    if (
+      existsSync(candidate) &&
+      existsSync(join(candidate, 'package.json'))
+    ) {
+      return candidate;
+    }
+    dir = dirname(dir);
+  }
+  return null;
+}
+
 function findConfigFile(projectRoot: string): string | null {
   for (const name of CONFIG_FILENAMES) {
     const path = join(projectRoot, name);
     if (existsSync(path)) {
       return path;
     }
+  }
+  return null;
+}
+
+function stripComments(source: string): string {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/[^\n]*/g, '');
+}
+
+function extractBalancedBraces(content: string, start: number): string | null {
+  if (content[start] !== '{') return null;
+  let depth = 0;
+  for (let i = start; i < content.length; i++) {
+    if (content[i] === '{') depth++;
+    else if (content[i] === '}') depth--;
+    if (depth === 0) return content.slice(start, i + 1);
   }
   return null;
 }
@@ -45,18 +80,18 @@ function loadRawConfig(configPath: string): TastyValidationConfig {
     return JSON.parse(content) as TastyValidationConfig;
   }
 
-  // For TS/JS files, extract JSON-like config or use a simple parser.
-  // In a real implementation, we'd use jiti or tsx to load TS configs.
-  // For now, attempt JSON parse of the default export pattern.
-  const jsonMatch = content.match(
-    /export\s+default\s+({[\s\S]*?})\s*(?:;|\n|$)/,
-  );
-  if (jsonMatch) {
-    try {
-      const fn = new Function(`return (${jsonMatch[1]})`);
-      return fn() as TastyValidationConfig;
-    } catch {
-      // fall through
+  const stripped = stripComments(content);
+  const match = stripped.match(/export\s+default\s+/);
+  if (match && match.index != null) {
+    const braceStart = match.index + match[0].length;
+    const objectStr = extractBalancedBraces(stripped, braceStart);
+    if (objectStr) {
+      try {
+        const fn = new Function(`return (${objectStr})`);
+        return fn() as TastyValidationConfig;
+      } catch {
+        // fall through
+      }
     }
   }
 
@@ -118,9 +153,15 @@ function resolveConfigChain(
   if (config.extends.startsWith('.') || config.extends.startsWith('/')) {
     parentPath = resolve(dirname(absPath), config.extends);
   } else {
-    try {
-      parentPath = require.resolve(config.extends);
-    } catch {
+    const pkgDir = resolvePackageDir(config.extends, dirname(absPath));
+    if (pkgDir) {
+      const pkgConfig = findConfigFile(pkgDir);
+      if (pkgConfig) {
+        parentPath = pkgConfig;
+      } else {
+        return config;
+      }
+    } else {
       return config;
     }
   }

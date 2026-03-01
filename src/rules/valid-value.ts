@@ -5,6 +5,14 @@ import { getKeyName, getStringValue } from '../utils.js';
 import { getParser } from '../parser.js';
 import { getExpectation } from '../property-expectations.js';
 
+const CSS_GLOBAL_KEYWORDS = new Set([
+  'inherit',
+  'initial',
+  'unset',
+  'revert',
+  'revert-layer',
+]);
+
 type MessageIds =
   | 'unbalancedParens'
   | 'importantNotAllowed'
@@ -83,20 +91,19 @@ export default createRule<[], MessageIds>({
           }
         }
 
-        if (expectation.acceptsMods === false && group.mods.length > 0) {
-          for (const mod of group.mods) {
+        const mods = group.mods.filter((m) => !CSS_GLOBAL_KEYWORDS.has(m));
+
+        if (expectation.acceptsMods === false && mods.length > 0) {
+          for (const mod of mods) {
             context.report({
               node,
               messageId: 'unexpectedMod',
               data: { property, mod },
             });
           }
-        } else if (
-          Array.isArray(expectation.acceptsMods) &&
-          group.mods.length > 0
-        ) {
+        } else if (Array.isArray(expectation.acceptsMods) && mods.length > 0) {
           const allowed = new Set(expectation.acceptsMods);
-          for (const mod of group.mods) {
+          for (const mod of mods) {
             if (!allowed.has(mod)) {
               context.report({
                 node,
