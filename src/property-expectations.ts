@@ -58,13 +58,7 @@ const OVERFLOW_MODS = [
   'auto',
   'overlay',
 ];
-const POSITION_MODS = [
-  'static',
-  'relative',
-  'absolute',
-  'fixed',
-  'sticky',
-];
+const POSITION_MODS = ['static', 'relative', 'absolute', 'fixed', 'sticky'];
 
 const COLOR_ONLY: PropertyExpectation = {
   acceptsColor: true,

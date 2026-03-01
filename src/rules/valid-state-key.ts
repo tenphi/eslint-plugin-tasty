@@ -39,9 +39,7 @@ function collectIssues(
           !n.lowerBound &&
           !n.upperBound
         ) {
-          issues.push(
-            `Empty or invalid @media dimension query in '${n.raw}'.`,
-          );
+          issues.push(`Empty or invalid @media dimension query in '${n.raw}'.`);
         }
         break;
 
