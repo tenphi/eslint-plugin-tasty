@@ -12,4 +12,5 @@ export default defineConfig({
   target: 'es2022',
   sourcemap: true,
   clean: true,
+  fixedExtension: false,
 });
