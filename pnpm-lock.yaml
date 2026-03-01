@@ -22,8 +22,8 @@ importers:
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.0.2)
       '@tenphi/tasty':
-        specifier: ^0.1.3
-        version: 0.1.3
+        specifier: 0.4.0
+        version: 0.4.0
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.13
@@ -740,8 +740,8 @@ packages:
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
-  '@tenphi/tasty@0.1.3':
-    resolution: {integrity: sha512-yhQrrJ5eMekxi4hH9xMkvmS3kiaAOsAgImpyjlfBpktSP4vIpPtxaO9hbhJYPCETdib4Rnjc0sfmmrJM2Oby9g==}
+  '@tenphi/tasty@0.4.0':
+    resolution: {integrity: sha512-BJYb562KIVlyN8fzhKoQmIWIS8IlWSV6sl35gwBzAqcVDmNJM81xpjTK8AT2kLQJIir4+5UYqz5yTLLARZpyig==}
     engines: {node: '>=20'}
     peerDependencies:
       '@babel/core': ^7.24.0
@@ -2264,7 +2264,7 @@ snapshots:
 
   '@standard-schema/spec@1.1.0': {}
 
-  '@tenphi/tasty@0.1.3':
+  '@tenphi/tasty@0.4.0':
     dependencies:
       '@babel/helper-plugin-utils': 7.28.6
       '@babel/types': 7.29.0

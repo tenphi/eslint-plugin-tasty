@@ -551,11 +551,12 @@ preset: 'heading1'
 Validates `recipe` property values against `config.recipes`.
 
 **Parsing:**
-The recipe value is a space-separated list of recipe names, optionally split by `|` for post-merge recipes.
+The recipe value is a space-separated list of recipe names, optionally split by `/` for post-merge recipes. `none` is a reserved keyword meaning "no base recipes".
 
 ```
 recipe: 'card elevated'            → ['card', 'elevated']
-recipe: 'reset input | autofill'   → pre: ['reset', 'input'], post: ['autofill']
+recipe: 'reset input / autofill'   → pre: ['reset', 'input'], post: ['autofill']
+recipe: 'none / autofill'          → pre: [], post: ['autofill']
 ```
 
 **Checks:**
@@ -1234,7 +1235,7 @@ The key insight: unknown/invalid tokens silently fall into the `Mod` bucket. For
 The validation config only has unit and function *names* (e.g., `units: ['x', 'r', 'cols']`), not their resolved values. That's fine — we only need the parser to *recognize* them as valid, not resolve them to real CSS. Use stub values:
 
 ```ts
-import { StyleParser } from '@tenphi/tasty/parser';
+import { StyleParser } from '@tenphi/tasty/core';
 
 // Build parser options from validation config names using stubs
 const units = Object.fromEntries(

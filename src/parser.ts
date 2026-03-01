@@ -1,5 +1,5 @@
-import { StyleParser } from '@tenphi/tasty/parser';
-import type { ParserOptions } from '@tenphi/tasty/parser';
+import { StyleParser } from '@tenphi/tasty/core';
+import type { ParserOptions } from '@tenphi/tasty/core';
 import type { ResolvedConfig } from './types.js';
 import { BUILT_IN_UNITS } from './constants.js';
 

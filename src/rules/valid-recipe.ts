@@ -24,12 +24,12 @@ export default createRule<[], MessageIds>({
     function checkRecipeValue(value: string, node: TSESTree.Node): void {
       if (ctx.config.recipes.length === 0) return;
 
-      // Split by | for pre/post merge separation
-      const sections = value.split('|');
+      // Split by / for pre/post merge separation
+      const sections = value.split('/');
       for (const section of sections) {
         const names = section.trim().split(/\s+/);
         for (const name of names) {
-          if (name.length === 0) continue;
+          if (name.length === 0 || name === 'none') continue;
           if (!ctx.config.recipes.includes(name)) {
             context.report({
               node,
