@@ -16,13 +16,13 @@ export const recommended: TSESLint.SharedConfig.RulesRecord = {
   'tasty/no-nested-selector': 'warn',
   'tasty/static-no-dynamic-values': 'error',
   'tasty/static-valid-selector': 'error',
+  'tasty/valid-preset': 'error',
+  'tasty/valid-recipe': 'error',
 };
 
 export const strict: TSESLint.SharedConfig.RulesRecord = {
   ...recommended,
   'tasty/prefer-shorthand-property': 'warn',
-  'tasty/valid-preset': 'error',
-  'tasty/valid-recipe': 'error',
   'tasty/valid-transition': 'warn',
   'tasty/valid-custom-property': 'warn',
   'tasty/no-unknown-state-alias': 'warn',

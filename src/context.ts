@@ -125,10 +125,60 @@ export class TastyContext {
         return null;
       }
 
+      if (this.isStyleVariableDeclaration(current, node)) {
+        return {
+          type: 'tasty',
+          isStaticCall: false,
+          isSelectorMode: false,
+          isExtending: false,
+        };
+      }
+
       current = current.parent;
     }
 
     return null;
+  }
+
+  private isStyleVariableDeclaration(
+    current: TSESTree.Node,
+    targetNode: TSESTree.Node,
+  ): boolean {
+    if (current.type !== 'VariableDeclarator' || current.id.type !== 'Identifier') {
+      return false;
+    }
+
+    let init: TSESTree.Node | null | undefined = current.init;
+    while (
+      init?.type === 'TSAsExpression' ||
+      init?.type === 'TSSatisfiesExpression' ||
+      init?.type === 'TSTypeAssertion' ||
+      init?.type === 'TSNonNullExpression'
+    ) {
+      init = (init as TSESTree.TSAsExpression).expression;
+    }
+
+    if (init !== targetNode) return false;
+
+    if (/styles?$/i.test(current.id.name)) return true;
+
+    if (this.hasStylesTypeAnnotation(current)) return true;
+
+    return false;
+  }
+
+  private hasStylesTypeAnnotation(node: TSESTree.VariableDeclarator): boolean {
+    const annotation = node.id.typeAnnotation?.typeAnnotation;
+    if (!annotation) return false;
+
+    if (
+      annotation.type === 'TSTypeReference' &&
+      annotation.typeName.type === 'Identifier'
+    ) {
+      return /^Styles$/i.test(annotation.typeName.name);
+    }
+
+    return false;
   }
 
   private getTastyCallContext(

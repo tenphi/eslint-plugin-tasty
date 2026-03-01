@@ -41,26 +41,28 @@ export default createRule<[], MessageIds>({
       }
     }
 
+    function checkObject(node: TSESTree.ObjectExpression): void {
+      if (!ctx.isStyleObject(node)) return;
+
+      for (const prop of node.properties) {
+        if (prop.type !== 'Property' || prop.computed) continue;
+
+        const key = getKeyName(prop.key);
+        if (key !== 'recipe') continue;
+
+        const str = getStringValue(prop.value);
+        if (str) {
+          checkRecipeValue(str, prop.value);
+        }
+      }
+    }
+
     return {
       ImportDeclaration(node) {
         ctx.trackImport(node);
       },
 
-      'CallExpression ObjectExpression'(node: TSESTree.ObjectExpression) {
-        if (!ctx.isStyleObject(node)) return;
-
-        for (const prop of node.properties) {
-          if (prop.type !== 'Property' || prop.computed) continue;
-
-          const key = getKeyName(prop.key);
-          if (key !== 'recipe') continue;
-
-          const str = getStringValue(prop.value);
-          if (str) {
-            checkRecipeValue(str, prop.value);
-          }
-        }
-      },
+      ObjectExpression: checkObject,
     };
   },
 });
