@@ -192,6 +192,18 @@ tester.run('valid-state-key', rule, {
         }});
       `,
     },
+    // @parent with direct parent syntax
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: {
+          fill: {
+            '': '#white',
+            '@parent(theme=dark, >)': '#dark',
+          },
+        }});
+      `,
+    },
     // Non-tasty code should be ignored
     {
       code: `

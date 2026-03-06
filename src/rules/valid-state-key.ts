@@ -60,6 +60,12 @@ function collectIssues(
         walk(n.innerCondition);
         break;
 
+      case 'parent':
+        if ('innerCondition' in n && n.innerCondition) {
+          walk(n.innerCondition as ConditionNode);
+        }
+        break;
+
       case 'pseudo':
         if (n.raw.startsWith('@') && !knownPredefined.has(n.raw)) {
           issues.push(`Unresolvable predefined state '${n.raw}'.`);

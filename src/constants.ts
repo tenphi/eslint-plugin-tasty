@@ -595,6 +595,7 @@ export const DEFAULT_IMPORT_SOURCES = ['@tenphi/tasty', '@tenphi/tasty/static'];
 export const BUILT_IN_STATE_PREFIXES = new Set([
   '@media',
   '@root',
+  '@parent',
   '@own',
   '@supports',
   '@starting',
