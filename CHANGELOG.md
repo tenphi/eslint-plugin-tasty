@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 0.3.1
+
+### Patch Changes
+
+- [`a15ee6a`](https://github.com/tenphi/eslint-plugin-tasty/commit/a15ee6a6d39e4297803a30e443ecdeac68ef4483) Thanks [@tenphi](https://github.com/tenphi)! - Fix `@parent(...)` being flagged as an unknown state alias by adding `@parent` to `BUILT_IN_STATE_PREFIXES`. Also handle `parent` type in `collectIssues` for recursive inner condition validation.
+
 ## 0.3.0
 
 ### Minor Changes
