@@ -144,7 +144,10 @@ export class TastyContext {
     current: TSESTree.Node,
     targetNode: TSESTree.Node,
   ): boolean {
-    if (current.type !== 'VariableDeclarator' || current.id.type !== 'Identifier') {
+    if (
+      current.type !== 'VariableDeclarator' ||
+      current.id.type !== 'Identifier'
+    ) {
       return false;
     }
 

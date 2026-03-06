@@ -35,10 +35,7 @@ function resolvePackageDir(
   let dir = startDir;
   while (dir !== dirname(dir)) {
     const candidate = join(dir, 'node_modules', ...packageName.split('/'));
-    if (
-      existsSync(candidate) &&
-      existsSync(join(candidate, 'package.json'))
-    ) {
+    if (existsSync(candidate) && existsSync(join(candidate, 'package.json'))) {
       return candidate;
     }
     dir = dirname(dir);
@@ -57,9 +54,7 @@ function findConfigFile(projectRoot: string): string | null {
 }
 
 function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/\/\/[^\n]*/g, '');
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
 }
 
 function extractBalancedBraces(content: string, start: number): string | null {
