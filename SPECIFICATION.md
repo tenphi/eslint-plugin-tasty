@@ -356,9 +356,11 @@ tasty({ styles: { borderRadius: '6px' } });
 
 **Severity:** error (default)
 **Complexity:** Medium
-**Feasibility:** High — uses the actual `StyleParser` from `@tenphi/tasty`
+**Feasibility:** High — uses a standalone value parser with explicit token classification
 
-Parses every string style value through the tasty parser and validates the result against per-property expectations. This is the foundational value validation rule that catches malformed values at the parser level.
+Parses every string style value through the value parser and validates the result against per-property expectations. This is the foundational value validation rule that catches malformed values at the token level.
+
+**Excluded properties:** `recipe` (validated by `valid-recipe`), `@keyframes`, `@properties` (structural keys).
 
 **How it works:**
 
@@ -780,6 +782,49 @@ padding: { '': '4x', '@drak': '2x' }
 
 ---
 
+#### `tasty/valid-state-definition`
+
+**Severity:** warning (default)
+**Complexity:** Medium
+**Feasibility:** High — uses the state key parser to validate definition values
+
+Validates state definition values (the right-hand side of state aliases in `configure()` or `tasty.config`).
+
+**Detection:**
+- `configure({ states: { '@mobile': '@media(w < 768px)' } })` — validates each state definition value
+- State definitions in `tasty.config.ts` — validates via config loading
+
+**Checks:**
+1. State alias keys must start with `@`.
+2. State definition values must be valid state expressions (parsed by the state key parser).
+
+**Examples:**
+```js
+// ✅ Valid
+configure({
+  states: {
+    '@mobile': '@media(w < 768px)',
+    '@dark': '@root(theme=dark)',
+  },
+});
+
+// ❌ Error: Invalid state key in definition
+configure({
+  states: {
+    '@mobile': '@media()',  // empty query
+  },
+});
+
+// ❌ Error: State alias must start with '@'
+configure({
+  states: {
+    'mobile': '@media(w < 768px)',  // missing @
+  },
+});
+```
+
+---
+
 #### `tasty/require-default-state`
 
 **Severity:** warning (default), off by default
@@ -1144,6 +1189,7 @@ The plugin should export preset configurations:
   'tasty/no-raw-color-values': 'warn',
   'tasty/consistent-token-usage': 'warn',
   'tasty/no-runtime-styles-mutation': 'warn',
+  'tasty/valid-state-definition': 'warn',
 }
 ```
 
@@ -1204,85 +1250,49 @@ Use the TypeScript type checker to resolve types. Any object expression whose ty
 | `no-runtime-styles-mutation` | High | P3 |
 | `static-no-dynamic-values` | Medium | P1 |
 | `static-valid-selector` | Low | P1 |
+| `valid-state-definition` | Medium | P2 |
 
-### Parser Reuse — Use `@tenphi/tasty` Parser Directly
+### Standalone Parsers
 
-The plugin should use the actual `StyleParser` from `@tenphi/tasty` as the source of truth for **syntax validation**. The parser is pure (no DOM/React dependencies), small, and has built-in LRU caching.
+The plugin includes two standalone parsers in `src/parsers/` with zero dependency on `@tenphi/tasty`. These parsers are purpose-built for **deep validation** rather than CSS generation.
 
-**Primary purpose: syntax correctness**
+#### Value Parser (`src/parsers/value-parser.ts`)
 
-The parser's main job in the ESLint plugin is to verify that value strings are syntactically valid:
-- All brackets and parentheses are balanced
-- Custom property references (`$name`) follow valid syntax
-- Color token references (`#name`, `#name.5`) are well-formed
-- Function calls (`rgb()`, `okhsl()`, custom functions) have proper structure
-- Unit numbers (`2x`, `1r`) use recognized units
-- No garbage tokens that the parser can't classify
+Tokenizes and classifies style value strings into explicitly typed tokens. Unlike tasty's runtime parser (which silently classifies unknown tokens as "Mod" for performance), this parser reports every unrecognized token as an error.
 
-We don't care about the *resolved CSS output* — only that the parser accepts the input without errors.
+The tokenizer follows tasty's `scan()` semantics:
+- Commas separate **groups**
+- Spaced slashes (`a / b`) separate **parts**
+- Non-spaced slashes (`center/cover`) stay inside tokens
+- Parenthesized content, quoted strings, and `url(...)` are kept as single tokens
 
-**How it works:**
+Token classification:
+1. `#name`, `#name.N`, `##name` → color tokens (syntax validated inline)
+2. `$name`, `$$name` → custom property references
+3. `functionName(...)` → CSS/custom function calls
+4. `{number}{unit}` → custom or CSS units (checked against known sets)
+5. Known CSS keywords → keywords
+6. `!important` → flagged for rejection
+7. Everything else → `unknown` token + error
 
-The parser classifies every token in a value string into one of three buckets:
-- `Color` — color tokens (`#name`), color functions (`rgb()`, etc.), color keywords (`transparent`)
-- `Value` — dimensions (`2x`, `8px`), custom properties (`$name`), numbers, keywords (`auto`, `none`), URLs
-- `Mod` — everything else (directional modifiers like `top`, `left`, or **unrecognized tokens**)
+**Excluded properties:** The value parser skips `recipe` (validated by `valid-recipe`) and structural keys like `@keyframes` and `@properties`.
 
-The key insight: unknown/invalid tokens silently fall into the `Mod` bucket. For properties that don't accept modifiers, any `Mod` token is a signal that the value might be wrong. Even for properties that do accept modifiers (like `border`, `padding`), we can validate that `Mod` tokens are from the expected set (e.g., `top`, `right`, `solid`, `dashed`).
+#### State Key Parser (`src/parsers/state-key-parser.ts`)
 
-**Setup:**
+Full recursive descent parser for state key notation. Returns validation errors instead of a CSS-generation AST.
 
-The validation config only has unit and function *names* (e.g., `units: ['x', 'r', 'cols']`), not their resolved values. That's fine — we only need the parser to *recognize* them as valid, not resolve them to real CSS. Use stub values:
+Validates:
+- Operator placement (`&`, `|`, `!`, `^`)
+- Pseudo-class existence against known list
+- `@media()` / `@()` dimension query syntax
+- `@root()`, `@parent()`, `@own()` inner expressions (recursive)
+- `@alias` references (tracked for config-based existence checks)
+- XOR chain length warnings
+- Nested `@own` prevention
 
-```ts
-import { StyleParser } from '@tenphi/tasty/core';
+Also exposes `validateStateDefinition()` for validating the right-hand side of state alias definitions.
 
-// Build parser options from validation config names using stubs
-const units = Object.fromEntries(
-  config.units.map((name) => [name, '1px']),  // stub — just needs to be recognized
-);
-const funcs = Object.fromEntries(
-  config.funcs.map((name) => [name, () => '0']),  // stub — just needs to not fall into Mod
-);
-
-const parser = new StyleParser({ units, funcs });
-```
-
-The parser instance must be rebuilt when the config changes (see [Config reloading](#config-reloading)).
-
-**Validation approach per property:**
-
-Each style handler knows what buckets it expects. The plugin can define per-property expectations:
-
-```ts
-const PROPERTY_EXPECTATIONS: Record<string, { colors?: boolean; mods?: string[] }> = {
-  fill:   { colors: true, mods: [] },
-  color:  { colors: true, mods: [] },
-  border: { colors: true, mods: ['top', 'right', 'bottom', 'left', 'solid', 'dashed', 'dotted', ...] },
-  padding: { mods: ['top', 'right', 'bottom', 'left'] },
-  radius:  { mods: ['top', 'right', 'bottom', 'left', 'round', 'ellipse', 'leaf', 'backleaf', ...] },
-  // ...
-};
-```
-
-Then for any string value, parse it and check:
-1. Are there unexpected `Mod` tokens? → likely a typo or invalid syntax
-2. Are there `Color` tokens in a property that doesn't accept colors? → wrong property
-3. Did the parser emit a `console.warn` for unbalanced parentheses? → syntax error
-
-**New rule: `tasty/valid-value`**
-
-This replaces several individual value-checking rules with a single parser-powered rule that validates any style value string against the parser output. It subsumes parts of `valid-color-token`, `valid-custom-unit`, `valid-custom-property`, `valid-directional-modifier`, and `valid-radius-shape` into a unified check.
-
-The individual rules remain useful for targeted config-based checks (e.g., "is this token in the config?"), but `valid-value` provides the foundational "does this value parse correctly?" check.
-
-**Dependency:**
-
-`@tenphi/tasty` becomes a peer dependency of the ESLint plugin. Since anyone using `eslint-plugin-tasty` is already using `@tenphi/tasty`, this is a natural fit.
-
-**Performance:**
-
-The parser's LRU cache (default 1000 entries) means repeated values across a codebase are parsed only once. For a typical project, parser overhead should be negligible compared to ESLint's own AST traversal.
+**No runtime dependency:** The plugin has zero dependency on `@tenphi/tasty` at runtime. It only requires `eslint` as a peer dependency.
 
 ### Testing Strategy
 

@@ -1,6 +1,6 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
-import { TastyContext } from '../context.js';
+import { TastyContext, styleObjectListeners } from '../context.js';
 import {
   getKeyName,
   getStringValue,
@@ -9,6 +9,12 @@ import {
 } from '../utils.js';
 
 type MessageIds = 'invalidSyntax' | 'unknownToken';
+
+interface PendingExistenceCheck {
+  token: string;
+  baseName: string;
+  node: TSESTree.Node;
+}
 
 export default createRule<[], MessageIds>({
   name: 'valid-color-token',
@@ -27,6 +33,7 @@ export default createRule<[], MessageIds>({
   create(context) {
     const ctx = new TastyContext(context);
     const fileColorTokens = new Set<string>();
+    const pendingChecks: PendingExistenceCheck[] = [];
 
     function collectLocalTokens(node: TSESTree.ObjectExpression): void {
       for (const prop of node.properties) {
@@ -38,18 +45,18 @@ export default createRule<[], MessageIds>({
       }
     }
 
-    function checkColorTokensInValue(value: string, node: TSESTree.Node): void {
-      // Match color token references: #name or #name.N or ##name
+    function checkColorTokensInValue(
+      value: string,
+      node: TSESTree.Node,
+    ): void {
       const tokenRegex = /##?[a-zA-Z][a-zA-Z0-9-]*(?:\.\$?[a-zA-Z0-9-]+)?/g;
       let match;
 
       while ((match = tokenRegex.exec(value)) !== null) {
         const token = match[0];
 
-        // Skip raw hex colors
         if (isRawHexColor(token)) continue;
 
-        // Check syntax
         const syntaxError = validateColorTokenSyntax(token);
         if (syntaxError) {
           context.report({
@@ -60,7 +67,6 @@ export default createRule<[], MessageIds>({
           continue;
         }
 
-        // Check existence (if tokens config is not false)
         if (ctx.config.tokens === false) continue;
 
         const baseName = token.startsWith('##')
@@ -69,23 +75,31 @@ export default createRule<[], MessageIds>({
 
         if (baseName === '#current') continue;
 
-        if (
-          !fileColorTokens.has(baseName) &&
-          !(
-            Array.isArray(ctx.config.tokens) &&
-            ctx.config.tokens.includes(baseName)
-          )
-        ) {
-          // Only warn if config.tokens is a non-empty array
-          if (
-            Array.isArray(ctx.config.tokens) &&
-            ctx.config.tokens.length > 0
-          ) {
-            context.report({
-              node,
-              messageId: 'unknownToken',
-              data: { token },
-            });
+        pendingChecks.push({ token, baseName, node });
+      }
+    }
+
+    function handleStyleObject(node: TSESTree.ObjectExpression) {
+      if (!ctx.isStyleObject(node)) return;
+      collectLocalTokens(node);
+
+      for (const prop of node.properties) {
+        if (prop.type !== 'Property') continue;
+
+        if (prop.value.type === 'Literal') {
+          const str = getStringValue(prop.value);
+          if (str && str.includes('#')) {
+            checkColorTokensInValue(str, prop.value);
+          }
+        }
+
+        if (prop.value.type === 'ObjectExpression') {
+          for (const stateProp of prop.value.properties) {
+            if (stateProp.type !== 'Property') continue;
+            const str = getStringValue(stateProp.value);
+            if (str && str.includes('#')) {
+              checkColorTokensInValue(str, stateProp.value);
+            }
           }
         }
       }
@@ -96,31 +110,25 @@ export default createRule<[], MessageIds>({
         ctx.trackImport(node);
       },
 
-      'CallExpression ObjectExpression'(node: TSESTree.ObjectExpression) {
-        if (!ctx.isStyleObject(node)) return;
-        collectLocalTokens(node);
+      ...styleObjectListeners(handleStyleObject),
 
-        for (const prop of node.properties) {
-          if (prop.type !== 'Property') continue;
+      'Program:exit'() {
+        if (
+          !Array.isArray(ctx.config.tokens) ||
+          ctx.config.tokens.length === 0
+        ) {
+          return;
+        }
 
-          // Check string values for color tokens
-          if (prop.value.type === 'Literal') {
-            const str = getStringValue(prop.value);
-            if (str && str.includes('#')) {
-              checkColorTokensInValue(str, prop.value);
-            }
-          }
+        for (const { token, baseName, node } of pendingChecks) {
+          if (fileColorTokens.has(baseName)) continue;
+          if (ctx.config.tokens.includes(baseName)) continue;
 
-          // Check state map values
-          if (prop.value.type === 'ObjectExpression') {
-            for (const stateProp of prop.value.properties) {
-              if (stateProp.type !== 'Property') continue;
-              const str = getStringValue(stateProp.value);
-              if (str && str.includes('#')) {
-                checkColorTokensInValue(str, stateProp.value);
-              }
-            }
-          }
+          context.report({
+            node,
+            messageId: 'unknownToken',
+            data: { token },
+          });
         }
       },
     };

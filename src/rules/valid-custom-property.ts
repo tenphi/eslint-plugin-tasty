@@ -1,11 +1,17 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
-import { TastyContext } from '../context.js';
+import { TastyContext, styleObjectListeners } from '../context.js';
 import { getKeyName, getStringValue } from '../utils.js';
 
 type MessageIds = 'invalidSyntax' | 'unknownProperty';
 
 const CUSTOM_PROP_REGEX = /\$\$?[a-zA-Z][a-zA-Z0-9-]*/g;
+
+interface PendingExistenceCheck {
+  token: string;
+  baseName: string;
+  node: TSESTree.Node;
+}
 
 export default createRule<[], MessageIds>({
   name: 'valid-custom-property',
@@ -24,6 +30,7 @@ export default createRule<[], MessageIds>({
   create(context) {
     const ctx = new TastyContext(context);
     const fileCustomProperties = new Set<string>();
+    const pendingChecks: PendingExistenceCheck[] = [];
 
     function collectLocalProperties(node: TSESTree.ObjectExpression): void {
       for (const prop of node.properties) {
@@ -45,21 +52,30 @@ export default createRule<[], MessageIds>({
         const token = match[0];
         const baseName = token.startsWith('$$') ? '$' + token.slice(2) : token;
 
-        if (fileCustomProperties.has(baseName)) continue;
+        pendingChecks.push({ token, baseName, node });
+      }
+    }
 
-        if (
-          Array.isArray(ctx.config.tokens) &&
-          ctx.config.tokens.includes(baseName)
-        ) {
-          continue;
+    function handleStyleObject(node: TSESTree.ObjectExpression) {
+      if (!ctx.isStyleObject(node)) return;
+      collectLocalProperties(node);
+
+      for (const prop of node.properties) {
+        if (prop.type !== 'Property') continue;
+
+        const str = getStringValue(prop.value);
+        if (str && str.includes('$')) {
+          checkValue(str, prop.value);
         }
 
-        if (Array.isArray(ctx.config.tokens) && ctx.config.tokens.length > 0) {
-          context.report({
-            node,
-            messageId: 'unknownProperty',
-            data: { token },
-          });
+        if (prop.value.type === 'ObjectExpression') {
+          for (const stateProp of prop.value.properties) {
+            if (stateProp.type !== 'Property') continue;
+            const stateStr = getStringValue(stateProp.value);
+            if (stateStr && stateStr.includes('$')) {
+              checkValue(stateStr, stateProp.value);
+            }
+          }
         }
       }
     }
@@ -69,27 +85,25 @@ export default createRule<[], MessageIds>({
         ctx.trackImport(node);
       },
 
-      'CallExpression ObjectExpression'(node: TSESTree.ObjectExpression) {
-        if (!ctx.isStyleObject(node)) return;
-        collectLocalProperties(node);
+      ...styleObjectListeners(handleStyleObject),
 
-        for (const prop of node.properties) {
-          if (prop.type !== 'Property') continue;
+      'Program:exit'() {
+        if (
+          !Array.isArray(ctx.config.tokens) ||
+          ctx.config.tokens.length === 0
+        ) {
+          return;
+        }
 
-          const str = getStringValue(prop.value);
-          if (str && str.includes('$')) {
-            checkValue(str, prop.value);
-          }
+        for (const { token, baseName, node } of pendingChecks) {
+          if (fileCustomProperties.has(baseName)) continue;
+          if (ctx.config.tokens.includes(baseName)) continue;
 
-          if (prop.value.type === 'ObjectExpression') {
-            for (const stateProp of prop.value.properties) {
-              if (stateProp.type !== 'Property') continue;
-              const stateStr = getStringValue(stateProp.value);
-              if (stateStr && stateStr.includes('$')) {
-                checkValue(stateStr, stateProp.value);
-              }
-            }
-          }
+          context.report({
+            node,
+            messageId: 'unknownProperty',
+            data: { token },
+          });
         }
       },
     };

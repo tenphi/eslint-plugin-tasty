@@ -1,6 +1,6 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
-import { TastyContext } from '../context.js';
+import { TastyContext, styleObjectListeners } from '../context.js';
 import { getKeyName, getStringValue } from '../utils.js';
 import { PRESET_MODIFIERS } from '../constants.js';
 
@@ -92,12 +92,16 @@ export default createRule<[], MessageIds>({
       }
     }
 
+    function handleStyleObject(node: TSESTree.ObjectExpression) {
+      checkObject(node);
+    }
+
     return {
       ImportDeclaration(node) {
         ctx.trackImport(node);
       },
 
-      ObjectExpression: checkObject,
+      ...styleObjectListeners(handleStyleObject),
     };
   },
 });

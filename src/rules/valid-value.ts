@@ -1,16 +1,22 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
-import { TastyContext } from '../context.js';
+import { TastyContext, styleObjectListeners } from '../context.js';
 import { getKeyName, getStringValue } from '../utils.js';
-import { getParser } from '../parser.js';
+import { parseValue } from '../parsers/value-parser.js';
+import type { ValueParserOptions } from '../parsers/value-parser.js';
 import { getExpectation } from '../property-expectations.js';
 
-const CSS_GLOBAL_KEYWORDS = new Set([
-  'inherit',
-  'initial',
-  'unset',
-  'revert',
-  'revert-layer',
+const SKIP_PROPERTIES = new Set([
+  'recipe',
+  '@keyframes',
+  '@properties',
+  'content',
+  'animation',
+  'animationName',
+  'gridAreas',
+  'gridTemplate',
+  'listStyle',
+  'willChange',
 ]);
 
 type MessageIds =
@@ -18,7 +24,9 @@ type MessageIds =
   | 'importantNotAllowed'
   | 'unexpectedMod'
   | 'unexpectedColor'
-  | 'invalidMod';
+  | 'invalidMod'
+  | 'unknownToken'
+  | 'parseError';
 
 export default createRule<[], MessageIds>({
   name: 'valid-value',
@@ -26,7 +34,7 @@ export default createRule<[], MessageIds>({
     type: 'problem',
     docs: {
       description:
-        'Parse style values through the tasty parser and validate against per-property expectations',
+        'Parse style values through the value parser and validate against per-property expectations',
     },
     messages: {
       unbalancedParens: 'Unbalanced parentheses in value.',
@@ -38,6 +46,9 @@ export default createRule<[], MessageIds>({
         "Property '{{property}}' does not accept color tokens, but found '{{color}}'.",
       invalidMod:
         "Modifier '{{mod}}' is not valid for '{{property}}'. Accepted: {{accepted}}.",
+      unknownToken:
+        "Unknown token '{{token}}' in '{{property}}' value.",
+      parseError: '{{message}}',
     },
     schema: [],
   },
@@ -45,21 +56,19 @@ export default createRule<[], MessageIds>({
   create(context) {
     const ctx = new TastyContext(context);
 
-    function checkParenBalance(value: string, node: TSESTree.Node): boolean {
-      let depth = 0;
-      for (const char of value) {
-        if (char === '(') depth++;
-        if (char === ')') depth--;
-        if (depth < 0) {
-          context.report({ node, messageId: 'unbalancedParens' });
-          return false;
-        }
+    function getParserOpts(): ValueParserOptions {
+      const opts: ValueParserOptions = {};
+      if (ctx.config.units === false) {
+        opts.skipUnitValidation = true;
+      } else if (Array.isArray(ctx.config.units)) {
+        opts.knownUnits = new Set(ctx.config.units);
       }
-      if (depth !== 0) {
-        context.report({ node, messageId: 'unbalancedParens' });
-        return false;
+      if (ctx.config.funcs === false) {
+        opts.skipFuncValidation = true;
+      } else if (Array.isArray(ctx.config.funcs)) {
+        opts.knownFuncs = new Set(ctx.config.funcs);
       }
-      return true;
+      return opts;
     }
 
     function checkValue(
@@ -67,53 +76,111 @@ export default createRule<[], MessageIds>({
       property: string | null,
       node: TSESTree.Node,
     ): void {
-      if (!checkParenBalance(value, node)) return;
+      if (property && SKIP_PROPERTIES.has(property)) return;
 
-      if (value.includes('!important')) {
-        context.report({ node, messageId: 'importantNotAllowed' });
-        return;
+      const result = parseValue(value, getParserOpts());
+
+      const erroredRaws = new Set<string>();
+
+      // Report parser-level errors (bracket balance, unknown units/functions)
+      for (const error of result.errors) {
+        if (error.message.includes('parenthes')) {
+          context.report({ node, messageId: 'unbalancedParens' });
+          return;
+        }
+        context.report({
+          node,
+          messageId: 'parseError',
+          data: { message: error.message },
+        });
+        if (error.raw) {
+          erroredRaws.add(error.raw);
+        }
       }
 
       if (!property) return;
 
-      const parser = getParser(ctx.config);
-      const result = parser.process(value);
       const expectation = getExpectation(property);
 
       for (const group of result.groups) {
-        if (!expectation.acceptsColor && group.colors.length > 0) {
-          for (const color of group.colors) {
-            context.report({
-              node,
-              messageId: 'unexpectedColor',
-              data: { property, color },
-            });
-          }
-        }
+        for (const part of group.parts) {
+          for (const token of part.tokens) {
+            // Check !important
+            if (token.type === 'important') {
+              context.report({ node, messageId: 'importantNotAllowed' });
+              continue;
+            }
 
-        const mods = group.mods.filter((m) => !CSS_GLOBAL_KEYWORDS.has(m));
-
-        if (expectation.acceptsMods === false && mods.length > 0) {
-          for (const mod of mods) {
-            context.report({
-              node,
-              messageId: 'unexpectedMod',
-              data: { property, mod },
-            });
-          }
-        } else if (Array.isArray(expectation.acceptsMods) && mods.length > 0) {
-          const allowed = new Set(expectation.acceptsMods);
-          for (const mod of mods) {
-            if (!allowed.has(mod)) {
+            // Check color tokens in non-color properties
+            if (
+              !expectation.acceptsColor &&
+              (token.type === 'color-token' || token.type === 'color-ref')
+            ) {
+              const colorName =
+                token.type === 'color-token'
+                  ? `#${token.name}`
+                  : `##${token.name}`;
               context.report({
                 node,
-                messageId: 'invalidMod',
-                data: {
-                  property,
-                  mod,
-                  accepted: expectation.acceptsMods.join(', '),
-                },
+                messageId: 'unexpectedColor',
+                data: { property, color: colorName },
               });
+              continue;
+            }
+
+            // Check color functions in non-color properties
+            if (
+              !expectation.acceptsColor &&
+              token.type === 'css-function' &&
+              isColorFunction(token.name)
+            ) {
+              context.report({
+                node,
+                messageId: 'unexpectedColor',
+                data: { property, color: `${token.name}()` },
+              });
+              continue;
+            }
+
+            // Skip tokens already reported via parser errors
+            if (
+              (token.type === 'unknown' || token.type === 'css-function') &&
+              'raw' in token &&
+              token.raw &&
+              erroredRaws.has(token.raw)
+            ) {
+              continue;
+            }
+
+            // Check unknown tokens against property expectations
+            if (token.type === 'unknown') {
+              const raw = token.raw;
+
+              if (expectation.acceptsMods === false) {
+                context.report({
+                  node,
+                  messageId: 'unexpectedMod',
+                  data: { property, mod: raw },
+                });
+              } else if (Array.isArray(expectation.acceptsMods)) {
+                if (!expectation.acceptsMods.includes(raw)) {
+                  context.report({
+                    node,
+                    messageId: 'invalidMod',
+                    data: {
+                      property,
+                      mod: raw,
+                      accepted: expectation.acceptsMods.join(', '),
+                    },
+                  });
+                }
+              } else {
+                context.report({
+                  node,
+                  messageId: 'unknownToken',
+                  data: { property, token: raw },
+                });
+              }
             }
           }
         }
@@ -145,19 +212,39 @@ export default createRule<[], MessageIds>({
       }
     }
 
+    function handleStyleObject(node: TSESTree.ObjectExpression) {
+      if (!ctx.isStyleObject(node)) return;
+
+      for (const prop of node.properties) {
+        if (prop.type !== 'Property') continue;
+        processProperty(prop);
+      }
+    }
+
     return {
       ImportDeclaration(node) {
         ctx.trackImport(node);
       },
-
-      'CallExpression ObjectExpression'(node: TSESTree.ObjectExpression) {
-        if (!ctx.isStyleObject(node)) return;
-
-        for (const prop of node.properties) {
-          if (prop.type !== 'Property') continue;
-          processProperty(prop);
-        }
-      },
+      ...styleObjectListeners(handleStyleObject),
     };
   },
 });
+
+const COLOR_FUNC_NAMES = new Set([
+  'rgb',
+  'rgba',
+  'hsl',
+  'hsla',
+  'hwb',
+  'lab',
+  'lch',
+  'oklab',
+  'oklch',
+  'color',
+  'color-mix',
+  'color-contrast',
+]);
+
+function isColorFunction(name: string): boolean {
+  return COLOR_FUNC_NAMES.has(name);
+}

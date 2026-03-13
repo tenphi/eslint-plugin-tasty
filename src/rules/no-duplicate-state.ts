@@ -1,6 +1,6 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
-import { TastyContext } from '../context.js';
+import { TastyContext, styleObjectListeners } from '../context.js';
 import { getKeyName, getStringValue } from '../utils.js';
 
 type MessageIds = 'duplicateState';
@@ -46,29 +46,30 @@ export default createRule<[], MessageIds>({
       }
     }
 
+    function handleStyleObject(node: TSESTree.ObjectExpression) {
+      if (!ctx.isStyleObject(node)) return;
+
+      for (const prop of node.properties) {
+        if (prop.type !== 'Property' || prop.computed) continue;
+
+        const key = getKeyName(prop.key);
+        if (key === null) continue;
+
+        // Skip sub-elements and special keys
+        if (/^[A-Z@&]/.test(key)) continue;
+
+        // Check state map objects for duplicates
+        if (prop.value.type === 'ObjectExpression') {
+          checkDuplicates(prop.value);
+        }
+      }
+    }
+
     return {
       ImportDeclaration(node) {
         ctx.trackImport(node);
       },
-
-      'CallExpression ObjectExpression'(node: TSESTree.ObjectExpression) {
-        if (!ctx.isStyleObject(node)) return;
-
-        for (const prop of node.properties) {
-          if (prop.type !== 'Property' || prop.computed) continue;
-
-          const key = getKeyName(prop.key);
-          if (key === null) continue;
-
-          // Skip sub-elements and special keys
-          if (/^[A-Z@&]/.test(key)) continue;
-
-          // Check state map objects for duplicates
-          if (prop.value.type === 'ObjectExpression') {
-            checkDuplicates(prop.value);
-          }
-        }
-      },
+      ...styleObjectListeners(handleStyleObject),
     };
   },
 });

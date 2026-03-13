@@ -196,13 +196,13 @@ tester.run('valid-value', rule, {
       `,
       errors: [{ messageId: 'importantNotAllowed' }],
     },
-    // fill doesn't accept mods — typo 'purle' becomes a mod
+    // fill doesn't accept unknown tokens — typo 'purle'
     {
       code: `
         import { tasty } from '@tenphi/tasty';
         tasty({ styles: { fill: 'purle' } });
       `,
-      errors: [{ messageId: 'unexpectedMod' }],
+      errors: [{ messageId: 'invalidMod' }],
     },
     // padding doesn't accept colors
     {
@@ -266,7 +266,7 @@ tester.run('valid-value', rule, {
         import { tasty } from '@tenphi/tasty';
         tasty({ styles: { fill: { '': '#white', ':hover': 'purle' } } });
       `,
-      errors: [{ messageId: 'unexpectedMod' }],
+      errors: [{ messageId: 'invalidMod' }],
     },
     // gap doesn't accept colors
     {

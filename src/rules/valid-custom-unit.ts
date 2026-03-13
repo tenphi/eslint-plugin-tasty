@@ -1,6 +1,6 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
-import { TastyContext } from '../context.js';
+import { TastyContext, styleObjectListeners } from '../context.js';
 import { getStringValue, extractCustomUnit, isValidUnit } from '../utils.js';
 
 type MessageIds = 'unknownUnit';
@@ -64,45 +64,29 @@ export default createRule<[], MessageIds>({
       }
     }
 
-    return {
-      ImportDeclaration(node) {
-        ctx.trackImport(node);
-      },
+    function handleStyleObject(node: TSESTree.ObjectExpression) {
+      if (!ctx.isStyleObject(node)) return;
 
-      'CallExpression ObjectExpression Property'(node: TSESTree.Property) {
-        const objExpr = node.parent as TSESTree.ObjectExpression;
-        const callExpr = objExpr.parent;
-        if (
-          callExpr?.type !== 'CallExpression' &&
-          callExpr?.type !== 'Property'
-        )
-          return;
+      for (const prop of node.properties) {
+        if (prop.type !== 'Property') continue;
 
-        // Find closest object expression that is a style object
-        let current: TSESTree.Node | undefined = objExpr;
-        while (current) {
-          if (
-            current.type === 'ObjectExpression' &&
-            ctx.isStyleObject(current)
-          ) {
-            break;
-          }
-          current = current.parent;
-        }
-        if (!current) return;
+        checkNode(prop.value);
 
-        // Check value
-        checkNode(node.value);
-
-        // Check state map values
-        if (node.value.type === 'ObjectExpression') {
-          for (const stateProp of node.value.properties) {
+        if (prop.value.type === 'ObjectExpression') {
+          for (const stateProp of prop.value.properties) {
             if (stateProp.type === 'Property') {
               checkNode(stateProp.value);
             }
           }
         }
+      }
+    }
+
+    return {
+      ImportDeclaration(node) {
+        ctx.trackImport(node);
       },
+      ...styleObjectListeners(handleStyleObject),
     };
   },
 });

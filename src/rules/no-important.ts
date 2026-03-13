@@ -1,6 +1,6 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
-import { TastyContext } from '../context.js';
+import { TastyContext, styleObjectListeners } from '../context.js';
 import { getStringValue } from '../utils.js';
 
 type MessageIds = 'noImportant';
@@ -29,28 +29,29 @@ export default createRule<[], MessageIds>({
       }
     }
 
+    function handleStyleObject(node: TSESTree.ObjectExpression) {
+      if (!ctx.isStyleObject(node)) return;
+
+      for (const prop of node.properties) {
+        if (prop.type !== 'Property') continue;
+
+        checkNode(prop.value);
+
+        if (prop.value.type === 'ObjectExpression') {
+          for (const stateProp of prop.value.properties) {
+            if (stateProp.type === 'Property') {
+              checkNode(stateProp.value);
+            }
+          }
+        }
+      }
+    }
+
     return {
       ImportDeclaration(node) {
         ctx.trackImport(node);
       },
-
-      'CallExpression ObjectExpression'(node: TSESTree.ObjectExpression) {
-        if (!ctx.isStyleObject(node)) return;
-
-        for (const prop of node.properties) {
-          if (prop.type !== 'Property') continue;
-
-          checkNode(prop.value);
-
-          if (prop.value.type === 'ObjectExpression') {
-            for (const stateProp of prop.value.properties) {
-              if (stateProp.type === 'Property') {
-                checkNode(stateProp.value);
-              }
-            }
-          }
-        }
-      },
+      ...styleObjectListeners(handleStyleObject),
     };
   },
 });

@@ -30,6 +30,7 @@ const ruleMap: Record<string, TSESLint.RuleModule<string, unknown[]>> = {
   'no-styles-prop': rules.noStylesProp,
   'consistent-token-usage': rules.consistentTokenUsage,
   'no-runtime-styles-mutation': rules.noRuntimeStylesMutation,
+  'valid-state-definition': rules.validStateDefinition,
 };
 
 const plugin = {

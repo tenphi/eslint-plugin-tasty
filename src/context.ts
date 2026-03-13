@@ -3,6 +3,33 @@ import type { RuleContext } from '@typescript-eslint/utils/ts-eslint';
 import type { ResolvedConfig } from './types.js';
 import { loadConfig } from './config.js';
 import { DEFAULT_IMPORT_SOURCES } from './constants.js';
+import { getKeyName } from './utils.js';
+
+/**
+ * AST selectors that match ObjectExpressions in all known tasty style contexts:
+ * call sites, variable declarations, satisfies/as expressions.
+ */
+export const STYLE_OBJECT_SELECTORS = [
+  'CallExpression ObjectExpression',
+  'VariableDeclarator > ObjectExpression',
+  'VariableDeclarator > TSSatisfiesExpression > ObjectExpression',
+  'VariableDeclarator > TSAsExpression > ObjectExpression',
+] as const;
+
+/**
+ * Creates a record of ESLint listeners that all point to the same handler,
+ * one entry per style-object AST selector.
+ */
+export function styleObjectListeners(
+  handler: (node: TSESTree.ObjectExpression) => void,
+): Record<string, (node: TSESTree.ObjectExpression) => void> {
+  const listeners: Record<string, (node: TSESTree.ObjectExpression) => void> =
+    {};
+  for (const selector of STYLE_OBJECT_SELECTORS) {
+    listeners[selector] = handler;
+  }
+  return listeners;
+}
 
 export interface TastyImport {
   localName: string;
@@ -15,6 +42,7 @@ const TASTY_FUNCTION_NAMES = new Set([
   'tastyStatic',
   'useStyles',
   'useGlobalStyles',
+  'configure',
 ]);
 
 /**
@@ -82,6 +110,20 @@ export class TastyContext {
     isSelectorMode: boolean;
     isExtending: boolean;
   } | null {
+    // Sub-element objects inherit their parent style object's context
+    if (node.type === 'ObjectExpression') {
+      const parent = node.parent;
+      if (parent?.type === 'Property' && !parent.computed) {
+        const key = getKeyName(parent.key);
+        if (key && /^[A-Z]/.test(key)) {
+          const grandparent = parent.parent;
+          if (grandparent?.type === 'ObjectExpression') {
+            return this.getStyleContext(grandparent);
+          }
+        }
+      }
+    }
+
     let current: TSESTree.Node | undefined = node;
 
     while (current) {
@@ -303,14 +345,14 @@ export class TastyContext {
     node: TSESTree.ObjectExpression,
     parentProperty: TSESTree.Property,
   ): boolean {
-    const key = parentProperty.key;
-    if (key.type !== 'Identifier') return false;
+    const keyName = getKeyName(parentProperty.key);
+    if (keyName === null) return false;
 
     // If the key starts with uppercase, it's a sub-element, not a state map
-    if (/^[A-Z]/.test(key.name)) return false;
+    if (/^[A-Z]/.test(keyName)) return false;
 
     // Special keys are not state maps
-    if (key.name === '@keyframes' || key.name === '@properties') return false;
+    if (keyName === '@keyframes' || keyName === '@properties') return false;
 
     // If the object has keys that look like state expressions, it's a state map
     return node.properties.some((prop) => {

@@ -12,10 +12,10 @@ const CONFIG_FILENAMES = [
 
 interface CachedConfig {
   config: ResolvedConfig;
-  mtimes: Map<string, number>;
+  fileMtimes: Map<string, number>;
 }
 
-let cachedConfig: CachedConfig | null = null;
+const configCache = new Map<string, CachedConfig>();
 
 function findProjectRoot(startDir: string): string | null {
   let dir = startDir;
@@ -54,18 +54,74 @@ function findConfigFile(projectRoot: string): string | null {
 }
 
 function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+  let result = '';
+  let i = 0;
+  while (i < source.length) {
+    const ch = source[i];
+    if (ch === '"' || ch === "'" || ch === '`') {
+      result += ch;
+      i++;
+      while (i < source.length && source[i] !== ch) {
+        if (source[i] === '\\') {
+          result += source[i++];
+        }
+        if (i < source.length) {
+          result += source[i++];
+        }
+      }
+      if (i < source.length) {
+        result += source[i++];
+      }
+      continue;
+    }
+    if (ch === '/' && source[i + 1] === '*') {
+      i += 2;
+      while (i < source.length && !(source[i] === '*' && source[i + 1] === '/')) {
+        i++;
+      }
+      i += 2;
+      continue;
+    }
+    if (ch === '/' && source[i + 1] === '/') {
+      while (i < source.length && source[i] !== '\n') {
+        i++;
+      }
+      continue;
+    }
+    result += source[i++];
+  }
+  return result;
+}
+
+function stripImports(source: string): string {
+  return source.replace(/^\s*import\s+.*?;\s*$/gm, '');
 }
 
 function extractBalancedBraces(content: string, start: number): string | null {
   if (content[start] !== '{') return null;
   let depth = 0;
   for (let i = start; i < content.length; i++) {
-    if (content[i] === '{') depth++;
-    else if (content[i] === '}') depth--;
+    const ch = content[i];
+    if (ch === '"' || ch === "'" || ch === '`') {
+      i++;
+      while (i < content.length && content[i] !== ch) {
+        if (content[i] === '\\') i++;
+        i++;
+      }
+      continue;
+    }
+    if (ch === '{') depth++;
+    else if (ch === '}') depth--;
     if (depth === 0) return content.slice(start, i + 1);
   }
   return null;
+}
+
+function stripTypeScriptSyntax(source: string): string {
+  return source
+    .replace(/\bas\s+const\b/g, '')
+    .replace(/\bsatisfies\s+[A-Z]\w*(?:<[^>]*>)?/g, '')
+    .replace(/\bas\s+[A-Z]\w*(?:<[^>]*>)?/g, '');
 }
 
 function loadRawConfig(configPath: string): TastyValidationConfig {
@@ -75,17 +131,20 @@ function loadRawConfig(configPath: string): TastyValidationConfig {
     return JSON.parse(content) as TastyValidationConfig;
   }
 
-  const stripped = stripComments(content);
+  const stripped = stripImports(stripComments(content));
   const match = stripped.match(/export\s+default\s+/);
   if (match && match.index != null) {
     const braceStart = match.index + match[0].length;
     const objectStr = extractBalancedBraces(stripped, braceStart);
     if (objectStr) {
+      const cleaned = stripTypeScriptSyntax(objectStr);
       try {
-        const fn = new Function(`return (${objectStr})`);
+        const fn = new Function(`return (${cleaned})`);
         return fn() as TastyValidationConfig;
-      } catch {
-        // fall through
+      } catch (err) {
+        console.warn(
+          `[eslint-plugin-tasty] Failed to parse config file ${configPath}: ${err instanceof Error ? err.message : err}`,
+        );
       }
     }
   }
@@ -132,17 +191,23 @@ function mergeConfigs(
   return result;
 }
 
+interface ConfigChainResult {
+  config: TastyValidationConfig;
+  chainPaths: string[];
+}
+
 function resolveConfigChain(
   configPath: string,
   visited = new Set<string>(),
-): TastyValidationConfig {
+): ConfigChainResult {
   const absPath = resolve(configPath);
-  if (visited.has(absPath)) return {};
+  if (visited.has(absPath)) return { config: {}, chainPaths: [] };
   visited.add(absPath);
 
   const config = loadRawConfig(absPath);
+  const chainPaths = [absPath];
 
-  if (!config.extends) return config;
+  if (!config.extends) return { config, chainPaths };
 
   let parentPath: string;
   if (config.extends.startsWith('.') || config.extends.startsWith('/')) {
@@ -154,15 +219,18 @@ function resolveConfigChain(
       if (pkgConfig) {
         parentPath = pkgConfig;
       } else {
-        return config;
+        return { config, chainPaths };
       }
     } else {
-      return config;
+      return { config, chainPaths };
     }
   }
 
-  const parentConfig = resolveConfigChain(parentPath, visited);
-  return mergeConfigs(parentConfig, config);
+  const parentResult = resolveConfigChain(parentPath, visited);
+  return {
+    config: mergeConfigs(parentResult.config, config),
+    chainPaths: [...parentResult.chainPaths, ...chainPaths],
+  };
 }
 
 function toResolved(config: TastyValidationConfig): ResolvedConfig {
@@ -189,6 +257,29 @@ const DEFAULT_CONFIG: ResolvedConfig = {
   importSources: DEFAULT_IMPORT_SOURCES,
 };
 
+function getMtimes(paths: string[]): Map<string, number> {
+  const mtimes = new Map<string, number>();
+  for (const p of paths) {
+    try {
+      mtimes.set(p, statSync(p).mtimeMs);
+    } catch {
+      mtimes.set(p, -1);
+    }
+  }
+  return mtimes;
+}
+
+function mtimesMatch(
+  cached: Map<string, number>,
+  current: Map<string, number>,
+): boolean {
+  if (cached.size !== current.size) return false;
+  for (const [path, mtime] of cached) {
+    if (current.get(path) !== mtime) return false;
+  }
+  return true;
+}
+
 export function loadConfig(filePath: string): ResolvedConfig {
   const projectRoot = findProjectRoot(dirname(resolve(filePath)));
   if (!projectRoot) return DEFAULT_CONFIG;
@@ -196,22 +287,19 @@ export function loadConfig(filePath: string): ResolvedConfig {
   const configFile = findConfigFile(projectRoot);
   if (!configFile) return DEFAULT_CONFIG;
 
-  const currentMtime = statSync(configFile).mtimeMs;
-
-  if (cachedConfig) {
-    const cachedMtime = cachedConfig.mtimes.get(configFile);
-    if (cachedMtime === currentMtime) {
-      return cachedConfig.config;
+  const cached = configCache.get(configFile);
+  if (cached) {
+    const currentMtimes = getMtimes([...cached.fileMtimes.keys()]);
+    if (mtimesMatch(cached.fileMtimes, currentMtimes)) {
+      return cached.config;
     }
   }
 
-  const rawConfig = resolveConfigChain(configFile);
+  const { config: rawConfig, chainPaths } = resolveConfigChain(configFile);
   const resolved = toResolved(rawConfig);
+  const fileMtimes = getMtimes(chainPaths);
 
-  cachedConfig = {
-    config: resolved,
-    mtimes: new Map([[configFile, currentMtime]]),
-  };
+  configCache.set(configFile, { config: resolved, fileMtimes });
 
   return resolved;
 }

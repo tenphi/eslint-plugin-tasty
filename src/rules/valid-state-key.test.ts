@@ -223,7 +223,7 @@ tester.run('valid-state-key', rule, {
           },
         }});
       `,
-      errors: [{ messageId: 'unparseable' }],
+      errors: [{ messageId: 'invalidStateKey' }],
     },
     // Invalid token (starts with number)
     {
@@ -236,7 +236,7 @@ tester.run('valid-state-key', rule, {
           },
         }});
       `,
-      errors: [{ messageId: 'unparseable' }],
+      errors: [{ messageId: 'invalidStateKey' }],
     },
     // @own() outside sub-element
     {
