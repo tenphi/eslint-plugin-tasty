@@ -19,6 +19,7 @@ export const recommended: TSESLint.SharedConfig.RulesRecord = {
   'tasty/valid-preset': 'error',
   'tasty/valid-recipe': 'error',
   'tasty/valid-transition': 'warn',
+  'tasty/require-default-state': 'error',
 };
 
 export const strict: TSESLint.SharedConfig.RulesRecord = {

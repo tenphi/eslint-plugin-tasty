@@ -92,6 +92,7 @@ export default {
 | `tasty/no-nested-selector` | warn | `&`-prefixed nested selectors (use sub-elements) |
 | `tasty/static-no-dynamic-values` | error | Dynamic values in `tastyStatic()` |
 | `tasty/static-valid-selector` | error | Invalid selector in `tastyStatic(selector, ...)` |
+| `tasty/require-default-state` | error | Missing default (`''`) key in state mappings (skipped for extending calls) |
 
 ### Strict (includes all recommended rules)
 
@@ -105,12 +106,6 @@ export default {
 | `tasty/no-raw-color-values` | warn | Raw hex/rgb instead of tokens |
 | `tasty/consistent-token-usage` | warn | Raw px values when tokens exist |
 | `tasty/no-runtime-styles-mutation` | warn | Dynamic values in style objects |
-
-### Off by Default
-
-| Rule | Description |
-|------|-------------|
-| `tasty/require-default-state` | Missing `''` key in state mappings |
 
 ## License
 
