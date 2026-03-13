@@ -205,7 +205,11 @@ export class TastyContext {
 
     if (init !== targetNode) return false;
 
-    if (/styles?$/i.test(current.id.name)) return true;
+    const name = current.id.name;
+
+    if (/^[A-Z][A-Z0-9_]*$/.test(name)) return false;
+
+    if (/styles?$/i.test(name)) return true;
 
     if (this.hasStylesTypeAnnotation(current)) return true;
 

@@ -532,6 +532,17 @@ export const SEMANTIC_TRANSITIONS = new Set([
   'dimension',
   'flow',
   'inset',
+  'text',
+  'opacity',
+  'translate',
+  'rotate',
+  'scale',
+  'filter',
+  'image',
+  'background',
+  'width',
+  'height',
+  'zIndex',
 ]);
 
 /**

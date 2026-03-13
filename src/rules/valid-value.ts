@@ -8,6 +8,8 @@ import { getExpectation } from '../property-expectations.js';
 
 const SKIP_PROPERTIES = new Set([
   'recipe',
+  'preset',
+  'transition',
   '@keyframes',
   '@properties',
   'content',
