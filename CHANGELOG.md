@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 0.4.0
+
+### Minor Changes
+
+- [`50b5d97`](https://github.com/tenphi/eslint-plugin-tasty/commit/50b5d970aa65ee076d309c7eba360d57800ecb31) Thanks [@tenphi](https://github.com/tenphi)! - Improve various rules and bring own parser for enchanced validation.
+
 ## 0.3.1
 
 ### Patch Changes
