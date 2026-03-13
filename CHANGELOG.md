@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 0.4.2
+
+### Patch Changes
+
+- [`83752d9`](https://github.com/tenphi/eslint-plugin-tasty/commit/83752d90fc16c6402948a56808fe380f6298035e) Thanks [@tenphi](https://github.com/tenphi)! - Fix preset validation.
+
 ## 0.4.1
 
 ### Patch Changes
