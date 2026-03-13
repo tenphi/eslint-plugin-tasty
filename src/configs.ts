@@ -26,7 +26,6 @@ export const strict: TSESLint.SharedConfig.RulesRecord = {
   'tasty/prefer-shorthand-property': 'warn',
   'tasty/valid-custom-property': 'warn',
   'tasty/no-unknown-state-alias': 'warn',
-  'tasty/no-duplicate-state': 'warn',
   'tasty/no-styles-prop': 'warn',
   'tasty/no-raw-color-values': 'warn',
   'tasty/consistent-token-usage': 'warn',

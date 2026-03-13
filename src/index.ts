@@ -24,7 +24,6 @@ const ruleMap: Record<string, TSESLint.RuleModule<string, unknown[]>> = {
   'prefer-shorthand-property': rules.preferShorthandProperty,
   'valid-transition': rules.validTransition,
   'require-default-state': rules.requireDefaultState,
-  'no-duplicate-state': rules.noDuplicateState,
   'no-unknown-state-alias': rules.noUnknownStateAlias,
   'no-raw-color-values': rules.noRawColorValues,
   'no-styles-prop': rules.noStylesProp,

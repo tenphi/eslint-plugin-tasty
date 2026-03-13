@@ -86,6 +86,9 @@ export default {
 | `tasty/valid-sub-element` | error | Sub-element values must be style objects |
 | `tasty/valid-directional-modifier` | error | Directional modifiers on wrong properties |
 | `tasty/valid-radius-shape` | error | Unknown radius shape keywords |
+| `tasty/valid-preset` | error | Unknown preset names |
+| `tasty/valid-recipe` | error | Unknown recipe names |
+| `tasty/valid-transition` | warn | Unknown transition property names |
 | `tasty/no-nested-selector` | warn | `&`-prefixed nested selectors (use sub-elements) |
 | `tasty/static-no-dynamic-values` | error | Dynamic values in `tastyStatic()` |
 | `tasty/static-valid-selector` | error | Invalid selector in `tastyStatic(selector, ...)` |
@@ -95,12 +98,9 @@ export default {
 | Rule | Severity | Description |
 |------|----------|-------------|
 | `tasty/prefer-shorthand-property` | warn | Use tasty shorthand over native CSS |
-| `tasty/valid-preset` | error | Unknown preset names |
-| `tasty/valid-recipe` | error | Unknown recipe names |
-| `tasty/valid-transition` | warn | Unknown transition names |
 | `tasty/valid-custom-property` | warn | Unknown `$name` custom properties |
+| `tasty/valid-state-definition` | warn | Invalid state definition values in `configure()` or `tasty.config` |
 | `tasty/no-unknown-state-alias` | warn | Unknown `@name` state aliases |
-| `tasty/no-duplicate-state` | warn | Duplicate state keys in mappings |
 | `tasty/no-styles-prop` | warn | Direct `styles` prop usage |
 | `tasty/no-raw-color-values` | warn | Raw hex/rgb instead of tokens |
 | `tasty/consistent-token-usage` | warn | Raw px values when tokens exist |
