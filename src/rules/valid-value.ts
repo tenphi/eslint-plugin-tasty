@@ -48,8 +48,7 @@ export default createRule<[], MessageIds>({
         "Property '{{property}}' does not accept color tokens, but found '{{color}}'.",
       invalidMod:
         "Modifier '{{mod}}' is not valid for '{{property}}'. Accepted: {{accepted}}.",
-      unknownToken:
-        "Unknown token '{{token}}' in '{{property}}' value.",
+      unknownToken: "Unknown token '{{token}}' in '{{property}}' value.",
       parseError: '{{message}}',
     },
     schema: [],

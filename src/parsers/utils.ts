@@ -1,7 +1,5 @@
 export function isWhitespace(ch: string | undefined): boolean {
-  return (
-    ch === ' ' || ch === '\n' || ch === '\t' || ch === '\r' || ch === '\f'
-  );
+  return ch === ' ' || ch === '\n' || ch === '\t' || ch === '\r' || ch === '\f';
 }
 
 export function isDigit(ch: string): boolean {

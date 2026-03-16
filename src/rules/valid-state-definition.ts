@@ -16,8 +16,7 @@ export default createRule<[], MessageIds>({
         'Validate state definition values (the right-hand side of state aliases in configure() or tasty.config)',
     },
     messages: {
-      invalidKeyPrefix:
-        "State alias '{{key}}' must start with '@'.",
+      invalidKeyPrefix: "State alias '{{key}}' must start with '@'.",
       invalidDefinition: '{{reason}}',
     },
     schema: [],
@@ -76,7 +75,7 @@ export default createRule<[], MessageIds>({
       /**
        * Detect configure({ states: { ... } }) calls.
        */
-      'CallExpression'(node: TSESTree.CallExpression) {
+      CallExpression(node: TSESTree.CallExpression) {
         if (node.callee.type !== 'Identifier') return;
 
         const imp = ctx.getImport(node.callee.name);

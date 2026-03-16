@@ -1,5 +1,8 @@
 import { existsSync, readFileSync, statSync } from 'fs';
 import { dirname, join, resolve } from 'path';
+
+import { createJiti } from 'jiti';
+
 import type { ResolvedConfig, TastyValidationConfig } from './types.js';
 import { DEFAULT_IMPORT_SOURCES } from './constants.js';
 
@@ -76,7 +79,10 @@ function stripComments(source: string): string {
     }
     if (ch === '/' && source[i + 1] === '*') {
       i += 2;
-      while (i < source.length && !(source[i] === '*' && source[i + 1] === '/')) {
+      while (
+        i < source.length &&
+        !(source[i] === '*' && source[i + 1] === '/')
+      ) {
         i++;
       }
       i += 2;
@@ -117,6 +123,33 @@ function extractBalancedBraces(content: string, start: number): string | null {
   return null;
 }
 
+function extractImportPaths(configPath: string): string[] {
+  const source = readFileSync(configPath, 'utf-8');
+  const configDir = dirname(configPath);
+  const paths: string[] = [];
+  const re = /^\s*import\s+.*?\s+from\s+['"]([^'"]+)['"]/gm;
+  let m;
+
+  while ((m = re.exec(source)) !== null) {
+    const specifier = m[1];
+
+    if (!specifier.startsWith('.')) continue;
+
+    const abs = resolve(configDir, specifier);
+
+    for (const ext of ['', '.ts', '.js', '.mjs', '.tsx', '.jsx']) {
+      const candidate = abs + ext;
+
+      if (existsSync(candidate)) {
+        paths.push(candidate);
+        break;
+      }
+    }
+  }
+
+  return paths;
+}
+
 function stripTypeScriptSyntax(source: string): string {
   return source
     .replace(/\bas\s+const\b/g, '')
@@ -125,19 +158,37 @@ function stripTypeScriptSyntax(source: string): string {
 }
 
 function loadRawConfig(configPath: string): TastyValidationConfig {
-  const content = readFileSync(configPath, 'utf-8');
-
   if (configPath.endsWith('.json')) {
-    return JSON.parse(content) as TastyValidationConfig;
+    return JSON.parse(
+      readFileSync(configPath, 'utf-8'),
+    ) as TastyValidationConfig;
   }
 
+  // Try jiti first — it resolves imports and TypeScript natively.
+  try {
+    const jiti = createJiti(dirname(configPath), { moduleCache: false });
+    const mod = jiti(configPath) as Record<string, unknown>;
+    const config = (mod.default ?? mod) as TastyValidationConfig;
+
+    if (config && typeof config === 'object') {
+      return config;
+    }
+  } catch {
+    // Fall through to text-based parsing.
+  }
+
+  // Fallback: text-based extraction (no import support).
+  const content = readFileSync(configPath, 'utf-8');
   const stripped = stripImports(stripComments(content));
   const match = stripped.match(/export\s+default\s+/);
+
   if (match && match.index != null) {
     const braceStart = match.index + match[0].length;
     const objectStr = extractBalancedBraces(stripped, braceStart);
+
     if (objectStr) {
       const cleaned = stripTypeScriptSyntax(objectStr);
+
       try {
         const fn = new Function(`return (${cleaned})`);
         return fn() as TastyValidationConfig;
@@ -205,7 +256,8 @@ function resolveConfigChain(
   visited.add(absPath);
 
   const config = loadRawConfig(absPath);
-  const chainPaths = [absPath];
+  const importPaths = extractImportPaths(absPath);
+  const chainPaths = [absPath, ...importPaths];
 
   if (!config.extends) return { config, chainPaths };
 

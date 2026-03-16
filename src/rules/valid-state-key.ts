@@ -5,18 +5,14 @@ import { getKeyName, getStringValue } from '../utils.js';
 import { parseStateKey } from '../parsers/state-key-parser.js';
 import type { StateKeyParserOptions } from '../parsers/state-key-parser.js';
 
-type MessageIds =
-  | 'invalidStateKey'
-  | 'ownOutsideSubElement'
-  | 'unknownAlias';
+type MessageIds = 'invalidStateKey' | 'ownOutsideSubElement' | 'unknownAlias';
 
 export default createRule<[], MessageIds>({
   name: 'valid-state-key',
   meta: {
     type: 'problem',
     docs: {
-      description:
-        'Validate state key syntax in style mapping objects',
+      description: 'Validate state key syntax in style mapping objects',
     },
     messages: {
       invalidStateKey: '{{reason}}',

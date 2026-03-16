@@ -572,7 +572,12 @@ function classifyColorToken(
 
     // Dynamic opacity from CSS custom property
     if (opacitySuffix.startsWith('$')) {
-      return { type: 'color-token', name: tokenName, opacity: opacitySuffix, raw };
+      return {
+        type: 'color-token',
+        name: tokenName,
+        opacity: opacitySuffix,
+        raw,
+      };
     }
 
     if (opacitySuffix.length === 0) {
@@ -688,7 +693,11 @@ export function parseValue(
   }
 
   // Push final group
-  if (currentTokens.length > 0 || currentParts.length > 0 || groups.length === 0) {
+  if (
+    currentTokens.length > 0 ||
+    currentParts.length > 0 ||
+    groups.length === 0
+  ) {
     endGroup();
   }
 

@@ -42,7 +42,10 @@ interface Token {
 const STATE_TOKEN_PATTERN =
   /([&|!^])|([()])|(@media:[a-z]+)|(@media\([^)]*\))|(@supports\([^()]*(?:\([^)]*\))?[^)]*\))|(@root\([^)]*\))|(@parent\([^)]*\))|(@own\([^)]*\))|(@\([^()]*(?:\([^)]*\))?[^)]*\))|(@starting)|(@[A-Za-z][A-Za-z0-9-]*)|([a-z][a-z0-9-]*(?:\^=|\$=|\*=|=)(?:"[^"]*"|'[^']*'|[^\s&|!^()]+))|([a-z][a-z0-9-]+)|(:(?:is|has|not|where)\([^()]*(?:\([^()]*(?:\([^)]*\))?[^)]*\))*[^)]*\))|(:[-a-z][a-z0-9-]*(?:\([^)]+\))?)|(\.[a-z][a-z0-9-]+)|(\[[^\]]+\])/gi;
 
-function tokenize(stateKey: string): { tokens: Token[]; errors: StateKeyError[] } {
+function tokenize(stateKey: string): {
+  tokens: Token[];
+  errors: StateKeyError[];
+} {
   const tokens: Token[] = [];
   const errors: StateKeyError[] = [];
 
@@ -466,29 +469,19 @@ class StateKeyValidator {
     }
 
     // Simple comparison: width < 768px
-    const simpleMatch = condition.match(
-      /^(\S+)\s*(<=|>=|<|>|=)\s*(.+)$/,
-    );
+    const simpleMatch = condition.match(/^(\S+)\s*(<=|>=|<|>|=)\s*(.+)$/);
     if (simpleMatch) {
       const dim = simpleMatch[1];
-      if (
-        DIMENSION_FULL.has(dim) ||
-        DIMENSION_SHORTHANDS.has(dim)
-      ) {
+      if (DIMENSION_FULL.has(dim) || DIMENSION_SHORTHANDS.has(dim)) {
         return;
       }
     }
 
     // Reversed: 768px > width
-    const reversedMatch = condition.match(
-      /^(.+?)\s*(<=|>=|<|>|=)\s*(\S+)$/,
-    );
+    const reversedMatch = condition.match(/^(.+?)\s*(<=|>=|<|>|=)\s*(\S+)$/);
     if (reversedMatch) {
       const dim = reversedMatch[3];
-      if (
-        DIMENSION_FULL.has(dim) ||
-        DIMENSION_SHORTHANDS.has(dim)
-      ) {
+      if (DIMENSION_FULL.has(dim) || DIMENSION_SHORTHANDS.has(dim)) {
         return;
       }
     }

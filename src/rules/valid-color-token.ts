@@ -45,10 +45,7 @@ export default createRule<[], MessageIds>({
       }
     }
 
-    function checkColorTokensInValue(
-      value: string,
-      node: TSESTree.Node,
-    ): void {
+    function checkColorTokensInValue(value: string, node: TSESTree.Node): void {
       const tokenRegex = /##?[a-zA-Z][a-zA-Z0-9-]*(?:\.\$?[a-zA-Z0-9-]+)?/g;
       let match;
 

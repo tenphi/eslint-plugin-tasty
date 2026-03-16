@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { parseValue, flattenTokens, extractTokensByType } from './value-parser.js';
+import {
+  parseValue,
+  flattenTokens,
+  extractTokensByType,
+} from './value-parser.js';
 
 describe('value-parser', () => {
   describe('basic token classification', () => {
