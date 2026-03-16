@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 0.4.3
+
+### Patch Changes
+
+- [`6bd12ae`](https://github.com/tenphi/eslint-plugin-tasty/commit/6bd12ae5ec1befef430abb1147dc676f873ced67) Thanks [@tenphi](https://github.com/tenphi)! - Support imports in `tasty.config.ts` via jiti, enabling dynamic token lists derived from theme files.
+
 ## 0.4.2
 
 ### Patch Changes
