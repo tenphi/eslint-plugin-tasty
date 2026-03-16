@@ -1,4 +1,4 @@
-import { BUILT_IN_STATE_PREFIXES, KNOWN_PSEUDO_CLASSES } from '../constants.js';
+import { KNOWN_PSEUDO_CLASSES } from '../constants.js';
 
 // ============================================================================
 // Types
