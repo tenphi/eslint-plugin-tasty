@@ -123,7 +123,12 @@ export default createRule<[], MessageIds>({
             : getStringValue(stateProp.key);
           if (stateKey === null) continue;
 
-          checkStateKey(stateKey, stateProp.key, insideSubElement, localAliases);
+          checkStateKey(
+            stateKey,
+            stateProp.key,
+            insideSubElement,
+            localAliases,
+          );
         }
       }
     }
