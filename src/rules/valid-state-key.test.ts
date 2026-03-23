@@ -210,6 +210,65 @@ tester.run('valid-state-key', rule, {
         const obj = { fill: { '???': 'red' } };
       `,
     },
+    // Local state alias defined and referenced in the same styles object
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: {
+          '@active': '@root(active)',
+          fill: {
+            '': '#white',
+            '@active': '#blue',
+          },
+        }});
+      `,
+    },
+    // Local state alias used in combined expression
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: {
+          '@active': '@root(active)',
+          fill: {
+            '': '#white',
+            '@active & hovered': '#blue',
+          },
+        }});
+      `,
+    },
+    // Local state alias referenced inside a sub-element
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: {
+          '@active': '@root(active)',
+          Title: {
+            fill: {
+              '': '#white',
+              '@active': '#blue',
+            },
+          },
+        }});
+      `,
+    },
+    // Multiple local state aliases
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: {
+          '@dark': '@root(schema=dark)',
+          '@mobile': '@media(w < 768px)',
+          fill: {
+            '': '#white',
+            '@dark': '#dark-bg',
+          },
+          padding: {
+            '': '2x',
+            '@mobile': '1x',
+          },
+        }});
+      `,
+    },
   ],
   invalid: [
     // Unrecognized characters

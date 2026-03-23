@@ -180,3 +180,64 @@ export function findProperty(
   }
   return undefined;
 }
+
+/**
+ * Collects local predefined state alias names from a styles ObjectExpression.
+ * Local states are top-level `@name` keys with string literal values,
+ * mirroring the runtime's `extractLocalPredefinedStates()`.
+ */
+export function collectLocalStateAliases(
+  node: TSESTree.ObjectExpression,
+): string[] {
+  const aliases: string[] = [];
+
+  for (const prop of node.properties) {
+    if (prop.type !== 'Property' || prop.computed) continue;
+
+    const key = getKeyName(prop.key);
+    if (key === null) continue;
+    if (!/^@[A-Za-z][A-Za-z0-9-]*$/.test(key)) continue;
+
+    // Skip built-in prefixes — they are not local state definitions
+    if (BUILT_IN_STATE_PREFIXES.has(key)) continue;
+
+    // Must have a string value to be a state definition
+    if (getStringValue(prop.value) !== null) {
+      aliases.push(key);
+    }
+  }
+
+  return aliases;
+}
+
+/**
+ * Walks up the AST through sub-element properties (capitalized keys) to find
+ * the outermost styles ObjectExpression. Local states are always defined at
+ * the root level, so sub-elements inherit them.
+ */
+export function findRootStyleObject(
+  node: TSESTree.ObjectExpression,
+): TSESTree.ObjectExpression {
+  let current: TSESTree.ObjectExpression = node;
+
+  while (current.parent) {
+    const parent = current.parent;
+
+    if (parent.type === 'Property' && !parent.computed) {
+      const key = getKeyName(parent.key);
+
+      if (
+        key &&
+        /^[A-Z]/.test(key) &&
+        parent.parent?.type === 'ObjectExpression'
+      ) {
+        current = parent.parent;
+        continue;
+      }
+    }
+
+    break;
+  }
+
+  return current;
+}

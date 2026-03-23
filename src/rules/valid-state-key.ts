@@ -1,7 +1,12 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
-import { getKeyName, getStringValue } from '../utils.js';
+import {
+  getKeyName,
+  getStringValue,
+  collectLocalStateAliases,
+  findRootStyleObject,
+} from '../utils.js';
 import { parseStateKey } from '../parsers/state-key-parser.js';
 import type { StateKeyParserOptions } from '../parsers/state-key-parser.js';
 
@@ -51,6 +56,7 @@ export default createRule<[], MessageIds>({
       key: string,
       keyNode: TSESTree.Node,
       insideSubElement: boolean,
+      localAliases: string[],
     ): void {
       if (key === '') return;
 
@@ -73,16 +79,17 @@ export default createRule<[], MessageIds>({
         });
       }
 
-      // Check aliases against config
-      if (ctx.config.states.length > 0) {
+      // Check aliases against config and local definitions
+      const allKnown = [...ctx.config.states, ...localAliases];
+      if (allKnown.length > 0) {
         for (const alias of result.referencedAliases) {
-          if (!ctx.config.states.includes(alias)) {
+          if (!allKnown.includes(alias)) {
             context.report({
               node: keyNode,
               messageId: 'unknownAlias',
               data: {
                 alias,
-                known: ctx.config.states.join(', '),
+                known: allKnown.join(', '),
               },
             });
           }
@@ -94,6 +101,8 @@ export default createRule<[], MessageIds>({
       if (!ctx.isStyleObject(node)) return;
 
       const insideSubElement = isInsideSubElement(node);
+      const rootObj = findRootStyleObject(node);
+      const localAliases = collectLocalStateAliases(rootObj);
 
       for (const prop of node.properties) {
         if (prop.type !== 'Property' || prop.computed) continue;
@@ -114,7 +123,7 @@ export default createRule<[], MessageIds>({
             : getStringValue(stateProp.key);
           if (stateKey === null) continue;
 
-          checkStateKey(stateKey, stateProp.key, insideSubElement);
+          checkStateKey(stateKey, stateProp.key, insideSubElement, localAliases);
         }
       }
     }

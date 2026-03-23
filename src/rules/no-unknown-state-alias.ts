@@ -1,7 +1,13 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
-import { getKeyName, getStringValue, isKnownStateAlias } from '../utils.js';
+import {
+  getKeyName,
+  getStringValue,
+  isKnownStateAlias,
+  collectLocalStateAliases,
+  findRootStyleObject,
+} from '../utils.js';
 
 type MessageIds = 'unknownAlias';
 
@@ -22,7 +28,10 @@ export default createRule<[], MessageIds>({
   create(context) {
     const ctx = new TastyContext(context);
 
-    function checkStateKeys(obj: TSESTree.ObjectExpression): void {
+    function checkStateKeys(
+      obj: TSESTree.ObjectExpression,
+      localAliases: string[],
+    ): void {
       for (const prop of obj.properties) {
         if (prop.type !== 'Property') continue;
 
@@ -31,7 +40,10 @@ export default createRule<[], MessageIds>({
           : getStringValue(prop.key);
         if (key === null || !key.startsWith('@')) continue;
 
-        if (!isKnownStateAlias(key, ctx.config)) {
+        if (
+          !isKnownStateAlias(key, ctx.config) &&
+          !localAliases.includes(key)
+        ) {
           context.report({
             node: prop.key,
             messageId: 'unknownAlias',
@@ -44,8 +56,11 @@ export default createRule<[], MessageIds>({
     function handleStyleObject(node: TSESTree.ObjectExpression) {
       if (!ctx.isStyleObject(node)) return;
 
-      // Skip if no states configured
-      if (ctx.config.states.length === 0) return;
+      const rootObj = findRootStyleObject(node);
+      const localAliases = collectLocalStateAliases(rootObj);
+
+      // Skip if no states configured and no local aliases
+      if (ctx.config.states.length === 0 && localAliases.length === 0) return;
 
       for (const prop of node.properties) {
         if (prop.type !== 'Property' || prop.computed) continue;
@@ -56,7 +71,7 @@ export default createRule<[], MessageIds>({
 
         // Check state map objects for unknown aliases
         if (prop.value.type === 'ObjectExpression') {
-          checkStateKeys(prop.value);
+          checkStateKeys(prop.value, localAliases);
         }
       }
     }
