@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 0.4.4
+
+### Patch Changes
+
+- [`ec0ed06`](https://github.com/tenphi/eslint-plugin-tasty/commit/ec0ed061fc145aab1e12457c4362600c262b4f79) Thanks [@tenphi](https://github.com/tenphi)! - Fix false positive "unknown state alias" warnings for locally defined states. The `valid-state-key` and `no-unknown-state-alias` rules now recognize `@name` keys with string values defined at the top level of the same `styles` object as valid local predefined state aliases, matching the runtime behavior of `extractLocalPredefinedStates()`.
+
 ## 0.4.3
 
 ### Patch Changes
