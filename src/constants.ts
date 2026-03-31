@@ -108,7 +108,12 @@ export const KNOWN_TASTY_PROPERTIES = new Set([
 /**
  * Special top-level keys that are valid but not regular style properties.
  */
-export const SPECIAL_STYLE_KEYS = new Set(['@keyframes', '@properties']);
+export const SPECIAL_STYLE_KEYS = new Set([
+  '@keyframes',
+  '@properties',
+  '@fontFace',
+  '@counterStyle',
+]);
 
 /**
  * CSS property names (common subset for validation).
@@ -351,7 +356,27 @@ export const KNOWN_CSS_PROPERTIES = new Set([
   'scale',
   'scrollBehavior',
   'scrollMargin',
+  'scrollMarginBlock',
+  'scrollMarginBlockEnd',
+  'scrollMarginBlockStart',
+  'scrollMarginBottom',
+  'scrollMarginInline',
+  'scrollMarginInlineEnd',
+  'scrollMarginInlineStart',
+  'scrollMarginLeft',
+  'scrollMarginRight',
+  'scrollMarginTop',
   'scrollPadding',
+  'scrollPaddingBlock',
+  'scrollPaddingBlockEnd',
+  'scrollPaddingBlockStart',
+  'scrollPaddingBottom',
+  'scrollPaddingInline',
+  'scrollPaddingInlineEnd',
+  'scrollPaddingInlineStart',
+  'scrollPaddingLeft',
+  'scrollPaddingRight',
+  'scrollPaddingTop',
   'scrollSnapAlign',
   'scrollSnapStop',
   'scrollSnapType',
@@ -376,6 +401,7 @@ export const KNOWN_CSS_PROPERTIES = new Set([
   'textOverflow',
   'textRendering',
   'textShadow',
+  'textSizeAdjust',
   'textTransform',
   'textUnderlineOffset',
   'textUnderlinePosition',
@@ -414,7 +440,6 @@ export const BUILT_IN_UNITS = new Set([
   'cr',
   'bw',
   'ow',
-  'fs',
   'lh',
   'sf',
 ]);
@@ -612,6 +637,8 @@ export const BUILT_IN_STATE_PREFIXES = new Set([
   '@starting',
   '@keyframes',
   '@properties',
+  '@fontFace',
+  '@counterStyle',
 ]);
 
 /**

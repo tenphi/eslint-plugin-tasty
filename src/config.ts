@@ -46,15 +46,37 @@ function resolvePackageDir(
   return null;
 }
 
-function findConfigFile(projectRoot: string): string | null {
+function findConfigInDir(dir: string): string | null {
   for (const name of CONFIG_FILENAMES) {
-    const path = join(projectRoot, name);
+    const path = join(dir, name);
     if (existsSync(path)) {
       return path;
     }
   }
   return null;
 }
+
+function collectConfigFiles(
+  startDir: string,
+  projectRoot: string,
+): string[] {
+  const configs: string[] = [];
+  let dir = startDir;
+  const root = resolve(projectRoot);
+
+  while (true) {
+    const found = findConfigInDir(dir);
+    if (found) configs.push(found);
+    if (resolve(dir) === root) break;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+
+  return configs;
+}
+
+const TASTY_PACKAGE_NAME = '@tenphi/tasty';
 
 function stripComments(source: string): string {
   let result = '';
@@ -267,7 +289,7 @@ function resolveConfigChain(
   } else {
     const pkgDir = resolvePackageDir(config.extends, dirname(absPath));
     if (pkgDir) {
-      const pkgConfig = findConfigFile(pkgDir);
+      const pkgConfig = findConfigInDir(pkgDir);
       if (pkgConfig) {
         parentPath = pkgConfig;
       } else {
@@ -333,13 +355,20 @@ function mtimesMatch(
 }
 
 export function loadConfig(filePath: string): ResolvedConfig {
-  const projectRoot = findProjectRoot(dirname(resolve(filePath)));
+  const fileDir = dirname(resolve(filePath));
+  const projectRoot = findProjectRoot(fileDir);
   if (!projectRoot) return DEFAULT_CONFIG;
 
-  const configFile = findConfigFile(projectRoot);
-  if (!configFile) return DEFAULT_CONFIG;
+  const configFiles = collectConfigFiles(fileDir, projectRoot);
 
-  const cached = configCache.get(configFile);
+  const pkgDir = resolvePackageDir(TASTY_PACKAGE_NAME, projectRoot);
+  const pkgConfigFile = pkgDir ? findConfigInDir(pkgDir) : null;
+
+  if (configFiles.length === 0 && !pkgConfigFile) return DEFAULT_CONFIG;
+
+  const cacheKey = [pkgConfigFile ?? '', ...configFiles].join('\0');
+
+  const cached = configCache.get(cacheKey);
   if (cached) {
     const currentMtimes = getMtimes([...cached.fileMtimes.keys()]);
     if (mtimesMatch(cached.fileMtimes, currentMtimes)) {
@@ -347,11 +376,25 @@ export function loadConfig(filePath: string): ResolvedConfig {
     }
   }
 
-  const { config: rawConfig, chainPaths } = resolveConfigChain(configFile);
-  const resolved = toResolved(rawConfig);
-  const fileMtimes = getMtimes(chainPaths);
+  let merged: TastyValidationConfig = {};
+  const allChainPaths: string[] = [];
 
-  configCache.set(configFile, { config: resolved, fileMtimes });
+  if (pkgConfigFile) {
+    const result = resolveConfigChain(pkgConfigFile);
+    merged = result.config;
+    allChainPaths.push(...result.chainPaths);
+  }
+
+  for (let i = configFiles.length - 1; i >= 0; i--) {
+    const { config, chainPaths } = resolveConfigChain(configFiles[i]);
+    merged = mergeConfigs(merged, config);
+    allChainPaths.push(...chainPaths);
+  }
+
+  const resolved = toResolved(merged);
+  const fileMtimes = getMtimes(allChainPaths);
+
+  configCache.set(cacheKey, { config: resolved, fileMtimes });
 
   return resolved;
 }

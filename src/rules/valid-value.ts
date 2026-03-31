@@ -15,8 +15,18 @@ const SKIP_PROPERTIES = new Set([
   'content',
   'animation',
   'animationName',
+  'gridArea',
   'gridAreas',
+  'gridColumn',
+  'gridColumnStart',
+  'gridColumnEnd',
+  'gridRow',
+  'gridRowStart',
+  'gridRowEnd',
   'gridTemplate',
+  'gridTemplateAreas',
+  'gridTemplateColumns',
+  'gridTemplateRows',
   'listStyle',
   'willChange',
 ]);
@@ -157,7 +167,9 @@ export default createRule<[], MessageIds>({
             if (token.type === 'unknown') {
               const raw = token.raw;
 
-              if (expectation.acceptsMods === false) {
+              if (expectation.acceptsMods === true) {
+                // Passthrough: accept any unknown token
+              } else if (expectation.acceptsMods === false) {
                 context.report({
                   node,
                   messageId: 'unexpectedMod',
@@ -175,12 +187,6 @@ export default createRule<[], MessageIds>({
                     },
                   });
                 }
-              } else {
-                context.report({
-                  node,
-                  messageId: 'unknownToken',
-                  data: { property, token: raw },
-                });
               }
             }
           }

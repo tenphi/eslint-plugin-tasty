@@ -7,6 +7,8 @@ type MessageIds =
   | 'stateKeyAtTopLevel'
   | 'invalidKeyframesStructure'
   | 'invalidPropertiesStructure'
+  | 'invalidFontFaceStructure'
+  | 'invalidCounterStyleStructure'
   | 'recipeNotString';
 
 export default createRule<[], MessageIds>({
@@ -24,6 +26,10 @@ export default createRule<[], MessageIds>({
         '@keyframes value must be an object of { name: { step: styles } }.',
       invalidPropertiesStructure:
         '@properties value must be an object of { name: { syntax, inherits, initialValue } }.',
+      invalidFontFaceStructure:
+        '@fontFace value must be an object of { familyName: descriptors | descriptors[] }.',
+      invalidCounterStyleStructure:
+        '@counterStyle value must be an object of { name: descriptors }.',
       recipeNotString: "'recipe' value must be a string.",
     },
     schema: [],
@@ -79,6 +85,28 @@ export default createRule<[], MessageIds>({
             context.report({
               node: prop.value,
               messageId: 'invalidPropertiesStructure',
+            });
+          }
+          continue;
+        }
+
+        // Validate @fontFace structure
+        if (key === '@fontFace') {
+          if (prop.value.type !== 'ObjectExpression') {
+            context.report({
+              node: prop.value,
+              messageId: 'invalidFontFaceStructure',
+            });
+          }
+          continue;
+        }
+
+        // Validate @counterStyle structure
+        if (key === '@counterStyle') {
+          if (prop.value.type !== 'ObjectExpression') {
+            context.report({
+              node: prop.value,
+              messageId: 'invalidCounterStyleStructure',
             });
           }
           continue;
