@@ -115,6 +115,13 @@ tester.run('valid-value', rule, {
         tasty({ styles: { fill: { '': '#white', ':hover': '#purple.1' } } });
       `,
     },
+    // @inherit merge directive is valid for any property
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fill: { '': '#white', isPressed: '@inherit' } } });
+      `,
+    },
     // Sub-elements are skipped (uppercase keys)
     {
       code: `

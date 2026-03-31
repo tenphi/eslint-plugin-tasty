@@ -25,3 +25,4 @@ export { default as noStylesProp } from './no-styles-prop.js';
 export { default as consistentTokenUsage } from './consistent-token-usage.js';
 export { default as noRuntimeStylesMutation } from './no-runtime-styles-mutation.js';
 export { default as validStateDefinition } from './valid-state-definition.js';
+export { default as noOwnAtRoot } from './no-own-at-root.js';

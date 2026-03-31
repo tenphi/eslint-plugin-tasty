@@ -515,6 +515,11 @@ function classifyToken(
     return { type: 'number', value: parseFloat(token), raw: token };
   }
 
+  // Tasty merge directive (@inherit)
+  if (token === '@inherit') {
+    return { type: 'keyword', value: token };
+  }
+
   // Known keyword
   if (VALUE_KEYWORDS.has(token) || VALUE_KEYWORDS.has(token.toLowerCase())) {
     return { type: 'keyword', value: token };

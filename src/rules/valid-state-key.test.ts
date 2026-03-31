@@ -297,18 +297,6 @@ tester.run('valid-state-key', rule, {
       `,
       errors: [{ messageId: 'invalidStateKey' }],
     },
-    // @own() outside sub-element
-    {
-      code: `
-        import { tasty } from '@tenphi/tasty';
-        tasty({ styles: {
-          fill: {
-            '': '#white',
-            '@own(hovered)': '#blue',
-          },
-        }});
-      `,
-      errors: [{ messageId: 'ownOutsideSubElement' }],
-    },
+    // Note: @own() at root is now handled by the 'no-own-at-root' rule
   ],
 });

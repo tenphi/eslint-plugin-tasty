@@ -10,7 +10,7 @@ import {
 import { parseStateKey } from '../parsers/state-key-parser.js';
 import type { StateKeyParserOptions } from '../parsers/state-key-parser.js';
 
-type MessageIds = 'invalidStateKey' | 'ownOutsideSubElement' | 'unknownAlias';
+type MessageIds = 'invalidStateKey' | 'unknownAlias';
 
 export default createRule<[], MessageIds>({
   name: 'valid-state-key',
@@ -21,8 +21,6 @@ export default createRule<[], MessageIds>({
     },
     messages: {
       invalidStateKey: '{{reason}}',
-      ownOutsideSubElement:
-        '@own() can only be used inside sub-element styles.',
       unknownAlias:
         "Unknown state alias '{{alias}}'. Configured aliases: {{known}}.",
     },
@@ -68,14 +66,6 @@ export default createRule<[], MessageIds>({
           node: keyNode,
           messageId: 'invalidStateKey',
           data: { reason: error.message },
-        });
-      }
-
-      // Check @own usage outside sub-element
-      if (result.hasOwn && !insideSubElement) {
-        context.report({
-          node: keyNode,
-          messageId: 'ownOutsideSubElement',
         });
       }
 
