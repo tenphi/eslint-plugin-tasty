@@ -434,15 +434,7 @@ export const KNOWN_CSS_PROPERTIES = new Set([
 /**
  * Built-in custom units recognized by the tasty parser.
  */
-export const BUILT_IN_UNITS = new Set([
-  'x',
-  'r',
-  'cr',
-  'bw',
-  'ow',
-  'lh',
-  'sf',
-]);
+export const BUILT_IN_UNITS = new Set(['x', 'r', 'cr', 'bw', 'ow', 'lh', 'sf']);
 
 /**
  * Standard CSS units (always valid).

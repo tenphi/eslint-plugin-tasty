@@ -56,10 +56,7 @@ function findConfigInDir(dir: string): string | null {
   return null;
 }
 
-function collectConfigFiles(
-  startDir: string,
-  projectRoot: string,
-): string[] {
+function collectConfigFiles(startDir: string, projectRoot: string): string[] {
   const configs: string[] = [];
   let dir = startDir;
   const root = resolve(projectRoot);
