@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 0.5.1
+
+### Patch Changes
+
+- [`6e5b1c3`](https://github.com/tenphi/eslint-plugin-tasty/commit/6e5b1c3ef2247ea86fce6e77a1f1a5e72e785acf) Thanks [@tenphi](https://github.com/tenphi)! - Recognize `@inherit` as a valid value in `tasty/valid-value` rule. Extract `@own()` at root level check from `tasty/valid-state-key` into a new `tasty/no-own-at-root` rule configured as a warning in the recommended config.
+
 ## 0.5.0
 
 ### Minor Changes
