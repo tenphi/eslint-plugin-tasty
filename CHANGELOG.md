@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 0.6.1
+
+### Patch Changes
+
+- [#16](https://github.com/tenphi/eslint-plugin-tasty/pull/16) [`300c8c8`](https://github.com/tenphi/eslint-plugin-tasty/commit/300c8c894961afbcbf69762271a31233427940f7) Thanks [@tenphi](https://github.com/tenphi)! - Fix false-positive warnings: add missing CSS functions (calc-size, math, anchor, scroll-driven, etc.), allow color tokens in `fade` property, allow `false` to disable sub-element styles, and recognize SVG presentation attributes as known CSS properties.
+
 ## 0.6.0
 
 ### Minor Changes
