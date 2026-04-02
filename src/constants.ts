@@ -598,11 +598,11 @@ export const SHORTHAND_MAPPING: Record<
   fontSize: { property: 'preset', hint: "preset: '...'" },
   fontWeight: {
     property: 'preset',
-    hint: "preset: '... strong' (with strong modifier)",
+    hint: "preset: 'name / strong' (with strong modifier)",
   },
   lineHeight: {
     property: 'preset',
-    hint: "preset: '... tight' (with tight modifier)",
+    hint: "preset: 'name / tight' (with tight modifier)",
   },
   boxShadow: { property: 'shadow', hint: "shadow: '...'" },
 };
@@ -610,7 +610,13 @@ export const SHORTHAND_MAPPING: Record<
 /**
  * Known preset modifiers.
  */
-export const PRESET_MODIFIERS = new Set(['strong', 'italic', 'tight']);
+export const PRESET_MODIFIERS = new Set([
+  'strong',
+  'bold',
+  'italic',
+  'icon',
+  'tight',
+]);
 
 /**
  * Default import sources for tasty.

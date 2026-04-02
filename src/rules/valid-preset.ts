@@ -32,32 +32,35 @@ export default createRule<[], MessageIds>({
     ]);
 
     function checkPresetValue(value: string, node: TSESTree.Node): void {
-      const parts = value.trim().split(/\s+/);
-      if (parts.length === 0) return;
+      const segments = value.trim().split(/\s*\/\s*/);
+      if (segments.length === 0) return;
 
-      const [presetName, ...modifiers] = parts;
+      const nameSegment = segments[0].trim();
+      const modSegment = segments[1]?.trim();
 
-      if (CSS_GLOBAL_KEYWORDS.has(presetName)) return;
+      if (!nameSegment) return;
+      if (CSS_GLOBAL_KEYWORDS.has(nameSegment)) return;
 
-      if (
-        ctx.config.presets.length > 0 &&
-        !ctx.config.presets.includes(presetName)
-      ) {
-        context.report({
-          node,
-          messageId: 'unknownPreset',
-          data: { name: presetName },
-        });
-      }
-
-      for (const mod of modifiers) {
-        if (!PRESET_MODIFIERS.has(mod)) {
+      // Mod-only shorthand: preset="bold" (name defaults to inherit)
+      if (!PRESET_MODIFIERS.has(nameSegment)) {
+        if (
+          ctx.config.presets.length > 0 &&
+          !ctx.config.presets.includes(nameSegment)
+        ) {
           context.report({
             node,
-            messageId: 'unknownModifier',
-            data: { modifier: mod },
+            messageId: 'unknownPreset',
+            data: { name: nameSegment },
           });
         }
+      }
+
+      if (modSegment && !PRESET_MODIFIERS.has(modSegment)) {
+        context.report({
+          node,
+          messageId: 'unknownModifier',
+          data: { modifier: modSegment },
+        });
       }
     }
 
