@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 0.6.0
+
+### Minor Changes
+
+- [#14](https://github.com/tenphi/eslint-plugin-tasty/pull/14) [`229311d`](https://github.com/tenphi/eslint-plugin-tasty/commit/229311d0e125ea97ee3bdd546d1aa4acbc3efffc) Thanks [@tenphi](https://github.com/tenphi)! - Update valid-preset rule to support slash-separated modifier syntax (`h2 / strong`) and add `bold` and `icon` to known preset modifiers.
+
 ## 0.5.1
 
 ### Patch Changes
