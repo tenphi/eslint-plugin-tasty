@@ -33,8 +33,11 @@ export default createRule<[], MessageIds>({
 
         const name = parts[0];
 
-        // $$ prefix is always valid (custom property reference)
+        // $$ prefix is always valid (custom property reference: $$name -> --name)
         if (name.startsWith('$$')) continue;
+
+        // ## prefix is always valid (color property reference: ##name -> --name-color)
+        if (name.startsWith('##')) continue;
 
         if (
           !SEMANTIC_TRANSITIONS.has(name) &&
