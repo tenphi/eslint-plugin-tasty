@@ -53,11 +53,7 @@ export default createRule<[], MessageIds>({
         const key = getKeyName(prop.key);
         if (key === null) continue;
 
-        if (
-          /^[A-Z]/.test(key) ||
-          key.startsWith('@') ||
-          key.startsWith('&')
-        )
+        if (/^[A-Z]/.test(key) || key.startsWith('@') || key.startsWith('&'))
           continue;
 
         if (prop.value.type !== 'ObjectExpression') continue;
