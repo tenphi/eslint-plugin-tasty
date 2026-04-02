@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 0.6.2
+
+### Patch Changes
+
+- [`d7f869c`](https://github.com/tenphi/eslint-plugin-tasty/commit/d7f869c00099457fc6d819608e056f0a03eac474) Thanks [@tenphi](https://github.com/tenphi)! - Fix false-positive in `valid-transition` rule: allow `##name` color property references (e.g. `##theme 0.3s`) alongside the existing `$$name` custom property references.
+
 ## 0.6.1
 
 ### Patch Changes
