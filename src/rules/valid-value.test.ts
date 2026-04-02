@@ -157,6 +157,20 @@ tester.run('valid-value', rule, {
         tasty({ styles: { fade: 'top bottom' } });
       `,
     },
+    // Fade accepts color tokens
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fade: '#tabs-fade-left' } });
+      `,
+    },
+    // calc-size() is a valid CSS function
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { height: 'calc-size(auto, size)' } });
+      `,
+    },
     // Inset with directional mods
     {
       code: `

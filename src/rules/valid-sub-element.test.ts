@@ -19,6 +19,14 @@ tester.run('valid-sub-element', rule, {
         }});
       `,
     },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: {
+          Fill: false,
+        }});
+      `,
+    },
   ],
   invalid: [
     {

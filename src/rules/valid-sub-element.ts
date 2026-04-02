@@ -32,6 +32,10 @@ export default createRule<[], MessageIds>({
         if (key === null || !/^[A-Z]/.test(key)) continue;
 
         if (prop.value.type !== 'ObjectExpression') {
+          if (prop.value.type === 'Literal' && prop.value.value === false) {
+            continue;
+          }
+
           const valueType =
             prop.value.type === 'Literal'
               ? typeof prop.value.value
