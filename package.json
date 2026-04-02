@@ -1,6 +1,6 @@
 {
   "name": "@tenphi/eslint-plugin-tasty",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "ESLint plugin for validating tasty() and tastyStatic() style objects",
   "type": "module",
   "exports": {
