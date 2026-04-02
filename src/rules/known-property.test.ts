@@ -52,6 +52,13 @@ tester.run('known-property', rule, {
         tasty({ styles: { recipe: 'card' } });
       `,
     },
+    // SVG presentation attributes are valid
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { strokeWidth: '2', stroke: '#purple', fillOpacity: '0.5' } });
+      `,
+    },
     // Not a tasty call — should be ignored
     {
       code: `

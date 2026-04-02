@@ -106,7 +106,7 @@ export const PROPERTY_EXPECTATIONS: Record<string, PropertyExpectation> = {
   paddingInline: VALUE_ONLY,
   paddingBlock: VALUE_ONLY,
   margin: { acceptsColor: false, acceptsMods: DIRECTIONAL_MODS },
-  fade: { acceptsColor: false, acceptsMods: DIRECTIONAL_MODS },
+  fade: { acceptsColor: true, acceptsMods: DIRECTIONAL_MODS },
   inset: { acceptsColor: false, acceptsMods: DIRECTIONAL_MODS },
 
   width: { acceptsColor: false, acceptsMods: DIMENSION_MODS },
