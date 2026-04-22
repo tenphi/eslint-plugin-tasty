@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 0.6.3
+
+### Patch Changes
+
+- [`60f9235`](https://github.com/tenphi/eslint-plugin-tasty/commit/60f92356d0547bfde701ceb0c2701986f1c68bad) Thanks [@tenphi](https://github.com/tenphi)! - Fix false-positive in `valid-state-key` rule: `@root()`, `@parent()`, and `@own()` tokenizer patterns now handle nested parentheses from pseudo-classes like `:is()`, `:has()`, `:not()`, and `:where()` (e.g. `@parent(:is(details), >)`).
+
 ## 0.6.2
 
 ### Patch Changes
