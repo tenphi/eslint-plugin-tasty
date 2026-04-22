@@ -269,6 +269,58 @@ tester.run('valid-state-key', rule, {
         }});
       `,
     },
+    // @own and @parent with nested pseudo-classes containing parentheses
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: {
+          Item: {
+            border: {
+              '': '1bw solid #border',
+              '@own(:last-child) & @parent(:is(details), >)': 'none',
+            },
+          },
+        }});
+      `,
+    },
+    // @parent with :has() containing nested selectors
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: {
+          fill: {
+            '': '#white',
+            '@parent(:has(> Icon))': '#blue',
+          },
+        }});
+      `,
+    },
+    // @root with :is() containing nested selectors
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: {
+          fill: {
+            '': '#white',
+            '@root(:is(body.dark))': '#dark',
+          },
+        }});
+      `,
+    },
+    // @own with pseudo-class function
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: {
+          Item: {
+            fill: {
+              '': '#white',
+              '@own(:nth-child(2n+1))': '#gray',
+            },
+          },
+        }});
+      `,
+    },
   ],
   invalid: [
     // Unrecognized characters
