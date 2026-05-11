@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 0.6.4
+
+### Patch Changes
+
+- [`9adb26e`](https://github.com/tenphi/eslint-plugin-tasty/commit/9adb26e81082f69a7135669d527d05917d6d9415) Thanks [@tenphi](https://github.com/tenphi)! - Update `valid-preset` rule to accept multiple space-separated modifiers in the slash section (e.g. `preset="h1 / strong italic"`) and in the modifier-only shorthand (e.g. `preset="bold italic"`). Each modifier token is now validated individually against the known modifier set, so unknown modifiers are reported per-token instead of treating the whole segment as one name.
+
 ## 0.6.3
 
 ### Patch Changes
