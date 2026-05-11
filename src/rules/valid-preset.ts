@@ -41,26 +41,38 @@ export default createRule<[], MessageIds>({
       if (!nameSegment) return;
       if (CSS_GLOBAL_KEYWORDS.has(nameSegment)) return;
 
-      // Mod-only shorthand: preset="bold" (name defaults to inherit)
-      if (!PRESET_MODIFIERS.has(nameSegment)) {
+      const nameTokens = nameSegment.split(/\s+/).filter(Boolean);
+      // Mod-only shorthand: every token in the name segment is a recognized
+      // modifier (e.g. preset="bold", preset="bold italic").
+      const isModOnlyShorthand =
+        nameTokens.length > 0 &&
+        nameTokens.every((t) => PRESET_MODIFIERS.has(t));
+
+      if (!isModOnlyShorthand) {
+        const presetName = nameTokens[0];
         if (
+          presetName &&
           ctx.config.presets.length > 0 &&
-          !ctx.config.presets.includes(nameSegment)
+          !ctx.config.presets.includes(presetName)
         ) {
           context.report({
             node,
             messageId: 'unknownPreset',
-            data: { name: nameSegment },
+            data: { name: presetName },
           });
         }
       }
 
-      if (modSegment && !PRESET_MODIFIERS.has(modSegment)) {
-        context.report({
-          node,
-          messageId: 'unknownModifier',
-          data: { modifier: modSegment },
-        });
+      if (modSegment) {
+        for (const mod of modSegment.split(/\s+/).filter(Boolean)) {
+          if (!PRESET_MODIFIERS.has(mod)) {
+            context.report({
+              node,
+              messageId: 'unknownModifier',
+              data: { modifier: mod },
+            });
+          }
+        }
       }
     }
 
