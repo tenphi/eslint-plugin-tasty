@@ -321,8 +321,46 @@ tester.run('valid-state-key', rule, {
         }});
       `,
     },
+    // Standalone '_' fallback floor
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: {
+          inset: {
+            '_': 'auto',
+            '@(scroll-state(stuck: top))': '0 auto auto auto',
+          },
+        }});
+      `,
+    },
+    // '_' fallback floor alongside the bare '' default and other states
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: {
+          fill: {
+            '_': '#white',
+            '': '#gray',
+            'hovered': '#blue',
+          },
+        }});
+      `,
+    },
   ],
   invalid: [
+    // '_' fallback floor combined with state logic
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: {
+          fill: {
+            '': '#white',
+            '_ & hovered': '#blue',
+          },
+        }});
+      `,
+      errors: [{ messageId: 'invalidStateKey' }],
+    },
     // Unrecognized characters
     {
       code: `

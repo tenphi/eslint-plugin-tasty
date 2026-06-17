@@ -666,9 +666,47 @@ export function parseStateKey(
     return { errors: [], hasOwn: false, referencedAliases: [] };
   }
 
-  const { tokens, errors: tokenErrors } = tokenize(stateKey.trim());
+  const trimmed = stateKey.trim();
+
+  // The standalone `_` key is the map-wide fallback floor. It always applies
+  // and must be used on its own — it carries no state logic to validate.
+  if (trimmed === '_') {
+    return { errors: [], hasOwn: false, referencedAliases: [] };
+  }
+
+  // A `_` combined with state logic (`_ & hovered`, `_ | x`) is a misuse: the
+  // fallback floor can only be used on its own. Tasty ignores such keys at
+  // runtime and warns; flag them here so the mistake surfaces in the editor.
+  if (isMisusedFallbackKey(trimmed)) {
+    return {
+      errors: [
+        {
+          message:
+            'The fallback floor "_" cannot be combined with other state ' +
+            'logic. Use "_" on its own as a map-wide fallback floor.',
+          offset: 0,
+          length: stateKey.length,
+        },
+      ],
+      hasOwn: false,
+      referencedAliases: [],
+    };
+  }
+
+  const { tokens, errors: tokenErrors } = tokenize(trimmed);
   const validator = new StateKeyValidator(tokens, tokenErrors, opts);
   return validator.validate();
+}
+
+/**
+ * Detect a misused standalone `_` fallback key: a key that is not exactly
+ * `_` but contains `_` as a standalone atom among state-logic operators
+ * (`&`, `|`, `^`, `,`) or grouping parens. A `_` embedded in a longer token
+ * (e.g. a modifier named `_private`) is not a misuse.
+ */
+function isMisusedFallbackKey(stateKey: string): boolean {
+  if (stateKey === '_' || !stateKey.includes('_')) return false;
+  return /(?:^|[\s&|^,(])_(?:[\s&|^,)]|$)/.test(stateKey);
 }
 
 /**

@@ -358,7 +358,9 @@ export class TastyContext {
     // Special keys are not state maps
     if (keyName === '@keyframes' || keyName === '@properties') return false;
 
-    // If the object has keys that look like state expressions, it's a state map
+    // If the object has keys that look like state expressions, it's a state map.
+    // A lone `_` (the fallback floor) or `''` (the default) is enough — both are
+    // already covered by the string-literal / identifier branches below.
     return node.properties.some((prop) => {
       if (prop.type !== 'Property') return false;
       if (prop.key.type === 'Literal' && prop.key.value === '') return true;

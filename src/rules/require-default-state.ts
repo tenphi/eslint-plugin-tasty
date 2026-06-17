@@ -15,7 +15,7 @@ export default createRule<[], MessageIds>({
     },
     messages: {
       missingDefaultState:
-        "State mapping for '{{property}}' has no default ('') value.",
+        "State mapping for '{{property}}' has no default ('') or fallback floor ('_') value.",
     },
     schema: [],
   },
@@ -41,11 +41,12 @@ export default createRule<[], MessageIds>({
 
         if (prop.value.type !== 'ObjectExpression') continue;
 
-        // Check if this object has a '' key
+        // A '' default or a '_' fallback floor both provide a value in the
+        // normal state, so either one satisfies the requirement.
         const hasDefault = prop.value.properties.some((p) => {
-          if (p.type !== 'Property') return false;
-          const stateKey = p.key.type === 'Literal' ? p.key.value : null;
-          return stateKey === '';
+          if (p.type !== 'Property' || p.computed) return false;
+          const stateKey = getKeyName(p.key);
+          return stateKey === '' || stateKey === '_';
         });
 
         if (!hasDefault) {

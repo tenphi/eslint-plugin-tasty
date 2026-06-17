@@ -724,7 +724,8 @@ radius: 'circle'
 Validates the syntax of state keys in style mapping objects.
 
 **Valid state key patterns:**
-- `''` — default state
+- `''` — bare default state (the negated default, lowest priority among states)
+- `_` — fallback floor (standalone only; always applies and is layered over by other states via the cascade)
 - Boolean modifier: `hovered`, `pressed`, `disabled`, etc.
 - Value modifier: `theme=danger`, `size=large`, `size^=sm` (with operators `=`, `^=`, `$=`, `*=`)
 - Pseudo-class: `:hover`, `:focus`, `:focus-visible`, `:nth-child(2n+1)`, etc.
@@ -739,6 +740,11 @@ Validates the syntax of state keys in style mapping objects.
 2. **Alias existence** — if a `@name` key (not a built-in like `@media`, `@root`, `@supports`, `@own`, `@starting`) is used, and `config.states` is set, warn if the alias is not in the list.
 3. **@own context** — `@own(...)` is only valid inside sub-element style objects (capitalized keys). Warn if used at root level.
 4. **Dimension shorthands** — inside `@media(...)` and `@(...)`, validate that `w`, `h`, `is`, `bs` are used correctly as dimension shorthands.
+5. **Fallback floor** — `_` is standalone only. A `_` combined with other state logic (`_ & hovered`, `_ | loading`) is a misuse; tasty ignores such keys at runtime, so the rule reports an error.
+
+**The `_` fallback floor:**
+
+A standalone `_` key defines a map-wide fallback floor: its value always applies and is never turned off by higher-priority states, which simply layer over it via the cascade. It fixes the case where a negated `@supports(...)` / container-query default branch would otherwise never apply, leaving no rule active. `_` can coexist with the bare `''` default (one is the always-on floor, the other the negated default), but it cannot be combined with state logic.
 
 **Examples:**
 ```js
@@ -746,6 +752,12 @@ Validates the syntax of state keys in style mapping objects.
 fill: { '': '#white', 'hovered': '#gray.05' }
 fill: { '': '#white', ':hover': '#gray.05' }
 fill: { '': '#white', '@mobile': '#gray' }
+
+// ✅ Valid — standalone '_' fallback floor
+inset: { '_': 'auto', '@(scroll-state(stuck: top))': '0 auto auto auto' }
+
+// ✅ Valid — '_' floor and '' default coexist with other states
+fill: { '_': '#white', '': '#gray', 'hovered': '#blue' }
 
 // ❌ Error: Invalid state key syntax 'hovred' — did you mean 'hovered'?
 // (fuzzy matching for common modifier names is a nice-to-have)
@@ -756,6 +768,9 @@ fill: { '': '#white', '@mobil': '#gray' }
 
 // ❌ Error: @own() can only be used inside sub-element styles
 fill: { '': '#white', '@own(hovered)': '#gray' }
+
+// ❌ Error: the fallback floor '_' cannot be combined with other state logic
+fill: { '': '#white', '_ & hovered': '#blue' }
 ```
 
 ---
@@ -829,9 +844,9 @@ configure({
 
 **Severity:** warning (default), off by default
 **Complexity:** Low
-**Feasibility:** High — check for `''` key in state mapping objects
+**Feasibility:** High — check for `''` or `_` key in state mapping objects
 
-Warns when a state mapping object doesn't have a `''` (default) key. Without a default, the property has no value in the normal state.
+Warns when a state mapping object doesn't have a `''` (default) **or** `_` (fallback floor) key. Without either, the property has no value in the normal state. A `_` fallback floor always applies, so it satisfies the requirement just like a bare `''` default.
 
 **Exceptions:**
 - When extending a component via `tasty(Base, { styles: { ... } })`, omitting `''` means "extend mode" (keep parent's default). This is intentional and should not warn. Detecting this requires checking the calling context.
@@ -839,11 +854,21 @@ Warns when a state mapping object doesn't have a `''` (default) key. Without a d
 
 **Examples:**
 ```js
-// ⚠️ Warning: State mapping for 'fill' has no default ('') value
+// ⚠️ Warning: State mapping for 'fill' has no default ('') or fallback floor ('_') value
 tasty({
   styles: {
     fill: {
       'hovered': '#blue',
+    }
+  }
+});
+
+// ✅ OK — a '_' fallback floor provides a value in the normal state
+tasty({
+  styles: {
+    inset: {
+      '_': 'auto',
+      '@(scroll-state(stuck: top))': '0 auto auto auto',
     }
   }
 });
@@ -951,6 +976,7 @@ Validates the overall structure of the styles object passed to tasty APIs.
 // ❌ Error: State keys at top level are not valid style properties
 tastyStatic({
   '': { fill: '#white' },      // ← wrong! This isn't how state maps work
+  '_': { fill: '#white' },     // ← wrong! '_' floor goes per-property too
   ':hover': { fill: '#gray' }, // ← wrong! State maps go per-property
 });
 

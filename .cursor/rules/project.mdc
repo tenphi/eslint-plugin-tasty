@@ -44,7 +44,7 @@ src/
     static-valid-selector.ts # P1: Invalid selector string
     prefer-shorthand-property.ts # P2: Use tasty shorthand
     valid-transition.ts # P2: Unknown transition names
-    require-default-state.ts # P2: Missing '' in state map
+    require-default-state.ts # P2: Missing '' or '_' in state map
     no-duplicate-state.ts # P2: Duplicate state keys
     no-unknown-state-alias.ts # P2: Unknown @alias
     no-raw-color-values.ts # P3: Raw hex/rgb values

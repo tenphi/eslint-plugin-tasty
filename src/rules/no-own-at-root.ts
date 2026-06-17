@@ -64,7 +64,8 @@ export default createRule<[], MessageIds>({
           const stateKey = !stateProp.computed
             ? getKeyName(stateProp.key)
             : getStringValue(stateProp.key);
-          if (stateKey === null || stateKey === '') continue;
+          if (stateKey === null || stateKey === '' || stateKey === '_')
+            continue;
 
           const result = parseStateKey(stateKey);
 

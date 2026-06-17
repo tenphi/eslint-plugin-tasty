@@ -79,7 +79,7 @@ export default {
 | `tasty/valid-color-token` | error | Invalid color token syntax or unknown tokens |
 | `tasty/valid-custom-unit` | error | Unknown custom units |
 | `tasty/valid-boolean-property` | error | `true` on properties that don't support it |
-| `tasty/valid-state-key` | error | Invalid state key syntax in style mappings |
+| `tasty/valid-state-key` | error | Invalid state key syntax in style mappings (including misuse of the `_` fallback floor) |
 | `tasty/valid-styles-structure` | error | Invalid styles object structure |
 | `tasty/no-nested-state-map` | error | Nested state maps (not supported) |
 | `tasty/no-important` | error | `!important` usage (breaks tasty specificity) |
@@ -92,7 +92,7 @@ export default {
 | `tasty/no-nested-selector` | warn | `&`-prefixed nested selectors (use sub-elements) |
 | `tasty/static-no-dynamic-values` | error | Dynamic values in `tastyStatic()` |
 | `tasty/static-valid-selector` | error | Invalid selector in `tastyStatic(selector, ...)` |
-| `tasty/require-default-state` | error | Missing default (`''`) key in state mappings (skipped for extending calls) |
+| `tasty/require-default-state` | error | Missing default (`''`) or fallback floor (`_`) key in state mappings (skipped for extending calls) |
 
 ### Strict (includes all recommended rules)
 

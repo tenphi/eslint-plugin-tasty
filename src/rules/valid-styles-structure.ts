@@ -45,7 +45,8 @@ export default createRule<[], MessageIds>({
     ];
 
     function looksLikeStateKey(key: string): boolean {
-      if (key === '') return true;
+      // '' default and '_' fallback floor are state-map keys, never top-level.
+      if (key === '' || key === '_') return true;
       return STATE_KEY_PATTERNS.some((p) => p.test(key));
     }
 

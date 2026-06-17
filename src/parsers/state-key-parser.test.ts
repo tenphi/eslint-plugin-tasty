@@ -88,6 +88,11 @@ describe('state-key-parser', () => {
       expect(parseStateKey('size$=lg').errors).toHaveLength(0);
       expect(parseStateKey('size*=med').errors).toHaveLength(0);
     });
+
+    it('accepts the standalone "_" fallback floor', () => {
+      const result = parseStateKey('_');
+      expect(result.errors).toHaveLength(0);
+    });
   });
 
   describe('invalid state keys', () => {
@@ -99,6 +104,13 @@ describe('state-key-parser', () => {
     it('reports numeric-starting tokens', () => {
       const result = parseStateKey('123invalid');
       expect(result.errors.length).toBeGreaterThan(0);
+    });
+
+    it('reports "_" combined with other state logic', () => {
+      expect(parseStateKey('_ & hovered').errors.length).toBeGreaterThan(0);
+      expect(parseStateKey('_ | hovered').errors.length).toBeGreaterThan(0);
+      expect(parseStateKey('hovered | _').errors.length).toBeGreaterThan(0);
+      expect(parseStateKey('(_) & focused').errors.length).toBeGreaterThan(0);
     });
   });
 
