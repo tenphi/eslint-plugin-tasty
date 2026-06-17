@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 0.7.0
+
+### Minor Changes
+
+- [`d52f870`](https://github.com/tenphi/eslint-plugin-tasty/commit/d52f87036ae27a928f81a0541964de5e97c8386e) Thanks [@tenphi](https://github.com/tenphi)! - Support the `_` fallback floor key in state maps. A standalone `_` is now accepted as a valid state key (an always-on, map-wide fallback floor), `valid-state-key` reports an error when `_` is combined with other state logic (e.g. `_ & hovered`), `require-default-state` accepts a `_` floor as satisfying the default requirement, and `valid-styles-structure` flags a `_` key used at the top level. Docs updated accordingly.
+
 ## 0.6.4
 
 ### Patch Changes
