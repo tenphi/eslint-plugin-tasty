@@ -2,32 +2,21 @@ import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
 import { getKeyName, getStringValue } from '../utils.js';
-import { DIRECTIONAL_MODIFIERS } from '../constants.js';
+import { parseValue } from '../parsers/value-parser.js';
 
-type MessageIds = 'invalidDirectionalModifier';
-
-const ALL_DIRECTIONS = new Set([
-  'top',
-  'right',
-  'bottom',
-  'left',
-  'top-left',
-  'top-right',
-  'bottom-left',
-  'bottom-right',
-]);
+type MessageIds = 'preferAutoCalc';
 
 export default createRule<[], MessageIds>({
-  name: 'valid-directional-modifier',
+  name: 'prefer-auto-calc',
   meta: {
-    type: 'problem',
+    type: 'suggestion',
     docs: {
       description:
-        'Validate that directional modifiers are used only on properties that support them',
+        'Suggest Tasty auto-calc parentheses instead of explicit calc()',
     },
     messages: {
-      invalidDirectionalModifier:
-        "Property '{{property}}' does not support directional modifiers. They work on: border, radius, padding, margin, fade, inset.",
+      preferAutoCalc:
+        "Replace 'calc({{inner}})' with Tasty auto-calc '({{inner}})' (calc() is added automatically).",
     },
     schema: [],
   },
@@ -35,23 +24,22 @@ export default createRule<[], MessageIds>({
   create(context) {
     const ctx = new TastyContext(context);
 
-    function checkValue(
-      property: string,
-      value: string,
-      node: TSESTree.Node,
-    ): void {
-      const tokens = value.trim().split(/\s+/);
+    function checkValue(value: string, node: TSESTree.Node): void {
+      const result = parseValue(value, { skipUnitValidation: true });
 
-      for (const token of tokens) {
-        if (!ALL_DIRECTIONS.has(token)) continue;
+      for (const group of result.groups) {
+        for (const part of group.parts) {
+          for (const token of part.tokens) {
+            if (token.type !== 'css-function' || token.name !== 'calc') {
+              continue;
+            }
 
-        const allowedMods = DIRECTIONAL_MODIFIERS[property];
-        if (!allowedMods || !allowedMods.has(token)) {
-          context.report({
-            node,
-            messageId: 'invalidDirectionalModifier',
-            data: { property, modifier: token },
-          });
+            context.report({
+              node,
+              messageId: 'preferAutoCalc',
+              data: { inner: token.args },
+            });
+          }
         }
       }
     }
@@ -64,23 +52,20 @@ export default createRule<[], MessageIds>({
 
         const key = getKeyName(prop.key);
         if (key === null) continue;
+        if (/^[A-Z@&$#]/.test(key)) continue;
 
-        if (!(key in DIRECTIONAL_MODIFIERS)) continue;
-
-        // Direct value
         const str = getStringValue(prop.value);
         if (str) {
-          checkValue(key, str, prop.value);
+          checkValue(str, prop.value);
           continue;
         }
 
-        // State map
         if (prop.value.type === 'ObjectExpression') {
           for (const stateProp of prop.value.properties) {
             if (stateProp.type !== 'Property') continue;
             const stateStr = getStringValue(stateProp.value);
             if (stateStr) {
-              checkValue(key, stateStr, stateProp.value);
+              checkValue(stateStr, stateProp.value);
             }
           }
         }

@@ -43,5 +43,12 @@ tester.run('valid-transition', rule, {
       `,
       errors: [{ messageId: 'unknownTransition' }],
     },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { transition: 'background-color 0.3s' } });
+      `,
+      errors: [{ messageId: 'preferSemanticTransition' }],
+    },
   ],
 });

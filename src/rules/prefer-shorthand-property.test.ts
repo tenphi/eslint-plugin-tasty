@@ -32,5 +32,26 @@ tester.run('prefer-shorthand-property', rule, {
       `,
       errors: [{ messageId: 'preferShorthand' }],
     },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { backgroundImage: 'url(/img.png)' } });
+      `,
+      errors: [{ messageId: 'preferShorthand' }],
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { gridTemplateColumns: '1fr 2fr' } });
+      `,
+      errors: [{ messageId: 'preferShorthand' }],
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { lineClamp: 3 } });
+      `,
+      errors: [{ messageId: 'preferShorthand' }],
+    },
   ],
 });

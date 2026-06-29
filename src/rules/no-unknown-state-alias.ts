@@ -20,7 +20,8 @@ export default createRule<[], MessageIds>({
         "Warn when a @name state alias is used that isn't in the config",
     },
     messages: {
-      unknownAlias: "Unknown state alias '{{alias}}'.",
+      unknownAlias:
+        "Unknown state alias '{{alias}}'. Add it to 'states' in your tasty config, or define it locally as a '@name' key.",
     },
     schema: [],
   },

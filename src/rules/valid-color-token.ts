@@ -25,7 +25,8 @@ export default createRule<[], MessageIds>({
     },
     messages: {
       invalidSyntax: "Invalid color token '{{token}}': {{reason}}.",
-      unknownToken: "Unknown color token '{{token}}'.",
+      unknownToken:
+        "Unknown color token '{{token}}'. Declare it as a '#name' key, or add it to 'tokens' in your tasty config.",
     },
     schema: [],
   },

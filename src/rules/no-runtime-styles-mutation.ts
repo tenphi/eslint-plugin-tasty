@@ -14,7 +14,7 @@ export default createRule<[], MessageIds>({
     },
     messages: {
       dynamicStyleValue:
-        'Style values should be static. Use modifiers (mods prop), tokens, or CSS custom properties for dynamic behavior.',
+        "Style value for '{{property}}' should be static. Use the 'mods' prop, tokens, or CSS custom properties for dynamic behavior.",
     },
     schema: [],
   },
@@ -22,14 +22,26 @@ export default createRule<[], MessageIds>({
   create(context) {
     const ctx = new TastyContext(context);
 
-    function checkProperties(node: TSESTree.ObjectExpression): void {
+    function checkProperties(
+      node: TSESTree.ObjectExpression,
+      parentProperty: string | null = null,
+    ): void {
       for (const prop of node.properties) {
         if (prop.type === 'SpreadElement') {
-          context.report({ node: prop, messageId: 'dynamicStyleValue' });
+          context.report({
+            node: prop,
+            messageId: 'dynamicStyleValue',
+            data: { property: parentProperty ?? '(spread)' },
+          });
           continue;
         }
 
         if (prop.type !== 'Property') continue;
+
+        const key =
+          !prop.computed && prop.key.type === 'Identifier'
+            ? prop.key.name
+            : parentProperty;
 
         // Skip sub-elements (they contain nested style objects)
         if (
@@ -38,7 +50,7 @@ export default createRule<[], MessageIds>({
           /^[A-Z]/.test(prop.key.name)
         ) {
           if (prop.value.type === 'ObjectExpression') {
-            checkProperties(prop.value);
+            checkProperties(prop.value, key);
           }
           continue;
         }
@@ -56,6 +68,7 @@ export default createRule<[], MessageIds>({
           context.report({
             node: prop.value,
             messageId: 'dynamicStyleValue',
+            data: { property: key ?? '(unknown)' },
           });
         }
       }

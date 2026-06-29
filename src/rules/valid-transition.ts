@@ -2,9 +2,13 @@ import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
 import { getKeyName, getStringValue } from '../utils.js';
-import { SEMANTIC_TRANSITIONS, KNOWN_CSS_PROPERTIES } from '../constants.js';
+import {
+  SEMANTIC_TRANSITIONS,
+  KNOWN_CSS_PROPERTIES,
+  TRANSITION_SEMANTIC_MAPPING,
+} from '../constants.js';
 
-type MessageIds = 'unknownTransition';
+type MessageIds = 'unknownTransition' | 'preferSemanticTransition';
 
 export default createRule<[], MessageIds>({
   name: 'valid-transition',
@@ -17,6 +21,8 @@ export default createRule<[], MessageIds>({
     messages: {
       unknownTransition:
         "Unknown transition name '{{name}}'. Use a semantic name ({{known}}) or a CSS property name.",
+      preferSemanticTransition:
+        "Transition '{{native}}' has a Tasty semantic equivalent — use '{{semantic}}' instead.",
     },
     schema: [],
   },
@@ -38,6 +44,16 @@ export default createRule<[], MessageIds>({
 
         // ## prefix is always valid (color property reference: ##name -> --name-color)
         if (name.startsWith('##')) continue;
+
+        const semantic = TRANSITION_SEMANTIC_MAPPING[name];
+        if (semantic) {
+          context.report({
+            node,
+            messageId: 'preferSemanticTransition',
+            data: { native: name, semantic },
+          });
+          continue;
+        }
 
         if (
           !SEMANTIC_TRANSITIONS.has(name) &&

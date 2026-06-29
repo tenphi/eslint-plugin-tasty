@@ -13,7 +13,8 @@ export default createRule<[], MessageIds>({
       description: 'Validate that custom units in style values are recognized',
     },
     messages: {
-      unknownUnit: "Unknown unit '{{unit}}' in value '{{value}}'.",
+      unknownUnit:
+        "Unknown unit '{{unit}}' in '{{value}}'. Use a built-in unit (x, r, cr, bw, ow, lh, sf) or a CSS unit, or add '{{unit}}' to 'units' in your tasty config.",
     },
     schema: [],
   },

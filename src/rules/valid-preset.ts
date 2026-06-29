@@ -14,8 +14,10 @@ export default createRule<[], MessageIds>({
       description: 'Validate preset property values against config',
     },
     messages: {
-      unknownPreset: "Unknown preset '{{name}}'.",
-      unknownModifier: "Unknown preset modifier '{{modifier}}'.",
+      unknownPreset:
+        "Unknown preset '{{name}}'. Add it to 'presets' in your tasty config, or use a configured preset.",
+      unknownModifier:
+        "Unknown preset modifier '{{modifier}}'. Valid modifiers: {{valid}}.",
     },
     schema: [],
   },
@@ -69,7 +71,10 @@ export default createRule<[], MessageIds>({
             context.report({
               node,
               messageId: 'unknownModifier',
-              data: { modifier: mod },
+              data: {
+                modifier: mod,
+                valid: [...PRESET_MODIFIERS].join(', '),
+              },
             });
           }
         }

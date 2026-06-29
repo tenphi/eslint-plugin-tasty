@@ -13,7 +13,8 @@ export default createRule<[], MessageIds>({
       description: 'Validate recipe property values against config',
     },
     messages: {
-      unknownRecipe: "Unknown recipe '{{name}}'.",
+      unknownRecipe:
+        "Unknown recipe '{{name}}'. Add it to 'recipes' in your tasty config, or use a configured recipe.",
     },
     schema: [],
   },

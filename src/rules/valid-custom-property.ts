@@ -21,8 +21,10 @@ export default createRule<[], MessageIds>({
       description: 'Validate $name custom property references',
     },
     messages: {
-      invalidSyntax: "Invalid custom property syntax '{{token}}'.",
-      unknownProperty: "Unknown custom property '{{token}}'.",
+      invalidSyntax:
+        "Invalid custom property '{{token}}'. Use '$name' with letters, digits, or hyphens (e.g. $accent-color).",
+      unknownProperty:
+        "Unknown custom property '{{token}}'. Declare it as a '$name' key in this styles object, or add it to your tasty config.",
     },
     schema: [],
   },

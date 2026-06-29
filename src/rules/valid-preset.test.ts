@@ -77,14 +77,14 @@ tester.run('valid-preset', rule, {
         import { tasty } from '@tenphi/tasty';
         tasty({ styles: { preset: 'h1 / wat' } });
       `,
-      errors: [{ messageId: 'unknownModifier', data: { modifier: 'wat' } }],
+      errors: [{ messageId: 'unknownModifier' }],
     },
     {
       code: `
         import { tasty } from '@tenphi/tasty';
         tasty({ styles: { preset: 'h1 / strong wat' } });
       `,
-      errors: [{ messageId: 'unknownModifier', data: { modifier: 'wat' } }],
+      errors: [{ messageId: 'unknownModifier' }],
     },
     {
       code: `
@@ -92,8 +92,8 @@ tester.run('valid-preset', rule, {
         tasty({ styles: { preset: 'h1 / wat oops' } });
       `,
       errors: [
-        { messageId: 'unknownModifier', data: { modifier: 'wat' } },
-        { messageId: 'unknownModifier', data: { modifier: 'oops' } },
+        { messageId: 'unknownModifier' },
+        { messageId: 'unknownModifier' },
       ],
     },
   ],

@@ -21,16 +21,21 @@ export const recommended: TSESLint.SharedConfig.RulesRecord = {
   'tasty/valid-transition': 'warn',
   'tasty/require-default-state': 'error',
   'tasty/no-own-at-root': 'warn',
+  'tasty/valid-default-state-order': 'warn',
+  'tasty/prefer-shorthand-property': 'warn',
+  'tasty/no-raw-color-values': 'warn',
+  'tasty/consistent-token-usage': 'warn',
+  'tasty/prefer-auto-calc': 'warn',
+  'tasty/prefer-custom-property-syntax': 'warn',
+  'tasty/prefer-hide': 'warn',
+  'tasty/prefer-directional-shorthand': 'warn',
 };
 
 export const strict: TSESLint.SharedConfig.RulesRecord = {
   ...recommended,
-  'tasty/prefer-shorthand-property': 'warn',
   'tasty/valid-custom-property': 'warn',
   'tasty/no-unknown-state-alias': 'warn',
   'tasty/no-styles-prop': 'warn',
-  'tasty/no-raw-color-values': 'warn',
-  'tasty/consistent-token-usage': 'warn',
   'tasty/no-runtime-styles-mutation': 'warn',
   'tasty/valid-state-definition': 'warn',
 };

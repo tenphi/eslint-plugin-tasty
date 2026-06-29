@@ -20,7 +20,8 @@ export default createRule<[], MessageIds>({
         'Warn when a style property name is not recognized as a valid tasty or CSS property',
     },
     messages: {
-      unknownProperty: "Unknown style property '{{name}}'.",
+      unknownProperty:
+        "Unknown style property '{{name}}'. Check the spelling or use a valid Tasty/CSS property.",
     },
     schema: [],
   },
