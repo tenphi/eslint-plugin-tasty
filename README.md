@@ -1,8 +1,10 @@
 # @tenphi/eslint-plugin-tasty
 
-ESLint plugin for validating `tasty()`, `tastyStatic()`, `useStyles()`, `useGlobalStyles()`, and related APIs from `@tenphi/tasty`.
+Linter plugin for validating `tasty()`, `tastyStatic()`, `useStyles()`, `useGlobalStyles()`, and related APIs from `@tenphi/tasty`.
 
 Catch typos, invalid syntax, and enforce best practices in your tasty style objects at lint time.
+
+Works with **ESLint** (9+) flat config and with **Oxlint** via [JS plugins](https://oxc.rs/docs/guide/usage/linter/js-plugins.html) (`jsPlugins` alias `tasty`).
 
 ## Installation
 

@@ -69,6 +69,7 @@
     "@typescript-eslint/rule-tester": "^8.56.1",
     "eslint": "^10.0.0",
     "eslint-config-prettier": "^10.1.8",
+    "oxlint": "^1.72.0",
     "prettier": "^3.8.1",
     "tsdown": "^0.20.3",
     "typescript": "^5.9.3",
