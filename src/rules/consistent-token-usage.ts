@@ -2,8 +2,9 @@ import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
 import { getKeyName, getStringValue } from '../utils.js';
+import { replaceStringValue, replaceInStringValue } from '../fix-utils.js';
 
-type MessageIds = 'preferToken';
+type MessageIds = 'preferToken' | 'replaceWithToken';
 
 const PX_TO_UNIT: Record<string, string> = {
   '8px': '1x',
@@ -20,12 +21,14 @@ export default createRule<[], MessageIds>({
   name: 'consistent-token-usage',
   meta: {
     type: 'suggestion',
+    hasSuggestions: true,
     docs: {
       description:
         'Suggest using design tokens and custom units instead of raw CSS values',
     },
     messages: {
       preferToken: "Consider using '{{suggestion}}' instead of '{{raw}}'.",
+      replaceWithToken: "Replace '{{raw}}' with '{{suggestion}}'",
     },
     schema: [],
   },
@@ -42,10 +45,20 @@ export default createRule<[], MessageIds>({
 
       // Check pixel values that map to gap multiples
       if (trimmed in PX_TO_UNIT) {
+        const suggestion = PX_TO_UNIT[trimmed];
         context.report({
           node,
           messageId: 'preferToken',
-          data: { suggestion: PX_TO_UNIT[trimmed], raw: trimmed },
+          data: { suggestion, raw: trimmed },
+          suggest: [
+            {
+              messageId: 'replaceWithToken',
+              data: { raw: trimmed, suggestion },
+              fix(fixer) {
+                return replaceStringValue(fixer, node, suggestion);
+              },
+            },
+          ],
         });
         return;
       }
@@ -56,16 +69,50 @@ export default createRule<[], MessageIds>({
           node,
           messageId: 'preferToken',
           data: { suggestion: '1r', raw: '6px' },
+          suggest: [
+            {
+              messageId: 'replaceWithToken',
+              data: { raw: '6px', suggestion: '1r' },
+              fix(fixer) {
+                return replaceStringValue(fixer, node, '1r');
+              },
+            },
+          ],
         });
         return;
       }
 
       // Check 1px in border context
       if (property === 'border' && trimmed.includes('1px')) {
+        const edits: { start: number; end: number; replacement: string }[] = [];
+        const re = /\b1px\b/g;
+        let match: RegExpExecArray | null;
+        while ((match = re.exec(value)) !== null) {
+          edits.push({
+            start: match.index,
+            end: match.index + match[0].length,
+            replacement: '1bw',
+          });
+        }
+        if (edits.length === 0) return;
         context.report({
           node,
           messageId: 'preferToken',
           data: { suggestion: '1bw', raw: '1px' },
+          suggest: [
+            {
+              messageId: 'replaceWithToken',
+              data: { raw: '1px', suggestion: '1bw' },
+              fix(fixer) {
+                return replaceInStringValue(
+                  fixer,
+                  node,
+                  edits,
+                  context.sourceCode,
+                );
+              },
+            },
+          ],
         });
       }
     }

@@ -48,7 +48,20 @@ tester.run('valid-transition', rule, {
         import { tasty } from '@tenphi/tasty';
         tasty({ styles: { transition: 'background-color 0.3s' } });
       `,
-      errors: [{ messageId: 'preferSemanticTransition' }],
+      errors: [
+        {
+          messageId: 'preferSemanticTransition',
+          suggestions: [
+            {
+              messageId: 'useSemantic',
+              output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { transition: 'fill 0.3s' } });
+      `,
+            },
+          ],
+        },
+      ],
     },
   ],
 });

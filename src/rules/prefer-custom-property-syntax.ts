@@ -2,6 +2,7 @@ import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
 import { getKeyName, getStringValue } from '../utils.js';
+import { replaceInStringValue } from '../fix-utils.js';
 
 type MessageIds =
   | 'preferCustomPropertySyntax'
@@ -57,6 +58,7 @@ export default createRule<[], MessageIds>({
   name: 'prefer-custom-property-syntax',
   meta: {
     type: 'suggestion',
+    fixable: 'code',
     docs: {
       description:
         'Prefer Tasty token syntax ($prop, #color, #clear, #current) over raw CSS (var(), $x-color, transparent, currentColor)',
@@ -88,6 +90,8 @@ export default createRule<[], MessageIds>({
         const name = match[1];
         const fallback = match[2];
         const suggestion = suggestVarSyntax(name, fallback);
+        const start = match.index;
+        const end = start + raw.length;
 
         if (match.index !== undefined) {
           varSpans.push({
@@ -100,6 +104,14 @@ export default createRule<[], MessageIds>({
           node,
           messageId: 'preferCustomPropertySyntax',
           data: { raw, suggestion },
+          fix(fixer) {
+            return replaceInStringValue(
+              fixer,
+              node,
+              [{ start, end, replacement: suggestion }],
+              context.sourceCode,
+            );
+          },
         });
       }
 
@@ -110,11 +122,21 @@ export default createRule<[], MessageIds>({
         const name = match[1];
         const opacity = match[2] ?? '';
         const suggestion = `#${name}${opacity}`;
+        const start = match.index;
+        const end = start + raw.length;
 
         context.report({
           node,
           messageId: 'preferColorToken',
           data: { raw, suggestion },
+          fix(fixer) {
+            return replaceInStringValue(
+              fixer,
+              node,
+              [{ start, end, replacement: suggestion }],
+              context.sourceCode,
+            );
+          },
         });
       }
 
@@ -126,10 +148,19 @@ export default createRule<[], MessageIds>({
         if (isInsideSpans(start, end, varSpans)) continue;
 
         const lower = match[0].toLowerCase();
+        const replacement = lower === 'transparent' ? '#clear' : '#current';
         context.report({
           node,
           messageId:
             lower === 'transparent' ? 'preferClearToken' : 'preferCurrentToken',
+          fix(fixer) {
+            return replaceInStringValue(
+              fixer,
+              node,
+              [{ start, end, replacement }],
+              context.sourceCode,
+            );
+          },
         });
       }
     }

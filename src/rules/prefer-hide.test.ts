@@ -23,9 +23,14 @@ tester.run('prefer-hide', rule, {
         import { tasty } from '@tenphi/tasty';
         tasty({ styles: { display: 'none' } });
       `,
+      output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { hide: true } });
+      `,
       errors: [{ messageId: 'preferHide' }],
     },
     {
+      // State-map case: report-only (no safe fix — parent key can't change).
       code: `
         import { tasty } from '@tenphi/tasty';
         tasty({

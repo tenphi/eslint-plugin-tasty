@@ -5,10 +5,15 @@ import { getKeyName, getStringValue } from '../utils.js';
 
 type MessageIds = 'preferHide';
 
+function isNone(value: string): boolean {
+  return value.trim().toLowerCase() === 'none';
+}
+
 export default createRule<[], MessageIds>({
   name: 'prefer-hide',
   meta: {
     type: 'suggestion',
+    fixable: 'code',
     docs: {
       description:
         "Suggest hide: true instead of display: 'none' for Tasty's display/hide priority handling",
@@ -23,15 +28,6 @@ export default createRule<[], MessageIds>({
   create(context) {
     const ctx = new TastyContext(context);
 
-    function checkDisplayValue(value: string, node: TSESTree.Node): void {
-      if (value.trim().toLowerCase() !== 'none') return;
-
-      context.report({
-        node,
-        messageId: 'preferHide',
-      });
-    }
-
     function handleStyleObject(node: TSESTree.ObjectExpression) {
       if (!ctx.isStyleObject(node)) return;
 
@@ -43,7 +39,18 @@ export default createRule<[], MessageIds>({
 
         const str = getStringValue(prop.value);
         if (str) {
-          checkDisplayValue(str, prop.value);
+          if (isNone(str)) {
+            context.report({
+              node: prop.value,
+              messageId: 'preferHide',
+              fix(fixer) {
+                return [
+                  fixer.replaceText(prop.key, 'hide'),
+                  fixer.replaceText(prop.value, 'true'),
+                ];
+              },
+            });
+          }
           continue;
         }
 
@@ -51,8 +58,11 @@ export default createRule<[], MessageIds>({
           for (const stateProp of prop.value.properties) {
             if (stateProp.type !== 'Property') continue;
             const stateStr = getStringValue(stateProp.value);
-            if (stateStr) {
-              checkDisplayValue(stateStr, stateProp.value);
+            if (stateStr && isNone(stateStr)) {
+              context.report({
+                node: stateProp.value,
+                messageId: 'preferHide',
+              });
             }
           }
         }

@@ -590,9 +590,9 @@ export const SEMANTIC_TRANSITIONS = new Set([
  */
 export const SHORTHAND_MAPPING: Record<
   string,
-  { property: string; hint: string }
+  { property: string; hint: string; safeFix?: boolean }
 > = {
-  backgroundColor: { property: 'fill', hint: "fill: '...'" },
+  backgroundColor: { property: 'fill', hint: "fill: '...'", safeFix: true },
   borderColor: { property: 'border', hint: "border: '...'" },
   borderWidth: { property: 'border', hint: "border: '...'" },
   borderStyle: { property: 'border', hint: "border: '...'" },
@@ -600,7 +600,7 @@ export const SHORTHAND_MAPPING: Record<
   borderRight: { property: 'border', hint: "border: '... right'" },
   borderBottom: { property: 'border', hint: "border: '... bottom'" },
   borderLeft: { property: 'border', hint: "border: '... left'" },
-  borderRadius: { property: 'radius', hint: "radius: '...'" },
+  borderRadius: { property: 'radius', hint: "radius: '...'", safeFix: true },
   maxWidth: { property: 'width', hint: "width: 'max ...'" },
   minWidth: { property: 'width', hint: "width: 'min ...'" },
   maxHeight: { property: 'height', hint: "height: 'max ...'" },

@@ -23,6 +23,10 @@ tester.run('prefer-auto-calc', rule, {
         import { tasty } from '@tenphi/tasty';
         tasty({ styles: { width: 'calc(100% - 2x)' } });
       `,
+      output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { width: '(100% - 2x)' } });
+      `,
       errors: [{ messageId: 'preferAutoCalc' }],
     },
     {
@@ -31,6 +35,14 @@ tester.run('prefer-auto-calc', rule, {
         tasty({
           styles: {
             margin: { hovered: 'calc(1x + 2x)' },
+          },
+        });
+      `,
+      output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({
+          styles: {
+            margin: { hovered: '(1x + 2x)' },
           },
         });
       `,

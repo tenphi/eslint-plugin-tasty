@@ -8,10 +8,10 @@ type MessageIds = 'noNestedSelector';
 export default createRule<[], MessageIds>({
   name: 'no-nested-selector',
   meta: {
-    type: 'suggestion',
+    type: 'problem',
     docs: {
       description:
-        'Discourage &-prefixed nested selectors in favor of sub-element styling',
+        'Disallow &-prefixed nested selectors in favor of sub-element styling',
     },
     messages: {
       noNestedSelector:

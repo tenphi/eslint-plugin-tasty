@@ -3,6 +3,7 @@ import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
 import { getKeyName, getStringValue } from '../utils.js';
 import { parseStateKey } from '../parsers/state-key-parser.js';
+import { replaceStringValue } from '../fix-utils.js';
 
 type MessageIds = 'ownAtRoot';
 
@@ -10,6 +11,7 @@ export default createRule<[], MessageIds>({
   name: 'no-own-at-root',
   meta: {
     type: 'suggestion',
+    fixable: 'code',
     docs: {
       description:
         'Warn when @own() is used outside sub-element styles where it is redundant',
@@ -73,6 +75,14 @@ export default createRule<[], MessageIds>({
             context.report({
               node: stateProp.key,
               messageId: 'ownAtRoot',
+              fix(fixer) {
+                if (!stateKey.startsWith('@own(') || !stateKey.endsWith(')')) {
+                  return null;
+                }
+                const inner = stateKey.slice(5, -1);
+                if (!inner) return null;
+                return replaceStringValue(fixer, stateProp.key, inner);
+              },
             });
           }
         }

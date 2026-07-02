@@ -10,6 +10,7 @@ export default createRule<[], MessageIds>({
   name: 'prefer-shorthand-property',
   meta: {
     type: 'suggestion',
+    fixable: 'code',
     docs: {
       description:
         'Suggest tasty shorthand when a native CSS property with a tasty alternative is used',
@@ -39,6 +40,14 @@ export default createRule<[], MessageIds>({
             node: prop.key,
             messageId: 'preferShorthand',
             data: { native: key, alternative: mapping.hint },
+            fix(fixer) {
+              // Only auto-fix the carry-over subset where the value passes
+              // through unchanged (e.g. backgroundColor → fill, borderRadius →
+              // radius). Directional / min/max / border-* renames change
+              // semantics and stay report-only.
+              if (!mapping.safeFix) return null;
+              return fixer.replaceText(prop.key, mapping.property);
+            },
           });
         }
       }
