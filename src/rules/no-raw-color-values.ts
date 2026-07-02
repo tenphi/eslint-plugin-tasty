@@ -1,23 +1,31 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
-import { getStringValue } from '../utils.js';
+import { getStringValue, getKeyName } from '../utils.js';
+import { COLOR_BEARING_PROPERTIES, NAMED_CSS_COLORS } from '../constants.js';
 
-type MessageIds = 'rawHexColor' | 'rawColorFunction';
+type MessageIds = 'rawHexColor' | 'rawColorFunction' | 'rawNamedColor';
 
 const HEX_COLOR_REGEX = /#([0-9a-fA-F]{3,8})\b/g;
-const COLOR_FUNC_REGEX = /\b(rgb|rgba|hsl|hsla)\s*\(/gi;
+const COLOR_FUNC_REGEX =
+  /\b(rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|okhsl|okhsv|okhst|color|device-cmyk|light-dark)\s*\(/gi;
+const NAMED_COLOR_REGEX = new RegExp(
+  `\\b(${[...NAMED_CSS_COLORS].sort((a, b) => b.length - a.length).join('|')})\\b`,
+  'gi',
+);
 
 export default createRule<[], MessageIds>({
   name: 'no-raw-color-values',
   meta: {
     type: 'suggestion',
     docs: {
-      description: 'Suggest using color tokens instead of raw hex/rgb values',
+      description:
+        'Suggest using color tokens instead of raw hex/rgb/okhsl/named colors',
     },
     messages: {
       rawHexColor: "Use a color token instead of raw hex color '{{value}}'.",
       rawColorFunction: 'Use a color token instead of raw {{func}}() color.',
+      rawNamedColor: "Use a color token instead of raw named color '{{name}}'.",
     },
     schema: [],
   },
@@ -43,7 +51,11 @@ export default createRule<[], MessageIds>({
       return false;
     }
 
-    function checkValue(value: string, node: TSESTree.Node): void {
+    function checkValue(
+      value: string,
+      node: TSESTree.Node,
+      propertyKey?: string | null,
+    ): void {
       if (isInTokenDefinition(node)) return;
 
       // Check hex colors
@@ -60,7 +72,7 @@ export default createRule<[], MessageIds>({
         }
       }
 
-      // Check color functions
+      // Check color functions (rgb, hsl, okhsl, okhst, oklch, …)
       COLOR_FUNC_REGEX.lastIndex = 0;
       while ((match = COLOR_FUNC_REGEX.exec(value)) !== null) {
         context.report({
@@ -69,6 +81,23 @@ export default createRule<[], MessageIds>({
           data: { func: match[1] },
         });
       }
+
+      // Check named CSS colors — scoped to color-bearing properties to avoid
+      // false positives on string properties like `content` or `cursor`. Skip
+      // matches that are part of a `#token` or `$prop` reference (e.g. `#purple`,
+      // `$red`) — those are Tasty tokens/custom properties, not raw colors.
+      if (propertyKey && COLOR_BEARING_PROPERTIES.has(propertyKey)) {
+        NAMED_COLOR_REGEX.lastIndex = 0;
+        while ((match = NAMED_COLOR_REGEX.exec(value)) !== null) {
+          const prev = match.index > 0 ? value[match.index - 1] : '';
+          if (prev === '#' || prev === '$') continue;
+          context.report({
+            node,
+            messageId: 'rawNamedColor',
+            data: { name: match[1] },
+          });
+        }
+      }
     }
 
     function handleStyleObject(node: TSESTree.ObjectExpression) {
@@ -76,15 +105,16 @@ export default createRule<[], MessageIds>({
 
       for (const prop of node.properties) {
         if (prop.type !== 'Property') continue;
+        const key = getKeyName(prop.key);
 
         const str = getStringValue(prop.value);
-        if (str) checkValue(str, prop.value);
+        if (str) checkValue(str, prop.value, key);
 
         if (prop.value.type === 'ObjectExpression') {
           for (const stateProp of prop.value.properties) {
             if (stateProp.type !== 'Property') continue;
             const stateStr = getStringValue(stateProp.value);
-            if (stateStr) checkValue(stateStr, stateProp.value);
+            if (stateStr) checkValue(stateStr, stateProp.value, key);
           }
         }
       }
