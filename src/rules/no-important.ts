@@ -2,6 +2,7 @@ import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
 import { getStringValue } from '../utils.js';
+import { replaceStringValue } from '../fix-utils.js';
 
 type MessageIds = 'noImportant';
 
@@ -9,6 +10,7 @@ export default createRule<[], MessageIds>({
   name: 'no-important',
   meta: {
     type: 'problem',
+    fixable: 'code',
     docs: {
       description: 'Disallow !important in tasty style values',
     },
@@ -25,7 +27,14 @@ export default createRule<[], MessageIds>({
     function checkNode(node: TSESTree.Node): void {
       const str = getStringValue(node);
       if (str && str.includes('!important')) {
-        context.report({ node, messageId: 'noImportant' });
+        const stripped = str.replace(/\s*!important\s*/g, '').trim();
+        context.report({
+          node,
+          messageId: 'noImportant',
+          fix(fixer) {
+            return replaceStringValue(fixer, node, stripped);
+          },
+        });
       }
     }
 

@@ -3,6 +3,7 @@ import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
 import { getKeyName, getStringValue } from '../utils.js';
 import { DIRECTIONAL_MODIFIERS } from '../constants.js';
+import { replaceStringValue } from '../fix-utils.js';
 
 type MessageIds = 'preferDirectionalShorthand';
 
@@ -32,6 +33,7 @@ export default createRule<[], MessageIds>({
   name: 'prefer-directional-shorthand',
   meta: {
     type: 'suggestion',
+    fixable: 'code',
     docs: {
       description:
         'Suggest Tasty directional shorthand instead of 4-value CSS box syntax with zero placeholders',
@@ -58,6 +60,9 @@ export default createRule<[], MessageIds>({
         node,
         messageId: 'preferDirectionalShorthand',
         data: { property, raw: value, suggestion },
+        fix(fixer) {
+          return replaceStringValue(fixer, node, suggestion);
+        },
       });
     }
 

@@ -23,6 +23,44 @@ tester.run('valid-default-state-order', rule, {
       `,
     },
     {
+      // Ideal order: '_' floor first, '' default right after it.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({
+          styles: {
+            fill: { _: '#purple', '': '#surface', hovered: '#danger' },
+          },
+        });
+      `,
+    },
+  ],
+  invalid: [
+    {
+      // No '_': '' must be first.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fill: { hovered: '#danger', '': '#purple' } } });
+      `,
+      output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fill: { '': '#purple', hovered: '#danger' } } });
+      `,
+      errors: [{ messageId: 'misplacedDefaultState' }],
+    },
+    {
+      // Both '_' and '' with no other states → '' is redundant.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fill: { _: '#purple', '': '#surface' } } });
+      `,
+      output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fill: { _: '#purple' } } });
+      `,
+      errors: [{ messageId: 'redundantDefaultState' }],
+    },
+    {
+      // (a) '' before '_' with other states → move '_' to the top.
       code: `
         import { tasty } from '@tenphi/tasty';
         tasty({
@@ -31,22 +69,58 @@ tester.run('valid-default-state-order', rule, {
           },
         });
       `,
+      output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({
+          styles: {
+            fill: { _: '#purple', '': '#surface', hovered: '#danger' },
+          },
+        });
+      `,
+      errors: [{ messageId: 'misplacedFloorState' }],
     },
-  ],
-  invalid: [
     {
+      // (b) both '_' and '' misplaced → move '_' to top (pass 1), then '' to
+      // index 1 (pass 2). Two fix passes → array form of `output`.
       code: `
         import { tasty } from '@tenphi/tasty';
-        tasty({ styles: { fill: { hovered: '#danger', '': '#purple' } } });
+        tasty({
+          styles: {
+            fill: { hovered: '#danger', '': '#surface', _: '#purple' },
+          },
+        });
       `,
-      errors: [{ messageId: 'misplacedDefaultState' }],
+      output: [
+        `
+        import { tasty } from '@tenphi/tasty';
+        tasty({
+          styles: {
+            fill: { _: '#purple', hovered: '#danger', '': '#surface' },
+          },
+        });
+      `,
+        `
+        import { tasty } from '@tenphi/tasty';
+        tasty({
+          styles: {
+            fill: { _: '#purple', '': '#surface', hovered: '#danger' },
+          },
+        });
+      `,
+      ],
+      errors: [{ messageId: 'misplacedFloorState' }],
     },
     {
+      // (d) '_'-only map, '_' not first → move '_' to the top.
       code: `
         import { tasty } from '@tenphi/tasty';
-        tasty({ styles: { fill: { _: '#purple', '': '#surface' } } });
+        tasty({ styles: { fill: { hovered: '#danger', _: '#purple' } } });
       `,
-      errors: [{ messageId: 'redundantDefaultState' }],
+      output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fill: { _: '#purple', hovered: '#danger' } } });
+      `,
+      errors: [{ messageId: 'misplacedFloorState' }],
     },
   ],
 });

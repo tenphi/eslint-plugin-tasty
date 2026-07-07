@@ -1,10 +1,11 @@
-import type { TSESTree } from '@typescript-eslint/utils';
+import type { TSESLint, TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
 import { getKeyName, getStringValue } from '../utils.js';
 import { RADIUS_SHAPES } from '../constants.js';
+import { replaceStringValue } from '../fix-utils.js';
 
-type MessageIds = 'unknownShape';
+type MessageIds = 'unknownShape' | 'replaceWithShape';
 
 const SHAPE_LIKE = /^[a-z]+$/;
 
@@ -12,6 +13,7 @@ export default createRule<[], MessageIds>({
   name: 'valid-radius-shape',
   meta: {
     type: 'problem',
+    hasSuggestions: true,
     docs: {
       description:
         'Validate special shape keywords used with the radius property',
@@ -19,6 +21,7 @@ export default createRule<[], MessageIds>({
     messages: {
       unknownShape:
         "Unknown radius shape '{{shape}}'. Valid shapes: {{valid}}.",
+      replaceWithShape: "Replace '{{shape}}' with '{{suggestion}}'",
     },
     schema: [],
   },
@@ -54,6 +57,18 @@ export default createRule<[], MessageIds>({
       const suggestion = findClosestShape(trimmed);
       const validList = [...RADIUS_SHAPES].join(', ');
 
+      const suggest = suggestion
+        ? [
+            {
+              messageId: 'replaceWithShape' as const,
+              data: { shape: trimmed, suggestion },
+              fix(fixer: TSESLint.RuleFixer) {
+                return replaceStringValue(fixer, node, suggestion);
+              },
+            },
+          ]
+        : undefined;
+
       context.report({
         node,
         messageId: 'unknownShape',
@@ -62,6 +77,7 @@ export default createRule<[], MessageIds>({
           valid:
             validList + (suggestion ? `. Did you mean '${suggestion}'?` : ''),
         },
+        suggest,
       });
     }
 

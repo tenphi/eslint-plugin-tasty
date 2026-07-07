@@ -3,6 +3,7 @@ import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
 import { getKeyName, getStringValue } from '../utils.js';
 import { parseValue } from '../parsers/value-parser.js';
+import { replaceInStringValue } from '../fix-utils.js';
 
 type MessageIds = 'preferAutoCalc';
 
@@ -10,6 +11,7 @@ export default createRule<[], MessageIds>({
   name: 'prefer-auto-calc',
   meta: {
     type: 'suggestion',
+    fixable: 'code',
     docs: {
       description:
         'Suggest Tasty auto-calc parentheses instead of explicit calc()',
@@ -27,6 +29,7 @@ export default createRule<[], MessageIds>({
     function checkValue(value: string, node: TSESTree.Node): void {
       const result = parseValue(value, { skipUnitValidation: true });
 
+      let cursor = 0;
       for (const group of result.groups) {
         for (const part of group.parts) {
           for (const token of part.tokens) {
@@ -34,10 +37,31 @@ export default createRule<[], MessageIds>({
               continue;
             }
 
+            const start = value.indexOf(token.raw, cursor);
+            if (start === -1) {
+              context.report({
+                node,
+                messageId: 'preferAutoCalc',
+                data: { inner: token.args },
+              });
+              continue;
+            }
+            cursor = start + token.raw.length;
+            const end = cursor;
+            const replacement = `(${token.args})`;
+
             context.report({
               node,
               messageId: 'preferAutoCalc',
               data: { inner: token.args },
+              fix(fixer) {
+                return replaceInStringValue(
+                  fixer,
+                  node,
+                  [{ start, end, replacement }],
+                  context.sourceCode,
+                );
+              },
             });
           }
         }

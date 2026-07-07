@@ -23,6 +23,10 @@ tester.run('no-important', rule, {
         import { tasty } from '@tenphi/tasty';
         tasty({ styles: { fill: '#red !important' } });
       `,
+      output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fill: '#red' } });
+      `,
       errors: [{ messageId: 'noImportant' }],
     },
   ],

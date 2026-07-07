@@ -55,6 +55,15 @@ tester.run('no-own-at-root', rule, {
           },
         }});
       `,
+      output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: {
+          fill: {
+            '': '#white',
+            ':hover': '#blue',
+          },
+        }});
+      `,
       errors: [{ messageId: 'ownAtRoot' }],
     },
     // @own() in complex expression at root
