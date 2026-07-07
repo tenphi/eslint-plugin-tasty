@@ -1,5 +1,34 @@
 # @tenphi/eslint-plugin-tasty
 
+## 0.9.0
+
+### Minor Changes
+
+- [#24](https://github.com/tenphi/eslint-plugin-tasty/pull/24) [`84afaa0`](https://github.com/tenphi/eslint-plugin-tasty/commit/84afaa0e89cff1d529489526c5edb8f85518256d) Thanks [@tenphi](https://github.com/tenphi)! - Add auto-fix and suggestion support to fixable rules, enforce `_` floor ordering, and reclassify `no-nested-selector` as an error.
+
+  **Auto-fixable (`fixable: 'code'`, applied by `eslint --fix`):**
+  - `no-important`: strips `!important` from style values.
+  - `prefer-auto-calc`: rewrites `calc(x)` → `(x)` per occurrence.
+  - `prefer-directional-shorthand`: rewrites 4-value box syntax with zero placeholders to directional shorthand (`1x bottom`).
+  - `prefer-shorthand-property`: renames the safe carry-over subset of native CSS keys to Tasty shorthands (`backgroundColor` → `fill`, `borderRadius` → `radius`). Directional / `min|max` / `border-*` / `image` mappings stay report-only because the rename changes runtime semantics.
+  - `no-own-at-root`: unwraps redundant `@own(inner)` → `inner` on the state key.
+  - `valid-default-state-order`: fixes misplaced `''` default and `_` floor (move/remove), and now treats `''` as redundant when `_` is the only other state.
+  - `prefer-custom-property-syntax`: rewrites `var(--x)` → `$x`, `var(--x, fb)` → `($x, fb)` (incl. `transparent`/`currentColor` fallback normalization), `$x-color` → `#x`, `transparent` → `#clear`, and `currentColor` → `#current`.
+  - `prefer-hide`: rewrites `display: 'none'` → `hide: true` (direct-value case only; state-map case stays report-only).
+
+  **Suggestions (`hasSuggestions: true`, manual quick-fix):**
+  - `valid-transition`: offers a semantic-name swap for `preferSemanticTransition` (e.g. `background-color` → `fill`); `unknownTransition` stays report-only.
+  - `consistent-token-usage`: offers `8px` → `1x`, `6px` → `1r` (radius), and `1px` → `1bw` (border).
+  - `valid-radius-shape`: offers the closest valid shape when one is found.
+
+  **`valid-default-state-order` is now `_`-fallback-aware:** the `_` fallback floor must be the first key in a state map, with the `''` default right after it — matching the runtime cascade order. This fixes a latent false-positive that flagged the correct `{ _: …, '': …, hovered }` order. Maps where `''` is the only other state besides `_` now report `redundantDefaultState`.
+
+  **`no-nested-selector` reclassified:** it is now a non-fixable `problem` (incorrect syntax, not a style preference) and defaults to `error` in the `recommended` preset.
+
+- [#24](https://github.com/tenphi/eslint-plugin-tasty/pull/24) [`84afaa0`](https://github.com/tenphi/eslint-plugin-tasty/commit/84afaa0e89cff1d529489526c5edb8f85518256d) Thanks [@tenphi](https://github.com/tenphi)! - Extend `no-raw-color-values` and `prefer-custom-property-syntax` with new raw-syntax warnings (all in the `recommended` preset at `warn`):
+  - `no-raw-color-values` now also flags modern color functions (`okhsl`, `okhsv`, `okhst`, `oklab`, `oklch`, `lab`, `lch`, `hwb`, `color`, `device-cmyk`, `light-dark`) and CSS named colors (`red`, `blue`, …) on color-bearing properties. Named-color checks skip `#token` and `$prop` references to avoid false positives.
+  - `prefer-custom-property-syntax` now also suggests `#color` for `$x-color` custom-property references, `#clear` for the `transparent` keyword, and `#current` for the `currentColor` keyword. `var(--x, transparent)` / `var(--x, currentColor)` fallbacks are normalized to `#clear` / `#current` in the suggestion.
+
 ## 0.8.0
 
 ### Minor Changes
