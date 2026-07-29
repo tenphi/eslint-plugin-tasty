@@ -209,7 +209,12 @@ export class TastyContext {
 
     if (/^[A-Z][A-Z0-9_]*$/.test(name)) return false;
 
-    if (/styles?$/i.test(name)) return true;
+    // Only `styles` and `*Styles` count. The singular `style` is conventionally
+    // a DOM inline-style object (`el.style`, `CSSProperties`, `setStyle(el, …)`)
+    // holding raw CSS longhands, not tasty syntax — matching it reported those
+    // longhands as tasty violations. A `Styles` type annotation still opts a
+    // differently-named variable in, below.
+    if (name === 'styles' || name.endsWith('Styles')) return true;
 
     if (this.hasStylesTypeAnnotation(current)) return true;
 
