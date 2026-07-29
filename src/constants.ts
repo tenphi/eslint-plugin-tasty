@@ -547,7 +547,7 @@ export const DIRECTIONAL_MODIFIERS: Record<string, Set<string>> = {
   padding: new Set(['top', 'right', 'bottom', 'left']),
   margin: new Set(['top', 'right', 'bottom', 'left']),
   fade: new Set(['top', 'right', 'bottom', 'left']),
-  inset: new Set(['top', 'right', 'bottom', 'left']),
+  inset: new Set(['top', 'right', 'bottom', 'left', 'dock']),
 };
 
 /**

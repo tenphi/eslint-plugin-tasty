@@ -21,6 +21,9 @@ export interface PropertyExpectation {
 }
 
 const DIRECTIONAL_MODS = ['top', 'right', 'bottom', 'left'];
+// `inset` additionally accepts `dock`: pin one edge and span its full
+// length (tasty >= 2.10). Other directional properties do not.
+const INSET_MODS = [...DIRECTIONAL_MODS, 'dock'];
 const RADIUS_DIRECTIONAL_MODS = [
   ...DIRECTIONAL_MODS,
   'top-left',
@@ -107,7 +110,7 @@ export const PROPERTY_EXPECTATIONS: Record<string, PropertyExpectation> = {
   paddingBlock: VALUE_ONLY,
   margin: { acceptsColor: false, acceptsMods: DIRECTIONAL_MODS },
   fade: { acceptsColor: true, acceptsMods: DIRECTIONAL_MODS },
-  inset: { acceptsColor: false, acceptsMods: DIRECTIONAL_MODS },
+  inset: { acceptsColor: false, acceptsMods: INSET_MODS },
 
   width: { acceptsColor: false, acceptsMods: DIMENSION_MODS },
   height: { acceptsColor: false, acceptsMods: DIMENSION_MODS },
