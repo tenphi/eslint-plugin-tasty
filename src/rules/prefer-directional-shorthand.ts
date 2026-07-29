@@ -2,12 +2,14 @@ import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
 import { getKeyName, getStringValue } from '../utils.js';
-import { DIRECTIONAL_BOX_IDENTITY } from '../constants.js';
+import {
+  DIRECTIONAL_BOX,
+  DOCK_PROPERTIES,
+  type DirectionalBoxConfig,
+} from '../constants.js';
 import { replaceStringValue } from '../fix-utils.js';
 
-type MessageIds = 'preferDirectionalShorthand';
-
-const SIDES = ['top', 'right', 'bottom', 'left'] as const;
+type MessageIds = 'preferDirectionalShorthand' | 'preferDirectionalUnrendered';
 
 function isZeroLike(token: string): boolean {
   const trimmed = token.trim();
@@ -16,7 +18,7 @@ function isZeroLike(token: string): boolean {
 }
 
 /**
- * Whether `token` is the placeholder value for an unset side, i.e. dropping it
+ * Whether `token` is the placeholder for an unset position, i.e. dropping it
  * from the shorthand leaves the emitted CSS unchanged.
  */
 function isIdentity(token: string, identity: string): boolean {
@@ -24,20 +26,48 @@ function isIdentity(token: string, identity: string): boolean {
   return isZeroLike(token);
 }
 
-function suggestDirectional(value: string, identity: string): string | null {
+/**
+ * Rewrites a 4-value box into the directional shorthand, or returns null when
+ * no equivalent form exists.
+ *
+ * The value is always carried into the suggestion, never dropped in favour of
+ * the property default. Whether an explicit value *equals* the default is
+ * project-dependent: `margin` defaults to `var(--gap)` (4px out of the box)
+ * while `1x` is 8px, so `margin: '0 0 1x 0'` -> `margin: 'bottom'` would
+ * silently change the spacing.
+ */
+function suggestDirectional(
+  value: string,
+  config: DirectionalBoxConfig,
+  supportsDock: boolean,
+): string | null {
   const tokens = value.trim().split(/\s+/);
   if (tokens.length !== 4) return null;
 
-  const meaningful = tokens
-    .map((token, index) => ({ token, side: SIDES[index] }))
-    .filter(({ token }) => !isIdentity(token, identity));
+  const { identity, positions } = config;
+  const placeholders = tokens.map((token) => isIdentity(token, identity));
+  const setCount = placeholders.filter((placeholder) => !placeholder).length;
 
-  // Only collapse when exactly one side carries a real value — otherwise the
-  // directional shorthand would drop the others.
-  if (meaningful.length !== 1) return null;
+  // Exactly one real value: collapse to `<value> <position>`.
+  if (setCount === 1) {
+    const index = placeholders.indexOf(false);
 
-  const { token, side } = meaningful[0];
-  return `${token} ${side}`;
+    return `${tokens[index]} ${positions[index]}`;
+  }
+
+  // Three equal real values around a single placeholder: one edge pinned with
+  // the perpendicular pair spanned, which `dock` expresses. The docked edge is
+  // opposite the placeholder.
+  if (supportsDock && setCount === 3) {
+    const freeIndex = placeholders.indexOf(true);
+    const set = tokens.filter((_, index) => index !== freeIndex);
+
+    if (new Set(set).size === 1) {
+      return `${set[0]} ${positions[(freeIndex + 2) % 4]} dock`;
+    }
+  }
+
+  return null;
 }
 
 export default createRule<[], MessageIds>({
@@ -45,13 +75,16 @@ export default createRule<[], MessageIds>({
   meta: {
     type: 'suggestion',
     fixable: 'code',
+    hasSuggestions: true,
     docs: {
       description:
-        'Suggest Tasty directional shorthand instead of 4-value CSS box syntax with zero placeholders',
+        'Suggest Tasty directional shorthand instead of 4-value CSS box syntax with placeholder positions',
     },
     messages: {
       preferDirectionalShorthand:
-        "'{{property}}' value '{{raw}}' only sets one side. Use the directional shorthand '{{suggestion}}' (e.g. '1x bottom') instead.",
+        "'{{property}}' value '{{raw}}' only sets part of the box. Use the directional shorthand '{{suggestion}}' instead.",
+      preferDirectionalUnrendered:
+        "'{{property}}' value '{{raw}}' does not do what it looks like — {{note}}. Use '{{suggestion}}' instead.",
     },
     schema: [],
   },
@@ -64,19 +97,42 @@ export default createRule<[], MessageIds>({
       value: string,
       node: TSESTree.Node,
     ): void {
+      const config = DIRECTIONAL_BOX[property];
       const suggestion = suggestDirectional(
         value,
-        DIRECTIONAL_BOX_IDENTITY[property],
+        config,
+        DOCK_PROPERTIES.has(property),
       );
       if (!suggestion) return;
 
+      if (config.fixable) {
+        context.report({
+          node,
+          messageId: 'preferDirectionalShorthand',
+          data: { property, raw: value, suggestion },
+          fix(fixer) {
+            return replaceStringValue(fixer, node, suggestion);
+          },
+        });
+
+        return;
+      }
+
+      // Applying this changes what the browser renders, so it is offered as a
+      // manual suggestion rather than an `eslint --fix` rewrite.
       context.report({
         node,
-        messageId: 'preferDirectionalShorthand',
-        data: { property, raw: value, suggestion },
-        fix(fixer) {
-          return replaceStringValue(fixer, node, suggestion);
-        },
+        messageId: 'preferDirectionalUnrendered',
+        data: { property, raw: value, suggestion, note: config.note ?? '' },
+        suggest: [
+          {
+            messageId: 'preferDirectionalShorthand',
+            data: { property, raw: value, suggestion },
+            fix(fixer) {
+              return replaceStringValue(fixer, node, suggestion);
+            },
+          },
+        ],
       });
     }
 
@@ -88,7 +144,7 @@ export default createRule<[], MessageIds>({
 
         const key = getKeyName(prop.key);
         if (key === null) continue;
-        if (!(key in DIRECTIONAL_BOX_IDENTITY)) continue;
+        if (!(key in DIRECTIONAL_BOX)) continue;
 
         const str = getStringValue(prop.value);
         if (str) {
