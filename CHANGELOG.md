@@ -1,5 +1,25 @@
 # @tenphi/eslint-plugin-tasty
 
+## 0.11.2
+
+### Patch Changes
+
+- [#32](https://github.com/tenphi/eslint-plugin-tasty/pull/32) [`57d7d9e`](https://github.com/tenphi/eslint-plugin-tasty/commit/57d7d9eb02fa3e50b80c038c9530be8263a52edd) Thanks [@tenphi](https://github.com/tenphi)! - Only treat `styles` and `*Styles` variables as style objects.
+
+  The name test was `/styles?$/i`, which also matched the **singular** `style` — conventionally a DOM inline-style object holding raw CSS longhands, not tasty syntax. Every rule then ran against those objects and reported their longhands as violations:
+
+  ```js
+  // reported `top`, `left`, `right`, `bottom` and `maxWidth` as tasty problems
+  const style = { position: 'absolute', top: '0px', maxWidth: '100%' };
+  setStyle(element, style);
+  ```
+
+  `cube-ui-kit` had 5 findings from a single such object, plus more from `hostStyle: CSSProperties` and `baseStyle: Record<string, string>`.
+
+  Detection is now `name === 'styles' || name.endsWith('Styles')`. An explicit `Styles` type annotation still opts a differently-named variable in, and the existing exclusion of `SCREAMING_CASE` names is unchanged.
+
+  Added `src/context.test.ts` covering both directions. It probes through `prefer-shorthand-property` rather than `known-property`, because the properties involved (`top`, `maxWidth`) are perfectly _known_ — a `known-property` probe stays silent either way and would not catch this regression.
+
 ## 0.11.1
 
 ### Patch Changes
