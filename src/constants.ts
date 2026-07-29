@@ -551,29 +551,71 @@ export const DIRECTIONAL_MODIFIERS: Record<string, Set<string>> = {
 };
 
 /**
- * Properties whose 4-value box syntax round-trips losslessly to a directional
- * shorthand, mapped to the *identity* token that marks an unset side.
- *
- * The identity is per-property because it is the CSS initial value of the
- * longhand, not always `0`:
- * - `margin` / `padding` — initial is `0`, so zero tokens are placeholders.
- * - `inset` — initial is `auto`. A `0` here is a REAL offset that the
- *   directional shorthand would silently drop, so `auto` is the placeholder.
- *
- * Deliberately excluded because the rewrite is *not* equivalent:
- * - `radius` — the four positions are corners, and a directional modifier
- *   addresses a corner pair (`radius: '4px bottom'` rounds both bottom
- *   corners), so a single-corner value has no directional equivalent.
- * - `border` — four tokens parse as one border value (width/style/color),
- *   not as a box, so there are no per-side placeholders to collapse.
- * - `fade` — each side becomes its own gradient group; collapsing changes the
- *   emitted `mask` layers.
+ * Position names a 4-value box maps onto, in source order.
  */
-export const DIRECTIONAL_BOX_IDENTITY: Record<string, string> = {
-  margin: '0',
-  padding: '0',
-  inset: 'auto',
+export const BOX_SIDES = ['top', 'right', 'bottom', 'left'] as const;
+export const BOX_CORNERS = [
+  'top-left',
+  'top-right',
+  'bottom-right',
+  'bottom-left',
+] as const;
+
+export interface DirectionalBoxConfig {
+  /**
+   * The token that marks an unset position — dropping it from the shorthand
+   * leaves the emitted CSS unchanged. This is the CSS initial value of the
+   * longhand, which is not always `0`: `inset` initialises to `auto`, so a `0`
+   * there is a real offset the shorthand must not drop.
+   */
+  identity: string;
+  /** Modifier names for each of the four positions, in source order. */
+  positions: readonly string[];
+  /**
+   * Whether `eslint --fix` may apply the rewrite. False when the rewrite is
+   * still an improvement but changes what the browser renders, so a human has
+   * to opt in.
+   */
+  fixable: boolean;
+  /**
+   * Set when the 4-value form is not interpreted per-position at all, so the
+   * current output is wrong rather than merely verbose. Surfaced in the report.
+   */
+  note?: string;
+}
+
+/**
+ * Properties whose 4-value box syntax has a directional-shorthand equivalent.
+ *
+ * `radius` uses corner names rather than sides: a directional modifier
+ * addresses the corner *pair* along an edge, so only `top-left` & co. can
+ * express a single corner (requires `@tenphi/tasty` >= 2.10).
+ */
+export const DIRECTIONAL_BOX: Record<string, DirectionalBoxConfig> = {
+  margin: { identity: '0', positions: BOX_SIDES, fixable: true },
+  padding: { identity: '0', positions: BOX_SIDES, fixable: true },
+  inset: { identity: 'auto', positions: BOX_SIDES, fixable: true },
+  radius: { identity: '0', positions: BOX_CORNERS, fixable: true },
+  fade: { identity: '0', positions: BOX_SIDES, fixable: true },
+  // Four `border` tokens parse as a single border value (width/style/color),
+  // not as a box: `border: '0 0 1bw 0'` emits `border: 0 solid …` — no border
+  // on any side. The directional form is what the author meant, but applying
+  // it changes rendering, so it stays a manual fix.
+  border: {
+    identity: '0',
+    positions: BOX_SIDES,
+    fixable: false,
+    note: 'four border tokens parse as one border value, so the current style sets no border at all',
+  },
 };
+
+/**
+ * Properties that support a `dock` modifier — pin one edge and span its full
+ * length. Lets a 4-value box with a single `identity` side collapse, e.g.
+ * `inset: 'auto 0 0 0'` -> `inset: '0 bottom dock'`.
+ * Requires `@tenphi/tasty` >= 2.10.
+ */
+export const DOCK_PROPERTIES = new Set(['inset']);
 
 /**
  * Valid radius shape keywords.
