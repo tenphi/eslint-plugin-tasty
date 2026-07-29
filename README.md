@@ -101,7 +101,8 @@ export default {
 | `tasty/prefer-auto-calc` | warn | `calc(...)` instead of Tasty auto-calc `(...)` |
 | `tasty/prefer-custom-property-syntax` | warn | `var(--prop)` / `$x-color` / `transparent` / `currentColor` instead of `$prop` / `#color` / `#clear` / `#current` |
 | `tasty/prefer-hide` | warn | `display: 'none'` instead of `hide: true` |
-| `tasty/prefer-directional-shorthand` | warn | 4-value `margin`/`padding` with zero placeholders instead of directional form |
+| `tasty/prefer-directional-shorthand` | warn | 4-value `margin`/`padding`/`inset` with placeholder sides instead of directional form |
+| `tasty/prefer-longhand-property` | error | Lossy `flex` shorthand instead of `flexGrow` / `flexShrink` / `flexBasis` |
 
 ### Strict (includes all recommended rules)
 

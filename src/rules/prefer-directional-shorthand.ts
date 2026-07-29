@@ -2,7 +2,7 @@ import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
 import { getKeyName, getStringValue } from '../utils.js';
-import { DIRECTIONAL_MODIFIERS } from '../constants.js';
+import { DIRECTIONAL_BOX_IDENTITY } from '../constants.js';
 import { replaceStringValue } from '../fix-utils.js';
 
 type MessageIds = 'preferDirectionalShorthand';
@@ -15,17 +15,28 @@ function isZeroLike(token: string): boolean {
   return /^0+(?:\.0+)?(?:px|em|rem|%|x|r|cr|bw|ow|lh|sf)?$/i.test(trimmed);
 }
 
-function suggestDirectional(value: string): string | null {
+/**
+ * Whether `token` is the placeholder value for an unset side, i.e. dropping it
+ * from the shorthand leaves the emitted CSS unchanged.
+ */
+function isIdentity(token: string, identity: string): boolean {
+  if (identity === 'auto') return token.trim().toLowerCase() === 'auto';
+  return isZeroLike(token);
+}
+
+function suggestDirectional(value: string, identity: string): string | null {
   const tokens = value.trim().split(/\s+/);
   if (tokens.length !== 4) return null;
 
-  const nonZero = tokens
+  const meaningful = tokens
     .map((token, index) => ({ token, side: SIDES[index] }))
-    .filter(({ token }) => !isZeroLike(token));
+    .filter(({ token }) => !isIdentity(token, identity));
 
-  if (nonZero.length !== 1) return null;
+  // Only collapse when exactly one side carries a real value — otherwise the
+  // directional shorthand would drop the others.
+  if (meaningful.length !== 1) return null;
 
-  const { token, side } = nonZero[0];
+  const { token, side } = meaningful[0];
   return `${token} ${side}`;
 }
 
@@ -53,7 +64,10 @@ export default createRule<[], MessageIds>({
       value: string,
       node: TSESTree.Node,
     ): void {
-      const suggestion = suggestDirectional(value);
+      const suggestion = suggestDirectional(
+        value,
+        DIRECTIONAL_BOX_IDENTITY[property],
+      );
       if (!suggestion) return;
 
       context.report({
@@ -74,7 +88,7 @@ export default createRule<[], MessageIds>({
 
         const key = getKeyName(prop.key);
         if (key === null) continue;
-        if (!(key in DIRECTIONAL_MODIFIERS)) continue;
+        if (!(key in DIRECTIONAL_BOX_IDENTITY)) continue;
 
         const str = getStringValue(prop.value);
         if (str) {

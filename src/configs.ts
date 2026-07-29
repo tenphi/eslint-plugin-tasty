@@ -29,6 +29,7 @@ export const recommended: TSESLint.SharedConfig.RulesRecord = {
   'tasty/prefer-custom-property-syntax': 'warn',
   'tasty/prefer-hide': 'warn',
   'tasty/prefer-directional-shorthand': 'warn',
+  'tasty/prefer-longhand-property': 'error',
 };
 
 export const strict: TSESLint.SharedConfig.RulesRecord = {

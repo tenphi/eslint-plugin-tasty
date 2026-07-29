@@ -36,6 +36,7 @@ const ruleMap: Record<string, TSESLint.RuleModule<string, unknown[]>> = {
   'prefer-custom-property-syntax': rules.preferCustomPropertySyntax,
   'prefer-hide': rules.preferHide,
   'prefer-directional-shorthand': rules.preferDirectionalShorthand,
+  'prefer-longhand-property': rules.preferLonghandProperty,
 };
 
 const plugin = {
