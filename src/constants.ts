@@ -551,6 +551,31 @@ export const DIRECTIONAL_MODIFIERS: Record<string, Set<string>> = {
 };
 
 /**
+ * Properties whose 4-value box syntax round-trips losslessly to a directional
+ * shorthand, mapped to the *identity* token that marks an unset side.
+ *
+ * The identity is per-property because it is the CSS initial value of the
+ * longhand, not always `0`:
+ * - `margin` / `padding` — initial is `0`, so zero tokens are placeholders.
+ * - `inset` — initial is `auto`. A `0` here is a REAL offset that the
+ *   directional shorthand would silently drop, so `auto` is the placeholder.
+ *
+ * Deliberately excluded because the rewrite is *not* equivalent:
+ * - `radius` — the four positions are corners, and a directional modifier
+ *   addresses a corner pair (`radius: '4px bottom'` rounds both bottom
+ *   corners), so a single-corner value has no directional equivalent.
+ * - `border` — four tokens parse as one border value (width/style/color),
+ *   not as a box, so there are no per-side placeholders to collapse.
+ * - `fade` — each side becomes its own gradient group; collapsing changes the
+ *   emitted `mask` layers.
+ */
+export const DIRECTIONAL_BOX_IDENTITY: Record<string, string> = {
+  margin: '0',
+  padding: '0',
+  inset: 'auto',
+};
+
+/**
  * Valid radius shape keywords.
  */
 export const RADIUS_SHAPES = new Set(['round', 'ellipse', 'leaf', 'backleaf']);
@@ -636,9 +661,6 @@ export const SHORTHAND_MAPPING: Record<
   },
   letterSpacing: { property: 'preset', hint: "preset: '...'" },
   textTransform: { property: 'preset', hint: "preset: '...'" },
-  flexGrow: { property: 'flex', hint: "flex: '...'" },
-  flexShrink: { property: 'flex', hint: "flex: '...'" },
-  flexBasis: { property: 'flex', hint: "flex: '...'" },
   flexGap: { property: 'gap', hint: "gap: '...'" },
   scrollbarWidth: { property: 'scrollbar', hint: "scrollbar: '...'" },
   scrollbarColor: { property: 'scrollbar', hint: "scrollbar: '...'" },
@@ -659,6 +681,27 @@ export const SHORTHAND_MAPPING: Record<
   lineClamp: {
     property: 'textOverflow',
     hint: "textOverflow: 'ellipsis / {lines}'",
+  },
+};
+
+/**
+ * CSS shorthands whose *longhands* are the preferred Tasty form — the reverse
+ * of `SHORTHAND_MAPPING`.
+ *
+ * `flex` is lossy in a way the longhands are not: it resets the two components
+ * you did not write to values that are not their CSS initial. `flex: '0'`
+ * expands to `flex-grow: 0; flex-shrink: 1; flex-basis: 0%`, so it cannot
+ * express "do not shrink" (`flexShrink: 0`) at all, and it silently changes
+ * `flex-basis`. Writing the longhands keeps each component independent, which
+ * also lets them carry separate state maps.
+ */
+export const LONGHAND_MAPPING: Record<
+  string,
+  { longhands: string[]; hint: string }
+> = {
+  flex: {
+    longhands: ['flexGrow', 'flexShrink', 'flexBasis'],
+    hint: 'flexGrow / flexShrink / flexBasis',
   },
 };
 
