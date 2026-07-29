@@ -10,6 +10,27 @@ const tester = new RuleTester({
 
 tester.run('valid-value', rule, {
   valid: [
+    // `dock` is a valid inset modifier (tasty >= 2.10) and is what
+    // prefer-directional-shorthand auto-fixes to, so it must not be reported.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { inset: '0 bottom dock' } });
+      `,
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { inset: 'dock' } });
+      `,
+    },
+    // corner modifiers on radius, likewise
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { radius: '1r top-right' } });
+      `,
+    },
     // Color properties with valid color tokens
     {
       code: `
