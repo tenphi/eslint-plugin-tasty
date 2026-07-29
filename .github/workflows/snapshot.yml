@@ -29,7 +29,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22.22.1
+          # Keep this floating on the 22 line: the step below installs
+          # npm@latest, whose engines floor moves with each npm release
+          # (npm@12 requires ^22.22.2). An exact pin here silently falls
+          # behind that floor and fails with EBADENGINE.
+          node-version: 22
           cache: pnpm
           registry-url: https://registry.npmjs.org
 
