@@ -46,7 +46,13 @@ export default createRule<[], MessageIds>({
 
         checkNode(prop.value);
 
-        if (prop.value.type === 'ObjectExpression') {
+        // Only recurse into genuine state maps. Sub-element objects
+        // (`Icon: { … }`) are style objects in their own right and are visited
+        // separately by the listener, so recursing here reports them twice.
+        if (
+          prop.value.type === 'ObjectExpression' &&
+          ctx.isStateMap(prop.value, prop)
+        ) {
           for (const stateProp of prop.value.properties) {
             if (stateProp.type === 'Property') {
               checkNode(stateProp.value);

@@ -104,6 +104,51 @@ tester.run('consistent-token-usage', rule, {
       ],
     },
     {
+      // A sub-element's styles are a style object in their own right and are
+      // visited separately, so they must be reported exactly once — not once
+      // as a "state" of `Icon` and again on their own.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { Icon: { width: '64px' } } });
+      `,
+      errors: [
+        {
+          messageId: 'preferToken',
+          suggestions: [
+            {
+              messageId: 'replaceWithToken',
+              output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { Icon: { width: '8x' } } });
+      `,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      // A genuine state map inside a sub-element is still reported, and the
+      // parent property name is still used to scope the radius check.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { Icon: { radius: { '': '6px' } } } });
+      `,
+      errors: [
+        {
+          messageId: 'preferToken',
+          suggestions: [
+            {
+              messageId: 'replaceWithToken',
+              output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { Icon: { radius: { '': '1r' } } } });
+      `,
+            },
+          ],
+        },
+      ],
+    },
+    {
       // Multiple 1px tokens in one border value.
       code: `
         import { tasty } from '@tenphi/tasty';
