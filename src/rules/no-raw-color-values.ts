@@ -110,7 +110,14 @@ export default createRule<[], MessageIds>({
         const str = getStringValue(prop.value);
         if (str) checkValue(str, prop.value, key);
 
-        if (prop.value.type === 'ObjectExpression') {
+        // Only recurse into genuine state maps. Sub-element objects
+        // (`Icon: { … }`) are style objects in their own right and are visited
+        // separately by the listener, so treating them as state maps here both
+        // double-reports and passes the sub-element name as the property.
+        if (
+          prop.value.type === 'ObjectExpression' &&
+          ctx.isStateMap(prop.value, prop)
+        ) {
           for (const stateProp of prop.value.properties) {
             if (stateProp.type !== 'Property') continue;
             const stateStr = getStringValue(stateProp.value);

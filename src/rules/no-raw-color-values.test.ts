@@ -117,5 +117,23 @@ tester.run('no-raw-color-values', rule, {
       `,
       errors: [{ messageId: 'rawNamedColor', data: { name: 'red' } }],
     },
+    {
+      // A sub-element's styles are visited separately, so this must be reported
+      // exactly once. Recursing into `Icon` as if it were a state map also
+      // passed 'Icon' as the property name, breaking the color-property scoping.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { Icon: { fill: 'red' } } });
+      `,
+      errors: [{ messageId: 'rawNamedColor', data: { name: 'red' } }],
+    },
+    {
+      // A genuine state map inside a sub-element is still reported.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { Icon: { fill: { '': 'red' } } } });
+      `,
+      errors: [{ messageId: 'rawNamedColor', data: { name: 'red' } }],
+    },
   ],
 });
