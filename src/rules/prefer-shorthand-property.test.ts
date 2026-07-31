@@ -18,6 +18,46 @@ tester.run('prefer-shorthand-property', rule, {
     },
   ],
   invalid: [
+    // A CSS-wide keyword is pointed at `preset`, not `font`: `font` appends a
+    // fallback stack (`inherit, var(--font-sans, …)`), while a keyword used as
+    // the preset name is emitted verbatim across the typography group.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fontFamily: 'inherit' } });
+      `,
+      errors: [
+        {
+          messageId: 'preferShorthand',
+          data: { native: 'fontFamily', alternative: "preset: 'inherit'" },
+        },
+      ],
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fontFamily: 'UNSET' } });
+      `,
+      errors: [
+        {
+          messageId: 'preferShorthand',
+          data: { native: 'fontFamily', alternative: "preset: 'unset'" },
+        },
+      ],
+    },
+    // A real font stack still points at `font`.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fontFamily: 'Inter' } });
+      `,
+      errors: [
+        {
+          messageId: 'preferShorthand',
+          data: { native: 'fontFamily', alternative: "font: '...'" },
+        },
+      ],
+    },
     {
       code: `
         import { tasty } from '@tenphi/tasty';
