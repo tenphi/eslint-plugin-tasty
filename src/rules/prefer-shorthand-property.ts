@@ -1,10 +1,39 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
-import { getKeyName } from '../utils.js';
+import { getKeyName, getStringValue } from '../utils.js';
 import { SHORTHAND_MAPPING } from '../constants.js';
 
 type MessageIds = 'preferShorthand';
+
+const CSS_WIDE_KEYWORDS = new Set([
+  'inherit',
+  'initial',
+  'unset',
+  'revert',
+  'revert-layer',
+]);
+
+/**
+ * `font` resolves to `<value>, var(--font-sans, var(--font-sans-fallback))`,
+ * so it cannot express a CSS-wide keyword — `font: 'inherit'` emits
+ * `font-family: inherit, …`, which is invalid and drops the inherit.
+ *
+ * `preset` is the property that handles these: a CSS-wide keyword used as the
+ * preset name short-circuits token lookup and is emitted verbatim across the
+ * whole typography group, so `preset: 'inherit'` yields a real
+ * `font-family: inherit`. Point at that instead of `font`.
+ */
+function shorthandHint(key: string, prop: TSESTree.Property): string | null {
+  const mapping = SHORTHAND_MAPPING[key];
+  if (!mapping) return null;
+  if (key !== 'fontFamily') return mapping.hint;
+
+  const value = getStringValue(prop.value)?.trim().toLowerCase();
+  return value && CSS_WIDE_KEYWORDS.has(value)
+    ? `preset: '${value}'`
+    : mapping.hint;
+}
 
 export default createRule<[], MessageIds>({
   name: 'prefer-shorthand-property',
@@ -35,11 +64,12 @@ export default createRule<[], MessageIds>({
         if (key === null) continue;
 
         const mapping = SHORTHAND_MAPPING[key];
-        if (mapping) {
+        const hint = shorthandHint(key, prop);
+        if (mapping && hint) {
           context.report({
             node: prop.key,
             messageId: 'preferShorthand',
-            data: { native: key, alternative: mapping.hint },
+            data: { native: key, alternative: hint },
             fix(fixer) {
               // Only auto-fix the carry-over subset where the value passes
               // through unchanged (e.g. backgroundColor → fill, borderRadius →
