@@ -21,15 +21,21 @@ export interface PropertyExpectation {
 }
 
 const DIRECTIONAL_MODS = ['top', 'right', 'bottom', 'left'];
+// Output modifier accepted by every box property (`padding`, `margin`,
+// `inset`, `border`, `radius`): emit the individual CSS longhands instead of
+// the shorthand, so children can selectively inherit a single side/corner.
+const LONGHAND_MOD = 'longhand';
 // `inset` additionally accepts `dock`: pin one edge and span its full
 // length (tasty >= 2.10). Other directional properties do not.
-const INSET_MODS = [...DIRECTIONAL_MODS, 'dock'];
+const INSET_MODS = [...DIRECTIONAL_MODS, 'dock', LONGHAND_MOD];
+const BOX_DIRECTIONAL_MODS = [...DIRECTIONAL_MODS, LONGHAND_MOD];
 const RADIUS_DIRECTIONAL_MODS = [
   ...DIRECTIONAL_MODS,
   'top-left',
   'top-right',
   'bottom-left',
   'bottom-right',
+  LONGHAND_MOD,
 ];
 const BORDER_STYLE_MODS = [
   'solid',
@@ -87,7 +93,7 @@ export const PROPERTY_EXPECTATIONS: Record<string, PropertyExpectation> = {
 
   border: {
     acceptsColor: true,
-    acceptsMods: [...DIRECTIONAL_MODS, ...BORDER_STYLE_MODS],
+    acceptsMods: [...BOX_DIRECTIONAL_MODS, ...BORDER_STYLE_MODS],
   },
   outline: {
     acceptsColor: true,
@@ -105,10 +111,10 @@ export const PROPERTY_EXPECTATIONS: Record<string, PropertyExpectation> = {
     ],
   },
 
-  padding: { acceptsColor: false, acceptsMods: DIRECTIONAL_MODS },
+  padding: { acceptsColor: false, acceptsMods: BOX_DIRECTIONAL_MODS },
   paddingInline: VALUE_ONLY,
   paddingBlock: VALUE_ONLY,
-  margin: { acceptsColor: false, acceptsMods: DIRECTIONAL_MODS },
+  margin: { acceptsColor: false, acceptsMods: BOX_DIRECTIONAL_MODS },
   fade: { acceptsColor: true, acceptsMods: DIRECTIONAL_MODS },
   inset: { acceptsColor: false, acceptsMods: INSET_MODS },
 

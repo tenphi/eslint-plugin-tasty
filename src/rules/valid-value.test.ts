@@ -220,6 +220,37 @@ tester.run('valid-value', rule, {
         tasty({ styles: { position: 'absolute' } });
       `,
     },
+    // `longhand` output modifier — accepted by every box property
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { padding: '2x longhand' } });
+      `,
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { margin: '2x longhand' } });
+      `,
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { inset: '0 longhand' } });
+      `,
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { border: '1bw longhand' } });
+      `,
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { radius: '$group-radius longhand' } });
+      `,
+    },
   ],
   invalid: [
     // Unbalanced parentheses
