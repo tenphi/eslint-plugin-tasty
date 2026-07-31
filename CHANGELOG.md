@@ -1,5 +1,51 @@
 # @tenphi/eslint-plugin-tasty
 
+## 0.11.4
+
+### Patch Changes
+
+- [#36](https://github.com/tenphi/eslint-plugin-tasty/pull/36) [`f07475b`](https://github.com/tenphi/eslint-plugin-tasty/commit/f07475ba5282ea076c57cf5c9a915ba6400af424) Thanks [@tenphi](https://github.com/tenphi)! - Point `fontFamily` at `preset` instead of `font` for CSS-wide keywords.
+
+  `font` resolves to `<value>, var(--font-sans, var(--font-sans-fallback))`, so it cannot express a CSS-wide keyword — following the hint for `fontFamily: 'inherit'` emits `font-family: inherit, var(--font-sans, …)`, which is invalid and drops the inherit entirely. The rule was steering authors toward broken CSS:
+
+  ```js
+  tasty({ styles: { fontFamily: 'inherit' } });
+  // warning: Prefer tasty shorthand 'font: '...'' instead of 'fontFamily'
+  ```
+
+  `preset` is the property that handles these. A CSS-wide keyword used as the preset name short-circuits token lookup and is emitted verbatim across the whole typography group, so `preset: 'inherit'` produces a real `font-family: inherit`. The hint now names it:
+
+  ```
+  Prefer tasty shorthand 'preset: 'inherit'' instead of 'fontFamily'
+  ```
+
+  Applies to `inherit`, `initial`, `unset`, `revert` and `revert-layer`. A real font stack (`fontFamily: 'Inter'`) still points at `font: '...'`. The rule stays report-only for `fontFamily` either way — the two forms differ in scope (`preset` covers the whole typography group), so this is not a safe rename.
+
+- [#36](https://github.com/tenphi/eslint-plugin-tasty/pull/36) [`f07475b`](https://github.com/tenphi/eslint-plugin-tasty/commit/f07475ba5282ea076c57cf5c9a915ba6400af424) Thanks [@tenphi](https://github.com/tenphi)! - Stop `valid-transition` reporting kebab-case CSS property names as unknown.
+
+  A `transition` value names **CSS** properties, so they are spelled kebab-case — and Tasty emits any name it has no semantic mapping for verbatim into the CSS `transition`, which makes the kebab form the correct one. `KNOWN_CSS_PROPERTIES` is keyed by camelCase style keys, though, and the membership test used the raw name, so every kebab-case property without a `TRANSITION_SEMANTIC_MAPPING` entry was reported:
+
+  ```
+  warning tasty(valid-transition): Unknown transition name 'text-decoration-color'.
+  ```
+
+  The gap was invisible for the common cases because `TRANSITION_SEMANTIC_MAPPING` lists both spellings (`'background-color'` alongside `backgroundColor`) and is consulted first — so only properties absent from that map, such as `text-decoration-color` and `text-underline-offset`, hit the bad lookup.
+
+  The name is now normalized to camelCase before the `KNOWN_CSS_PROPERTIES` check. Raw custom properties (`--gradient-angle`) are also accepted — `transition.ts`'s `getTiming()` handles that form explicitly.
+
+- [#36](https://github.com/tenphi/eslint-plugin-tasty/pull/36) [`f07475b`](https://github.com/tenphi/eslint-plugin-tasty/commit/f07475ba5282ea076c57cf5c9a915ba6400af424) Thanks [@tenphi](https://github.com/tenphi)! - Accept the `longhand` output modifier on box properties in `valid-value`.
+
+  `longhand` forces a box property to emit the individual CSS longhands instead of the shorthand, so children can selectively inherit a single side or corner (`radius: 'inherit right'`). It is documented for `padding`, `margin`, `inset`, `border` and `radius`, and honoured by the corresponding style handlers — but it was missing from every `acceptsMods` list in `PROPERTY_EXPECTATIONS`, so `valid-value` rejected the documented syntax as an error:
+
+  ```
+  error tasty(valid-value): Modifier 'longhand' is not valid for 'radius'.
+                            Accepted: top, right, bottom, left, top-left, …
+  ```
+
+  `longhand` is now accepted on those five properties. `fade` and `outline` are unchanged — neither style handler reads the modifier.
+
+  Added valid-case coverage for all five properties to `valid-value.test.ts`.
+
 ## 0.11.3
 
 ### Patch Changes
