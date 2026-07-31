@@ -34,6 +34,27 @@ tester.run('valid-transition', rule, {
         tasty({ styles: { transition: '$$rotation 0.2s ease-out, ##accent 0.3s' } });
       `,
     },
+    // Kebab-case CSS property names — the spelling a CSS `transition` uses.
+    // Tasty emits an unmapped name verbatim, so these are correct.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { transition: 'text-decoration-color 0.3s' } });
+      `,
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { transition: 'color, text-underline-offset' } });
+      `,
+    },
+    // Raw custom property — getTiming() handles the `--name` form.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { transition: '--gradient-angle 0.3s' } });
+      `,
+    },
   ],
   invalid: [
     {

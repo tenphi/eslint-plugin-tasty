@@ -14,6 +14,16 @@ type MessageIds =
   | 'preferSemanticTransition'
   | 'useSemantic';
 
+/**
+ * `KNOWN_CSS_PROPERTIES` is keyed by camelCase style keys, but a `transition`
+ * value names *CSS* properties, which are kebab-case (`text-decoration-color`).
+ * Tasty emits an unmapped name verbatim into the CSS `transition`, so the
+ * kebab form is the correct spelling — normalize before the lookup.
+ */
+function kebabToCamel(name: string): string {
+  return name.replace(/-([a-z])/g, (_, char: string) => char.toUpperCase());
+}
+
 export default createRule<[], MessageIds>({
   name: 'valid-transition',
   meta: {
@@ -92,6 +102,8 @@ export default createRule<[], MessageIds>({
         if (
           !SEMANTIC_TRANSITIONS.has(name) &&
           !KNOWN_CSS_PROPERTIES.has(name) &&
+          !KNOWN_CSS_PROPERTIES.has(kebabToCamel(name)) &&
+          !name.startsWith('--') &&
           name !== 'all' &&
           name !== 'none'
         ) {
