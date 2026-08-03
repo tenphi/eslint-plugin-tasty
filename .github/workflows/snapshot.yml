@@ -11,6 +11,11 @@ jobs:
       github.event.comment.body == '/snapshot'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # npm trusted publishing for this package is scoped to the `release`
+    # environment, so the OIDC token minted outside it is rejected with a 404 on
+    # the final PUT — the build and provenance signing both succeed first, which
+    # makes it look like a publish problem rather than an auth one.
+    environment: release
     permissions:
       contents: read
       pull-requests: write
