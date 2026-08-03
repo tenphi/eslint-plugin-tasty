@@ -538,6 +538,9 @@ export const BOOLEAN_TRUE_PROPERTIES = new Set([
   'inset',
   'width',
   'height',
+  // `fade: true` falls back to `calc(2 * var(--gap))` — a token-following
+  // default no explicit value can express, so it is genuinely useful.
+  'fade',
   'hide',
   'preset',
   'font',

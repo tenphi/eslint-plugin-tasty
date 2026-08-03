@@ -55,6 +55,23 @@ It shares tasty's directional engine but was missing from the modifier table, so
 
 It was a hardcoded `'0.1.0'` literal that had drifted from the released version. Now read from `package.json`, with a test asserting the two match so it cannot drift again.
 
+### Detection reaches Storybook stories and `styles` JSX props
+
+Two shapes were silently unchecked, so v3-invalid styles passed lint entirely:
+
+- a Storybook story's `args.styles` — the enclosing variable is named after the story and there is no Tasty call, so neither the variable-name nor the call-site heuristic reached it
+- `<Block styles={{ … }} />` — described in `SPECIFICATION.md` but never implemented
+
+Both now count as style objects. A bare `styles` key elsewhere still does **not**: plenty of unrelated libraries take a `styles` option object, and the key alone is no evidence it is Tasty's. A `styles` JSX prop is safe to match on name alone, since React's own prop is `style`, singular.
+
+Found by running the plugin over `@cube-dev/ui-kit`, where an `inset: '2x bottom 4x left'` in a story had gone unreported.
+
+Overlapping selectors are now deduped per object, so a shape matching two selectors — `tasty({ styles: {…} })` matches both the call-site and the `styles`-key selector — reports once instead of twice.
+
+### `fade` accepts `true`
+
+It was missing from the boolean-property list, so `fade: true` was reported as invalid. It works: the value falls back to `calc(2 * var(--gap))`, a token-following default that no explicit value can express.
+
 ### Config: `funcs` is now `functions`
 
 Matching tasty's `TastyExtensionConfig`, which has always declared `functions` — the plugin read `funcs`, so a `functions: [...]` list in a shared `tasty.config.ts` was silently ignored and custom function names were never validated. `funcs` is still read as a deprecated alias.
