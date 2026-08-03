@@ -55,6 +55,25 @@ tester.run('valid-directional-modifier', rule, {
     // Properties with no directional vocabulary and no direction word.
     wrap(`fill: '#purple'`),
     wrap(`width: '10x'`),
+
+    // Direction words are ordinary CSS *values* for a long tail of properties.
+    // Every case below was reported as an error by an earlier version of this rule
+    // when run against @cube-dev/ui-kit, which is why properties without a
+    // directional vocabulary are skipped entirely.
+    wrap(`verticalAlign: 'bottom'`),
+    wrap(`textAlign: 'left'`),
+    wrap(`textAlign: { '': 'center', compact: 'left' }`),
+    wrap(
+      `transformOrigin: { '': 'top center', '[data-placement="top"]': 'bottom center' }`,
+    ),
+    wrap(`transition: 'left 0.2s ease-in-out, top 0.2s ease-in-out'`),
+    wrap(`backgroundPosition: 'top right'`),
+    wrap(`objectPosition: 'bottom left'`),
+    wrap(`float: 'right'`),
+    wrap(`clear: 'both'`),
+    // Not flagged even though a direction word is clearly a mistake here — the
+    // trade is deliberate, see the comment in the rule.
+    wrap(`fill: '#purple top'`),
   ],
   invalid: [
     // The removed positional form, in each of its interchangeable spellings.
@@ -103,16 +122,6 @@ tester.run('valid-directional-modifier', rule, {
     {
       code: wrap(`padding: '2x top, 4x 8x right'`),
       errors: [{ messageId: 'tooManyValues' }],
-    },
-
-    // A direction word on a property that has no directional vocabulary.
-    {
-      code: wrap(`fill: '#purple top'`),
-      errors: [{ messageId: 'unsupportedProperty' }],
-    },
-    {
-      code: wrap(`width: '1x top'`),
-      errors: [{ messageId: 'unsupportedProperty' }],
     },
 
     // A direction word outside the property's own set.

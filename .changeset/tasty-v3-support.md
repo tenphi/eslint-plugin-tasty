@@ -41,11 +41,11 @@ Applies to `padding`, `margin`, `inset`, `scrollMargin`, and `fade`. Not to `bor
 
 The rule now parses with the shared value parser instead of splitting on whitespace, which is what makes comma groups visible to it.
 
-### `valid-directional-modifier` reports what it always claimed to
+### `valid-directional-modifier` message and scope
 
-The rule skipped any property absent from its own modifier table, which made its documented purpose unreachable: `fill: '#purple top'` and `width: '1x top'` were silently accepted despite the rule existing to catch exactly that. Both now report. A direction outside a property's own set (`padding: '1x top-left'`) now reports with the accepted list rather than the misleading "does not support directional modifiers".
+A direction outside a property's own set (`padding: '1x top-left'`) now reports with the accepted list rather than the misleading "does not support directional modifiers", and the rule no longer descends into `$` affix values (a selector, not a value — `$: '.active'` was read as an unknown unit), sub-element keys, or at-rule blocks.
 
-It also no longer descends into `$` affix values (a selector, not a value — `$: '.active'` was read as an unknown unit), sub-element keys, or at-rule blocks.
+The rule still skips properties with no directional vocabulary, which makes the "wrong property" case (`fill: '#purple top'`) unreachable. That gate looks like a bug but is load-bearing: direction words are ordinary CSS *values* for a long tail of properties — `verticalAlign: 'bottom'`, `textAlign: 'left'`, `transformOrigin: 'top center'`, `backgroundPosition`, `objectPosition`, `float`, `clear`, `scrollSnapAlign`, and `transition`, whose value names properties that can themselves be `left`/`top`. Removing it reported 20 errors across `@cube-dev/ui-kit`, every one a false positive. Catching a stray `fill: '#purple top'` is not worth an allowlist of every property that takes a positional keyword. All 20 cases are now regression tests.
 
 ### `scrollMargin` accepts directional modifiers
 

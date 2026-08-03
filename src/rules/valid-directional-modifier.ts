@@ -10,10 +10,7 @@ import {
 import { parseValue } from '../parsers/index.js';
 import type { ValueToken } from '../parsers/index.js';
 
-type MessageIds =
-  | 'unsupportedProperty'
-  | 'invalidDirectionalModifier'
-  | 'tooManyValues';
+type MessageIds = 'invalidDirectionalModifier' | 'tooManyValues';
 
 const ALL_DIRECTIONS = new Set([
   'top',
@@ -64,8 +61,6 @@ export default createRule<[], MessageIds>({
         'Validate directional modifiers: only on properties that support them, and one value per group',
     },
     messages: {
-      unsupportedProperty:
-        "Property '{{property}}' does not support directional modifiers. They work on: border, radius, padding, margin, fade, inset, scrollMargin.",
       invalidDirectionalModifier:
         "Modifier '{{modifier}}' is not valid for '{{property}}'. Accepted: {{accepted}}.",
       tooManyValues:
@@ -83,6 +78,20 @@ export default createRule<[], MessageIds>({
       node: TSESTree.Node,
     ): void {
       const allowedMods = DIRECTIONAL_MODIFIERS[property];
+      // Only properties with a directional vocabulary are checked.
+      //
+      // This gate looks like it makes the "wrong property" case unreachable, and
+      // it does — but removing it is not the fix. Direction words are ordinary CSS
+      // *values* for a long tail of properties: `verticalAlign: 'bottom'`,
+      // `textAlign: 'left'`, `transformOrigin: 'top center'`,
+      // `backgroundPosition`, `objectPosition`, `float`, `clear`,
+      // `scrollSnapAlign`, and `transition` (whose value names properties, which
+      // can themselves be `left`/`top`). Checking every property reported all of
+      // those as errors across a real design system. Catching `fill: '#purple
+      // top'` is not worth an allowlist of every property that takes a
+      // positional keyword.
+      if (!allowedMods) return;
+
       // `parseValue` splits on commas (groups) and spaced slashes (parts), which
       // is what makes a per-group arity check possible at all.
       const { groups } = parseValue(value, {
@@ -112,16 +121,6 @@ export default createRule<[], MessageIds>({
         }
 
         if (directions.length === 0) continue;
-
-        // A direction word on a property with no directional vocabulary at all.
-        if (!allowedMods) {
-          context.report({
-            node,
-            messageId: 'unsupportedProperty',
-            data: { property },
-          });
-          continue;
-        }
 
         let reportedUnknown = false;
         for (const direction of directions) {
