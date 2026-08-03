@@ -6,7 +6,7 @@
 
 The plugin now validates the v3 style DSL. Most of the upgrade is mechanical: the renamed at-rule keys are reported with an auto-fix, so `eslint --fix` handles them.
 
-For tasty v2, pin `@tenphi/eslint-plugin-tasty@^0.11`.
+For tasty v2, pin `@tenphi/eslint-plugin-tasty@^0.11`. `@tenphi/tasty >=3` is declared as an optional peer dependency so a v2 pairing is flagged by the package manager rather than surfacing as spurious at-rule rename errors. It stays optional because the plugin has no runtime dependency on tasty — it validates source text.
 
 ### `$$name(...)` CSS function calls no longer error
 
