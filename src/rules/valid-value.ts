@@ -11,7 +11,10 @@ const SKIP_PROPERTIES = new Set([
   'preset',
   'transition',
   '@keyframes',
-  '@properties',
+  '@property',
+  '@font-face',
+  '@counter-style',
+  '@function',
   'content',
   'animation',
   'animationName',
@@ -75,10 +78,10 @@ export default createRule<[], MessageIds>({
       } else if (Array.isArray(ctx.config.units)) {
         opts.knownUnits = new Set(ctx.config.units);
       }
-      if (ctx.config.funcs === false) {
+      if (ctx.config.functions === false) {
         opts.skipFuncValidation = true;
-      } else if (Array.isArray(ctx.config.funcs)) {
-        opts.knownFuncs = new Set(ctx.config.funcs);
+      } else if (Array.isArray(ctx.config.functions)) {
+        opts.knownFuncs = new Set(ctx.config.functions);
       }
       return opts;
     }

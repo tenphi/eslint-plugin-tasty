@@ -2,7 +2,7 @@ import type { TSESTree } from '@typescript-eslint/utils';
 import type { RuleContext } from '@typescript-eslint/utils/ts-eslint';
 import type { ResolvedConfig } from './types.js';
 import { loadConfig } from './config.js';
-import { DEFAULT_IMPORT_SOURCES } from './constants.js';
+import { DEFAULT_IMPORT_SOURCES, SPECIAL_STYLE_KEYS } from './constants.js';
 import { getKeyName } from './utils.js';
 
 /**
@@ -361,7 +361,8 @@ export class TastyContext {
     if (/^[A-Z]/.test(keyName)) return false;
 
     // Special keys are not state maps
-    if (keyName === '@keyframes' || keyName === '@properties') return false;
+    // At-rule blocks are not state maps — their object values are descriptor maps.
+    if (SPECIAL_STYLE_KEYS.has(keyName)) return false;
 
     // If the object has keys that look like state expressions, it's a state map.
     // A lone `_` (the fallback floor) or `''` (the default) is enough — both are
@@ -406,7 +407,7 @@ export class TastyContext {
   }
 
   /**
-   * Checks if a key is a special @ property (@keyframes, @properties).
+   * Checks if a key is a special @ property (@keyframes, @property, ...).
    */
   isSpecialKey(key: string): boolean {
     return key.startsWith('@');

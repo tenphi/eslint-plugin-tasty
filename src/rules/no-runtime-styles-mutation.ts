@@ -55,7 +55,7 @@ export default createRule<[], MessageIds>({
           continue;
         }
 
-        // Skip @keyframes and @properties
+        // Skip at-rule blocks (@keyframes, @property, ...)
         if (
           !prop.computed &&
           prop.key.type === 'Identifier' &&

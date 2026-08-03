@@ -15,6 +15,12 @@ export type ValueToken =
   | { type: 'number'; value: number; raw: string }
   | { type: 'keyword'; value: string }
   | { type: 'css-function'; name: string; args: string; raw: string }
+  /**
+   * A Tasty CSS `@function` call: `$$name(args)` (emits native `--name(args)`).
+   * Distinct from `custom-prop-ref`, which is the bare `$$name` form that
+   * `transition` uses to name a custom property.
+   */
+  | { type: 'tasty-function'; name: string; args: string; raw: string }
   | { type: 'string'; value: string; raw: string }
   | { type: 'important'; raw: string }
   | { type: 'group-expr'; inner: string; raw: string }
@@ -408,6 +414,14 @@ function classifyToken(
     return { type: 'important', raw: token };
   }
 
+  // Double prefix: $$name(...) is a Tasty `@function` call; bare $$name is the
+  // custom-property reference `transition` uses. The call form must be checked
+  // first, or the bare-name regex rejects `$$negative(10px)` outright.
+  if (token.startsWith('$$') || token.startsWith('##')) {
+    const call = classifyTastyFunctionCall(token, offset, errors);
+    if (call) return call;
+  }
+
   // Double prefix: $$name (custom property reference for transitions)
   if (token.startsWith('$$')) {
     const name = token.slice(2);
@@ -567,6 +581,37 @@ function classifyToken(
 
   // Unknown token
   return { type: 'unknown', raw: token };
+}
+
+/**
+ * Classify a `$$name(...)` / `##name(...)` Tasty `@function` call.
+ *
+ * Returns `null` when the token is not a call, so the caller falls through to the
+ * bare `$$name` / `##name` reference handling that `transition` relies on.
+ */
+function classifyTastyFunctionCall(
+  token: string,
+  offset: number,
+  errors: ValueError[],
+): ValueToken | null {
+  const openIdx = token.indexOf('(');
+
+  if (openIdx <= 2 || !token.endsWith(')')) return null;
+
+  const name = token.slice(2, openIdx);
+  const args = token.slice(openIdx + 1, -1);
+
+  if (!/^[a-z_][a-z0-9-_]*$/i.test(name)) {
+    errors.push({
+      message: `Invalid function name in '${token}'.`,
+      offset,
+      length: token.length,
+      raw: token,
+    });
+    return { type: 'unknown', raw: token };
+  }
+
+  return { type: 'tasty-function', name, args, raw: token };
 }
 
 function classifyColorToken(

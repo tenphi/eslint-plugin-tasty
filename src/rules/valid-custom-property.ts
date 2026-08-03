@@ -5,7 +5,9 @@ import { getKeyName, getStringValue } from '../utils.js';
 
 type MessageIds = 'invalidSyntax' | 'unknownProperty';
 
-const CUSTOM_PROP_REGEX = /\$\$?[a-zA-Z][a-zA-Z0-9-]*/g;
+// `(?!\()` keeps a `$$name(...)` Tasty `@function` call from being read as a bare
+// `$name` custom-property reference, which would demand the name be declared.
+const CUSTOM_PROP_REGEX = /\$\$?[a-zA-Z][a-zA-Z0-9-]*(?!\()/g;
 
 interface PendingExistenceCheck {
   token: string;
