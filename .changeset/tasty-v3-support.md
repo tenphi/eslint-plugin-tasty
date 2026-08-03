@@ -51,6 +51,10 @@ It also no longer descends into `$` affix values (a selector, not a value — `$
 
 It shares tasty's directional engine but was missing from the modifier table, so `scrollMargin: '2x top'` reported as an unsupported property.
 
+### `meta.version` reports the real version
+
+It was a hardcoded `'0.1.0'` literal that had drifted from the released version. Now read from `package.json`, with a test asserting the two match so it cannot drift again.
+
 ### Config: `funcs` is now `functions`
 
 Matching tasty's `TastyExtensionConfig`, which has always declared `functions` — the plugin read `funcs`, so a `functions: [...]` list in a shared `tasty.config.ts` was silently ignored and custom function names were never validated. `funcs` is still read as a deprecated alias.
