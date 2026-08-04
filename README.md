@@ -4,6 +4,8 @@ ESLint plugin for validating `tasty()`, `tastyStatic()`, `useStyles()`, `useGlob
 
 Catch typos, invalid syntax, and enforce best practices in your tasty style objects at lint time.
 
+**Targets `@tenphi/tasty` v3.** v1 of this plugin validates the v3 style DSL: kebab-case at-rule keys (`@property`, `@font-face`, `@counter-style`, `@function`), `$$name(...)` CSS-function calls, and one value per directional group. The v2 at-rule spellings are reported with an auto-fix, so `eslint --fix` handles most of the upgrade. For tasty v2, pin `@tenphi/eslint-plugin-tasty@^0.11`.
+
 ## Installation
 
 ```bash
@@ -61,12 +63,23 @@ Create a `tasty.config.ts` (or `.js`, `.json`) at your project root to configure
 export default {
   tokens: ['#primary', '#danger', '#surface', '$spacing', '$gap'],
   units: ['cols'],
+  functions: ['double', 'okhsl'],
   states: ['@mobile', '@tablet', '@dark'],
   presets: ['h1', 'h2', 'h3', 't1', 't2', 't3'],
   recipes: ['card', 'elevated', 'reset'],
+  styles: ['glaze'],
   importSources: ['@my-org/design-system'],
 };
 ```
+
+Every list defaults to "don't check": omit `tokens` and token existence is not
+validated, set `tokens: false` to disable the check even though a parent config
+sets it. `importSources` matters when you re-export `tasty()` from your own
+module — the plugin only recognizes `tasty({ styles })` when the call comes from a
+tracked import, so a local barrel needs listing here.
+
+> `functions` was called `funcs` before v1. The old spelling is still read as a
+> deprecated alias.
 
 ## Rules
 
@@ -80,11 +93,11 @@ export default {
 | `tasty/valid-custom-unit` | error | Unknown custom units |
 | `tasty/valid-boolean-property` | error | `true` on properties that don't support it |
 | `tasty/valid-state-key` | error | Invalid state key syntax in style mappings (including misuse of the `_` fallback floor) |
-| `tasty/valid-styles-structure` | error | Invalid styles object structure |
+| `tasty/valid-styles-structure` | error | Invalid styles object structure, and the v2 at-rule key spellings (auto-fixable) |
 | `tasty/no-nested-state-map` | error | Nested state maps (not supported) |
 | `tasty/no-important` | error | `!important` usage (breaks tasty specificity) |
 | `tasty/valid-sub-element` | error | Sub-element values must be style objects |
-| `tasty/valid-directional-modifier` | error | Directional modifiers on wrong properties |
+| `tasty/valid-directional-modifier` | error | Directional modifiers on wrong properties, and more than one value in a group that names directions |
 | `tasty/valid-radius-shape` | error | Unknown radius shape keywords |
 | `tasty/valid-preset` | error | Unknown preset names |
 | `tasty/valid-recipe` | error | Unknown recipe names |

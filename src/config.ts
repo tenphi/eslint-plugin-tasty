@@ -231,6 +231,7 @@ function mergeConfigs(
   const arrayKeys = [
     'tokens',
     'units',
+    'functions',
     'funcs',
     'states',
     'presets',
@@ -308,7 +309,8 @@ function toResolved(config: TastyValidationConfig): ResolvedConfig {
   return {
     tokens: config.tokens ?? [],
     units: config.units ?? [],
-    funcs: config.funcs ?? [],
+    // `funcs` is the v2 spelling; `functions` wins when both are present.
+    functions: config.functions ?? config.funcs ?? [],
     states: config.states ?? [],
     presets: config.presets ?? [],
     recipes: config.recipes ?? [],
@@ -320,7 +322,7 @@ function toResolved(config: TastyValidationConfig): ResolvedConfig {
 const DEFAULT_CONFIG: ResolvedConfig = {
   tokens: [],
   units: [],
-  funcs: [],
+  functions: [],
   states: [],
   presets: [],
   recipes: [],

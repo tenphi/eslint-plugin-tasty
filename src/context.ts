@@ -2,7 +2,7 @@ import type { TSESTree } from '@typescript-eslint/utils';
 import type { RuleContext } from '@typescript-eslint/utils/ts-eslint';
 import type { ResolvedConfig } from './types.js';
 import { loadConfig } from './config.js';
-import { DEFAULT_IMPORT_SOURCES } from './constants.js';
+import { DEFAULT_IMPORT_SOURCES, SPECIAL_STYLE_KEYS } from './constants.js';
 import { getKeyName } from './utils.js';
 
 /**
@@ -14,6 +14,19 @@ export const STYLE_OBJECT_SELECTORS = [
   'VariableDeclarator > ObjectExpression',
   'VariableDeclarator > TSSatisfiesExpression > ObjectExpression',
   'VariableDeclarator > TSAsExpression > ObjectExpression',
+  // `<Block styles={{…}} />`. Safe to match on the prop name alone: React's own
+  // prop is `style`, singular, so a plural `styles` JSX prop is a Tasty
+  // convention.
+  "JSXAttribute[name.name='styles'] > JSXExpressionContainer > ObjectExpression",
+  // A Storybook story's `args.styles`. Deliberately this specific rather than
+  // matching any `styles` key: plenty of unrelated libraries take a `styles`
+  // option object, and a bare key carries no evidence it is Tasty's. Story files
+  // are where a lot of style code is authored and neither the call-site nor the
+  // variable-name heuristic reaches them — the enclosing variable is named after
+  // the story, and there is no Tasty call.
+  // Superset of the `args.styles` shape; `isStylesPropertyValue` is the real
+  // gate, so both `styles` and `'styles'` key forms are covered.
+  'Property > ObjectExpression > Property > ObjectExpression',
 ] as const;
 
 /**
@@ -25,9 +38,21 @@ export function styleObjectListeners(
 ): Record<string, (node: TSESTree.ObjectExpression) => void> {
   const listeners: Record<string, (node: TSESTree.ObjectExpression) => void> =
     {};
+
+  // Selectors overlap — `tasty({ styles: {…} })` matches both
+  // `CallExpression ObjectExpression` and the `styles` key selector — so the
+  // handler must run at most once per object, or every rule double-reports.
+  const visited = new WeakSet<TSESTree.ObjectExpression>();
+  const once = (node: TSESTree.ObjectExpression) => {
+    if (visited.has(node)) return;
+    visited.add(node);
+    handler(node);
+  };
+
   for (const selector of STYLE_OBJECT_SELECTORS) {
-    listeners[selector] = handler;
+    listeners[selector] = once;
   }
+
   return listeners;
 }
 
@@ -122,6 +147,19 @@ export class TastyContext {
           }
         }
       }
+    }
+
+    // An object assigned to a `styles` key (or a `styles` JSX prop) is a style
+    // object on its own terms — no enclosing tasty call or `styles`-ish variable
+    // name required. Checked before the walk, which would otherwise climb past it
+    // to an unrelated call or declaration and reject the whole thing.
+    if (node.type === 'ObjectExpression' && this.isStylesPropertyValue(node)) {
+      return {
+        type: 'tasty',
+        isStaticCall: false,
+        isSelectorMode: false,
+        isExtending: false,
+      };
     }
 
     let current: TSESTree.Node | undefined = node;
@@ -347,6 +385,44 @@ export class TastyContext {
   }
 
   /**
+   * Whether this object is a `styles` JSX prop value or a Storybook `args.styles`.
+   *
+   * Both are unambiguous enough to stand on their own without an import-tracked
+   * call or a `styles`-ish variable name. A bare `styles` key elsewhere is not —
+   * see the selector list for why.
+   */
+  isStylesPropertyValue(node: TSESTree.ObjectExpression): boolean {
+    const parent = node.parent;
+
+    if (parent?.type === 'Property' && !parent.computed) {
+      if (getKeyName(parent.key) !== 'styles') return false;
+
+      // Only inside `args: { … }`.
+      const argsObject = parent.parent;
+      const argsProperty =
+        argsObject?.type === 'ObjectExpression' ? argsObject.parent : undefined;
+
+      return (
+        argsProperty?.type === 'Property' &&
+        !argsProperty.computed &&
+        getKeyName(argsProperty.key) === 'args'
+      );
+    }
+
+    if (parent?.type === 'JSXExpressionContainer') {
+      const attribute = parent.parent;
+
+      return (
+        attribute?.type === 'JSXAttribute' &&
+        attribute.name.type === 'JSXIdentifier' &&
+        attribute.name.name === 'styles'
+      );
+    }
+
+    return false;
+  }
+
+  /**
    * Checks if a property value node is a state mapping object
    * (i.e., an object where keys are state expressions and values are style values).
    */
@@ -361,7 +437,8 @@ export class TastyContext {
     if (/^[A-Z]/.test(keyName)) return false;
 
     // Special keys are not state maps
-    if (keyName === '@keyframes' || keyName === '@properties') return false;
+    // At-rule blocks are not state maps — their object values are descriptor maps.
+    if (SPECIAL_STYLE_KEYS.has(keyName)) return false;
 
     // If the object has keys that look like state expressions, it's a state map.
     // A lone `_` (the fallback floor) or `''` (the default) is enough — both are
@@ -406,7 +483,7 @@ export class TastyContext {
   }
 
   /**
-   * Checks if a key is a special @ property (@keyframes, @properties).
+   * Checks if a key is a special @ property (@keyframes, @property, ...).
    */
   isSpecialKey(key: string): boolean {
     return key.startsWith('@');

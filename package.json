@@ -54,6 +54,7 @@
   },
   "homepage": "https://github.com/tenphi/eslint-plugin-tasty#readme",
   "peerDependencies": {
+    "@tenphi/tasty": ">=3",
     "eslint": ">=8.0.0"
   },
   "dependencies": {
@@ -80,5 +81,10 @@
       "esbuild"
     ]
   },
-  "packageManager": "pnpm@10.32.1"
+  "packageManager": "pnpm@10.32.1",
+  "peerDependenciesMeta": {
+    "@tenphi/tasty": {
+      "optional": true
+    }
+  }
 }

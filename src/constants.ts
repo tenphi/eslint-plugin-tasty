@@ -107,13 +107,28 @@ export const KNOWN_TASTY_PROPERTIES = new Set([
 
 /**
  * Special top-level keys that are valid but not regular style properties.
+ *
+ * These match the real CSS at-rule names Tasty emits, so they are kebab-case.
  */
 export const SPECIAL_STYLE_KEYS = new Set([
   '@keyframes',
-  '@properties',
-  '@fontFace',
-  '@counterStyle',
+  '@property',
+  '@font-face',
+  '@counter-style',
+  '@function',
 ]);
+
+/**
+ * At-rule style keys renamed in Tasty v3, mapped old spelling -> new.
+ *
+ * The v2 spellings were camelCase; v3 uses the CSS at-rule names Tasty already
+ * emitted. Reported (and auto-fixed) so upgrading is mechanical.
+ */
+export const RENAMED_SPECIAL_STYLE_KEYS: Record<string, string> = {
+  '@properties': '@property',
+  '@fontFace': '@font-face',
+  '@counterStyle': '@counter-style',
+};
 
 /**
  * CSS property names (common subset for validation).
@@ -523,6 +538,9 @@ export const BOOLEAN_TRUE_PROPERTIES = new Set([
   'inset',
   'width',
   'height',
+  // `fade: true` falls back to `calc(2 * var(--gap))` — a token-following
+  // default no explicit value can express, so it is genuinely useful.
+  'fade',
   'hide',
   'preset',
   'font',
@@ -547,8 +565,30 @@ export const DIRECTIONAL_MODIFIERS: Record<string, Set<string>> = {
   padding: new Set(['top', 'right', 'bottom', 'left']),
   margin: new Set(['top', 'right', 'bottom', 'left']),
   fade: new Set(['top', 'right', 'bottom', 'left']),
+  scrollMargin: new Set(['top', 'right', 'bottom', 'left']),
   inset: new Set(['top', 'right', 'bottom', 'left', 'dock']),
 };
+
+/**
+ * Properties where a group naming directions carries exactly **one** value.
+ *
+ * Tasty v3 dropped the positional multi-value form for these: values and
+ * modifiers are bucketed separately per comma group, so `'2x 4x top right'` and
+ * `'2x top 4x right'` were the same input and the pairing depended on modifier
+ * order. Per-side values now come from comma groups.
+ *
+ * Deliberately excludes `border` and `radius`. A `border` group legitimately
+ * carries width + style + color, and a `radius` group can carry two values with
+ * `leaf`/`backleaf`; neither takes the positional-per-side form, so neither is
+ * subject to the rule.
+ */
+export const SINGLE_VALUE_DIRECTIONAL_PROPERTIES = new Set([
+  'padding',
+  'margin',
+  'inset',
+  'scrollMargin',
+  'fade',
+]);
 
 /**
  * Position names a 4-value box maps onto, in source order.
@@ -814,9 +854,10 @@ export const BUILT_IN_STATE_PREFIXES = new Set([
   '@supports',
   '@starting',
   '@keyframes',
-  '@properties',
-  '@fontFace',
-  '@counterStyle',
+  '@property',
+  '@font-face',
+  '@counter-style',
+  '@function',
 ]);
 
 /**

@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 import type { TSESLint } from '@typescript-eslint/utils';
 import * as rules from './rules/index.js';
 import { recommended, strict } from './configs.js';
@@ -39,10 +40,17 @@ const ruleMap: Record<string, TSESLint.RuleModule<string, unknown[]>> = {
   'prefer-longhand-property': rules.preferLonghandProperty,
 };
 
+// Read from package.json so `meta.version` cannot drift from the released
+// version, as the previous hardcoded literal had. `../package.json` resolves to
+// the package root from both `src/` and the unbundled `dist/`.
+const { version } = createRequire(import.meta.url)('../package.json') as {
+  version: string;
+};
+
 const plugin = {
   meta: {
     name: '@tenphi/eslint-plugin-tasty',
-    version: '0.1.0',
+    version,
   },
   rules: ruleMap,
   configs: {

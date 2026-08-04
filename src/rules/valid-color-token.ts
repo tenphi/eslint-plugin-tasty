@@ -47,7 +47,10 @@ export default createRule<[], MessageIds>({
     }
 
     function checkColorTokensInValue(value: string, node: TSESTree.Node): void {
-      const tokenRegex = /##?[a-zA-Z][a-zA-Z0-9-]*(?:\.\$?[a-zA-Z0-9-]+)?/g;
+      // `(?!\()` keeps a `##name(...)` Tasty `@function` call from being read as a
+      // bare color reference, which would demand the token be declared.
+      const tokenRegex =
+        /##?[a-zA-Z][a-zA-Z0-9-]*(?:\.\$?[a-zA-Z0-9-]+)?(?!\()/g;
       let match;
 
       while ((match = tokenRegex.exec(value)) !== null) {
