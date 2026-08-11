@@ -1109,3 +1109,78 @@ export const COLOR_BEARING_PROPERTIES = new Set<string>([
   'floodColor',
   'lightingColor',
 ]);
+
+/**
+ * Properties where tasty does NOT expand a `$name` custom-property reference.
+ *
+ * These have their own style handlers that pass the value through verbatim, so
+ * `fontFamily: '$font-sans'` emits a literal `font-family: $font-sans` — an
+ * invalid declaration the browser drops. Rewriting `var(--font-sans)` to
+ * `$font-sans` here silently deletes the style.
+ *
+ * Note that the colour properties (`color`, `fill`, `backgroundColor`) are in
+ * this list but NOT in {@link PROPERTIES_WITHOUT_COLOR_TOKEN_EXPANSION}: they
+ * expand `#token` and not `$name`. The two sets are genuinely different.
+ *
+ * Derived from the runtime, not by hand — `constants.round-trip.test.ts` rebuilds
+ * both sets against the installed `@tenphi/tasty` and fails if either drifts.
+ */
+export const PROPERTIES_WITHOUT_CUSTOM_PROPERTY_EXPANSION = new Set([
+  'align',
+  'alignContent',
+  'alignItems',
+  'backgroundAttachment',
+  'backgroundClip',
+  'backgroundColor',
+  'backgroundOrigin',
+  'backgroundRepeat',
+  'color',
+  'display',
+  'fill',
+  'font',
+  'fontFamily',
+  'justify',
+  'justifyContent',
+  'justifyItems',
+  'overflow',
+  'placeContent',
+  'placeItems',
+  'textTransform',
+  'whiteSpace',
+]);
+
+/**
+ * Properties where tasty does NOT expand a `#name` colour token.
+ *
+ * Mostly dimension and keyword properties: `fontSize: '#accent'` is meaningless,
+ * so the handler leaves the value alone and the declaration is dropped. Suggesting
+ * `#x` for a `var(--x-color)` inside one of these would break it.
+ *
+ * See {@link PROPERTIES_WITHOUT_CUSTOM_PROPERTY_EXPANSION} for why this is a
+ * separate list rather than the same one.
+ */
+export const PROPERTIES_WITHOUT_COLOR_TOKEN_EXPANSION = new Set([
+  'align',
+  'alignContent',
+  'alignItems',
+  'backgroundAttachment',
+  'backgroundClip',
+  'backgroundOrigin',
+  'backgroundRepeat',
+  'display',
+  'font',
+  'fontFamily',
+  'fontSize',
+  'fontWeight',
+  'justify',
+  'justifyContent',
+  'justifyItems',
+  'letterSpacing',
+  'lineHeight',
+  'outlineOffset',
+  'overflow',
+  'placeContent',
+  'placeItems',
+  'textTransform',
+  'whiteSpace',
+]);

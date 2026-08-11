@@ -1,6 +1,10 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
+import {
+  PROPERTIES_WITHOUT_COLOR_TOKEN_EXPANSION,
+  PROPERTIES_WITHOUT_CUSTOM_PROPERTY_EXPANSION,
+} from '../constants.js';
 import { getKeyName, getStringValue } from '../utils.js';
 import { replaceInStringValue } from '../fix-utils.js';
 
@@ -12,9 +16,16 @@ type MessageIds =
 
 const VAR_REGEX = /var\(\s*--([a-zA-Z0-9_-]+)\s*(?:,\s*([^)]+))?\s*\)/g;
 // `$x-color` → `#x`. Negative lookbehind avoids `$$func` / `##transition`.
-// `\b` after `-color` avoids matching `$x-colorful`. Optional opacity suffix.
+// Optional opacity suffix.
+//
+// `-color` must END the identifier, hence the lookahead rather than `\b`. `\b`
+// matches between `color` and a following `-`, so `$purple-color-rgb` matched as
+// `$purple-color` and was rewritten to `#purple-rgb` — a property that does not
+// exist. That bit in practice: `var(--purple-color-rgb)` became `$purple-color-rgb`
+// on one --fix pass and `#purple-rgb` on the next, and the declaration was dropped
+// at computed-value time with no error anywhere.
 const COLOR_PROP_REGEX =
-  /(?<![$#])\$([a-zA-Z][a-zA-Z0-9_-]*)-color\b(\.[0-9]+|\.\$[a-zA-Z][a-zA-Z0-9_-]*)?/g;
+  /(?<![$#])\$([a-zA-Z][a-zA-Z0-9_-]*)-color(?![a-zA-Z0-9_-])(\.[0-9]+|\.\$[a-zA-Z][a-zA-Z0-9_-]*)?/g;
 const KEYWORD_REGEX = /\b(transparent|currentColor)\b/gi;
 
 function normalizeFallback(fallback: string): string {
@@ -79,7 +90,39 @@ export default createRule<[], MessageIds>({
   create(context) {
     const ctx = new TastyContext(context);
 
-    function checkValue(value: string, node: TSESTree.Node): void {
+    /**
+     * Whether rewriting to `suggestion` actually round-trips for `property`.
+     *
+     * Every rewrite this rule offers has to render to the same CSS as what it
+     * replaces. Tasty expands `$name` and `#name` per property, not globally, so
+     * a suggestion that is correct on `gap` can silently delete the declaration on
+     * `fontFamily`. Suppress the report entirely rather than offer a broken fix —
+     * the rule is autofixable and runs unattended in pre-commit hooks.
+     */
+    function roundTrips(property: string, suggestion: string): boolean {
+      if (suggestion.startsWith('$')) {
+        return !PROPERTIES_WITHOUT_CUSTOM_PROPERTY_EXPANSION.has(property);
+      }
+
+      if (suggestion.startsWith('#')) {
+        return !PROPERTIES_WITHOUT_COLOR_TOKEN_EXPANSION.has(property);
+      }
+
+      // `(token, fallback)` auto-calc form — the token inside decides.
+      if (suggestion.startsWith('(')) {
+        const inner = suggestion.slice(1);
+
+        return roundTrips(property, inner);
+      }
+
+      return true;
+    }
+
+    function checkValue(
+      value: string,
+      node: TSESTree.Node,
+      property: string,
+    ): void {
       // Pass 1: var(--x) / var(--x, fallback) → $x / (#x, fallback).
       // Records spans so standalone keywords inside var() aren't double-reported.
       const varSpans: Span[] = [];
@@ -92,6 +135,8 @@ export default createRule<[], MessageIds>({
         const suggestion = suggestVarSyntax(name, fallback);
         const start = match.index;
         const end = start + raw.length;
+
+        if (!roundTrips(property, suggestion)) continue;
 
         if (match.index !== undefined) {
           varSpans.push({
@@ -125,6 +170,8 @@ export default createRule<[], MessageIds>({
         const start = match.index;
         const end = start + raw.length;
 
+        if (!roundTrips(property, suggestion)) continue;
+
         context.report({
           node,
           messageId: 'preferColorToken',
@@ -149,6 +196,9 @@ export default createRule<[], MessageIds>({
 
         const lower = match[0].toLowerCase();
         const replacement = lower === 'transparent' ? '#clear' : '#current';
+
+        if (!roundTrips(property, replacement)) continue;
+
         context.report({
           node,
           messageId:
@@ -177,7 +227,7 @@ export default createRule<[], MessageIds>({
 
         const str = getStringValue(prop.value);
         if (str) {
-          checkValue(str, prop.value);
+          checkValue(str, prop.value, key);
           continue;
         }
 
@@ -186,7 +236,8 @@ export default createRule<[], MessageIds>({
             if (stateProp.type !== 'Property') continue;
             const stateStr = getStringValue(stateProp.value);
             if (stateStr) {
-              checkValue(stateStr, stateProp.value);
+              // State maps keep the outer property's expansion rules.
+              checkValue(stateStr, stateProp.value, key);
             }
           }
         }
