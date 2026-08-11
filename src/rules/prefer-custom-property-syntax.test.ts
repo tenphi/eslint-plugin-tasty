@@ -128,6 +128,28 @@ tester.run('prefer-custom-property-syntax', rule, {
         const real: Styles = { gap: '$spacing' };
       `,
     },
+    {
+      // Unannotated, but unmistakably a map of named CSS blocks: every key is a
+      // block name rather than a style key, and every value is an object. The name
+      // is the only evidence there was, and the shape overrules it.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        const tableStyles = {
+          table: { borderCollapse: 'collapse' },
+          th: { color: 'var(--accent-color)' },
+          td: { color: 'var(--accent-color)' },
+        };
+      `,
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        const styles = {
+          root: { color: 'var(--accent-color)' },
+          toolbar: { color: 'var(--accent-color)' },
+        };
+      `,
+    },
   ],
   invalid: [
     {
@@ -228,6 +250,33 @@ tester.run('prefer-custom-property-syntax', rule, {
         tasty({ styles: { gap: '#purple' } });
       `,
       errors: [{ messageId: 'preferColorToken' }],
+    },
+    {
+      // A capitalised key is a sub-element, so one of them is enough to say this is a
+      // tasty object rather than a block map — the shape heuristic must not swallow
+      // the whole object. Asserted on the `td` block, because this rule reaches a
+      // plain nested object but not a sub-element out of a variable declaration.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        const styles = { Icon: { color: 'red' }, td: { color: 'var(--accent-color)' } };
+      `,
+      output: `
+        import { tasty } from '@tenphi/tasty';
+        const styles = { Icon: { color: 'red' }, td: { color: '#accent' } };
+      `,
+      errors: [{ messageId: 'preferCustomPropertySyntax' }],
+    },
+    {
+      // One recognisable style key keeps the whole object in scope.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        const styles = { padding: '1x', td: { color: 'var(--accent-color)' } };
+      `,
+      output: `
+        import { tasty } from '@tenphi/tasty';
+        const styles = { padding: '1x', td: { color: '#accent' } };
+      `,
+      errors: [{ messageId: 'preferCustomPropertySyntax' }],
     },
     {
       // $x-color with opacity suffix → #x.N

@@ -2,7 +2,12 @@ import type { TSESTree } from '@typescript-eslint/utils';
 import type { RuleContext } from '@typescript-eslint/utils/ts-eslint';
 import type { ResolvedConfig } from './types.js';
 import { loadConfig } from './config.js';
-import { DEFAULT_IMPORT_SOURCES, SPECIAL_STYLE_KEYS } from './constants.js';
+import {
+  DEFAULT_IMPORT_SOURCES,
+  KNOWN_CSS_PROPERTIES,
+  KNOWN_TASTY_PROPERTIES,
+  SPECIAL_STYLE_KEYS,
+} from './constants.js';
 import { getKeyName } from './utils.js';
 
 /**
@@ -104,6 +109,51 @@ function referencesStylesType(node: TSESTree.TypeNode): boolean {
   }
 
   return false;
+}
+
+/**
+ * Whether a key could plausibly be a tasty style key.
+ *
+ * Covers every top-level shape tasty accepts: a style property, a sub-element
+ * (capitalised), an at-rule or state/custom-property/colour key (`@`, `&`, `$`,
+ * `#`), and the default-state key.
+ */
+function isPlausibleStyleKey(key: string): boolean {
+  if (key === '' || key === '_') return true;
+  if (/^[A-Z]/.test(key)) return true;
+  if (/^[@&$#]/.test(key)) return true;
+  if (SPECIAL_STYLE_KEYS.has(key)) return true;
+
+  return KNOWN_TASTY_PROPERTIES.has(key) || KNOWN_CSS_PROPERTIES.has(key);
+}
+
+/**
+ * Whether an object is a map of named CSS blocks rather than a tasty styles object.
+ *
+ * The shape is unmistakable — `{ table: {…}, th: {…}, td: {…} }`, `{ root: {…},
+ * toolbar: {…} }` — and it is what a React inline-style map looks like when it
+ * carries no type annotation to opt it out. Every key is a block name that is not a
+ * style key, and every value is an object.
+ *
+ * Requiring *every* value to be an object literal is what keeps this from swallowing
+ * the case it would hurt most: `const styles = { colour: 'red' }` has a string value,
+ * so it is not treated as a block map and `known-property` still reports the typo.
+ * Otherwise the rule that catches a misspelled property would be silenced by the
+ * misspelling.
+ */
+function isNamedCssBlockMap(node: TSESTree.ObjectExpression): boolean {
+  if (node.properties.length === 0) return false;
+
+  for (const prop of node.properties) {
+    if (prop.type !== 'Property' || prop.computed) return false;
+
+    const key = getKeyName(prop.key);
+
+    if (key === null || isPlausibleStyleKey(key)) return false;
+    if (prop.value.type !== 'ObjectExpression') return false;
+  }
+
+  return true;
 }
 
 const TASTY_FUNCTION_NAMES = new Set([
@@ -310,7 +360,16 @@ export class TastyContext {
     // a DOM inline-style object (`el.style`, `CSSProperties`, `setStyle(el, …)`)
     // holding raw CSS longhands, not tasty syntax — matching it reported those
     // longhands as tasty violations.
-    if (name === 'styles' || name.endsWith('Styles')) return true;
+    if (name === 'styles' || name.endsWith('Styles')) {
+      // The name is the weakest evidence there is, so let an unmistakable shape
+      // overrule it. Without an annotation to go on, a map of named CSS blocks was
+      // reported as tasty — `known-property` on every HTML tag name, each block read
+      // as a state map — and `--fix` offered rewrites that are only valid inside
+      // tasty.
+      return !(
+        targetNode.type === 'ObjectExpression' && isNamedCssBlockMap(targetNode)
+      );
+    }
 
     return false;
   }
