@@ -33,6 +33,16 @@ tester.run('valid-directional-modifier (detection)', rule, {
     `export const cfg = { 'styles': { ${BAD} } };`,
     // A locally-defined `tasty` is not Tasty's.
     `const tasty = (x) => x;\ntasty({ styles: { ${BAD} } });`,
+
+    // An explicit type annotation opts a `styles`-named variable OUT. This is a React
+    // inline-style object handed to `style={…}`: the name heuristic matched it, so its
+    // plain CSS longhands were reported as tasty violations — and worse, `--fix`
+    // rewrote real `var(--x-color)` to `#x`, which nothing resolves outside tasty, so
+    // the browser dropped the declaration. The rewrites these rules offer are only
+    // valid *inside* tasty. Nested shapes are covered in
+    // `prefer-custom-property-syntax.test.ts`, which is the rule that reaches them.
+    `const styles: CSSProperties = { ${BAD} };`,
+    `const wrapperStyles: CSSProperties = { ${BAD} };`,
   ],
   invalid: [
     {
@@ -51,6 +61,35 @@ tester.run('valid-directional-modifier (detection)', rule, {
     {
       name: 'JSX styles prop',
       code: `const a = <Block styles={{ ${BAD} }} />;`,
+      errors: [{ messageId: 'tooManyValues' }],
+    },
+    {
+      // The annotation is authoritative in BOTH directions, so a `Styles`
+      // annotation still opts in — including through a wrapper type, which is why
+      // the check walks the annotation instead of matching only its outermost
+      // reference.
+      name: 'Styles annotation opts in',
+      code: `const stuff: Styles = { ${BAD} };`,
+      errors: [{ messageId: 'tooManyValues' }],
+    },
+    {
+      // The violation sits at the top level because this rule does not traverse
+      // sub-elements out of a variable-declared object — a separate, pre-existing
+      // limitation. What is under test here is only that the annotation walk finds
+      // `Styles` nested inside a wrapper type.
+      name: 'Styles annotation opts in through a wrapper type',
+      code: `const stuff: Record<string, Styles> = { ${BAD} };`,
+      errors: [{ messageId: 'tooManyValues' }],
+    },
+    {
+      name: 'Styles annotation opts in through a union',
+      code: `const stuff: Styles | undefined = { ${BAD} };`,
+      errors: [{ messageId: 'tooManyValues' }],
+    },
+    {
+      // No annotation at all — the name heuristic is still the fallback.
+      name: 'unannotated styles variable still detected by name',
+      code: `const styles = { ${BAD} };`,
       errors: [{ messageId: 'tooManyValues' }],
     },
   ],

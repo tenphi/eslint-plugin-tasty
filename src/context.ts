@@ -62,6 +62,50 @@ export interface TastyImport {
   source: string;
 }
 
+/**
+ * Whether a type annotation names tasty's `Styles` anywhere inside it.
+ *
+ * Walks the annotation rather than matching only the outermost reference, so a
+ * wrapped tasty type (`Styles | undefined`, `Record<string, Styles>`,
+ * `{ root: Styles }`) is recognised while `CSSProperties` in the same positions is
+ * not. Deliberately name-based: the plugin has no type checker, and requiring one
+ * would make every rule type-aware.
+ */
+function referencesStylesType(node: TSESTree.TypeNode): boolean {
+  const stack: TSESTree.Node[] = [node];
+
+  while (stack.length) {
+    const current = stack.pop()!;
+
+    if (
+      current.type === 'TSTypeReference' &&
+      current.typeName.type === 'Identifier' &&
+      /^Styles$/i.test(current.typeName.name)
+    ) {
+      return true;
+    }
+
+    for (const value of Object.values(
+      current as unknown as Record<string, unknown>,
+    )) {
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          if (item && typeof item === 'object' && 'type' in item) {
+            stack.push(item as TSESTree.Node);
+          }
+        }
+      } else if (value && typeof value === 'object' && 'type' in value) {
+        // Skip `parent` — it points back up the tree and would loop forever.
+        if (value !== (current as TSESTree.Node).parent) {
+          stack.push(value as TSESTree.Node);
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
 const TASTY_FUNCTION_NAMES = new Set([
   'tasty',
   'tastyStatic',
@@ -247,30 +291,48 @@ export class TastyContext {
 
     if (/^[A-Z][A-Z0-9_]*$/.test(name)) return false;
 
+    // An explicit type annotation is authoritative, in both directions. The name
+    // heuristic below is a guess; a declared type is the author stating what the
+    // object is, so it wins.
+    //
+    // This matters because the rewrites these rules offer are only valid *inside*
+    // tasty: `#purple.05` and `$font-sans` are correct tasty declarations and
+    // meaningless as raw CSS. A `const styles: Record<string, CSSProperties>`
+    // handed to React's `style={…}` was matched on name alone, so its plain CSS
+    // longhands were reported as tasty violations — and `--fix` rewrote real
+    // `var(--shadow-sm-color)` to `#shadow-sm`, which nothing resolves there, so
+    // the browser dropped the declaration.
+    const annotated = this.stylesTypeAnnotation(current);
+
+    if (annotated !== null) return annotated;
+
     // Only `styles` and `*Styles` count. The singular `style` is conventionally
     // a DOM inline-style object (`el.style`, `CSSProperties`, `setStyle(el, …)`)
     // holding raw CSS longhands, not tasty syntax — matching it reported those
-    // longhands as tasty violations. A `Styles` type annotation still opts a
-    // differently-named variable in, below.
+    // longhands as tasty violations.
     if (name === 'styles' || name.endsWith('Styles')) return true;
-
-    if (this.hasStylesTypeAnnotation(current)) return true;
 
     return false;
   }
 
-  private hasStylesTypeAnnotation(node: TSESTree.VariableDeclarator): boolean {
+  /**
+   * Verdict from the declared type: `true` tasty, `false` explicitly not, `null`
+   * when there is no annotation to go on and the caller should fall back to the
+   * name.
+   *
+   * A `Styles` reference anywhere in the annotation counts, so wrappers like
+   * `Styles | undefined` and `Record<string, Styles>` opt in — while
+   * `CSSProperties`, `Record<string, CSSProperties>` and an inline literal of
+   * them opt out.
+   */
+  private stylesTypeAnnotation(
+    node: TSESTree.VariableDeclarator,
+  ): boolean | null {
     const annotation = node.id.typeAnnotation?.typeAnnotation;
-    if (!annotation) return false;
 
-    if (
-      annotation.type === 'TSTypeReference' &&
-      annotation.typeName.type === 'Identifier'
-    ) {
-      return /^Styles$/i.test(annotation.typeName.name);
-    }
+    if (!annotation) return null;
 
-    return false;
+    return referencesStylesType(annotation);
   }
 
   private getTastyCallContext(

@@ -101,6 +101,33 @@ tester.run('prefer-custom-property-syntax', rule, {
         tasty({ styles: { color: { '': 'var(--row-color-secondary)' } } });
       `,
     },
+    {
+      // React inline styles, not tasty. `#shadow-sm` is a correct rewrite *inside*
+      // tasty and meaningless here — nothing resolves the token, so applying it
+      // deleted the shadow. The variable name said `styles`; the type says otherwise,
+      // and the type wins.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        const styles: { wrapper: CSSProperties } = {
+          wrapper: { boxShadow: '0px 1px 6px 0px var(--shadow-sm-color)' },
+        };
+      `,
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        const tableStyles: Record<string, CSSProperties> = {
+          td: { color: 'var(--accent-color)' },
+        };
+      `,
+    },
+    {
+      // Same shape, but annotated as tasty — still reported.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        const real: Styles = { gap: '$spacing' };
+      `,
+    },
   ],
   invalid: [
     {
