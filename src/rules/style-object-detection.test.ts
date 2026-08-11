@@ -43,6 +43,10 @@ tester.run('valid-directional-modifier (detection)', rule, {
     // `prefer-custom-property-syntax.test.ts`, which is the rule that reaches them.
     `const styles: CSSProperties = { ${BAD} };`,
     `const wrapperStyles: CSSProperties = { ${BAD} };`,
+
+    // Block-map coverage lives in `prefer-custom-property-syntax.test.ts`: this rule
+    // does not traverse into nested objects out of a variable, so a case written here
+    // would pass whether or not the heuristic works.
   ],
   invalid: [
     {
@@ -90,6 +94,13 @@ tester.run('valid-directional-modifier (detection)', rule, {
       // No annotation at all — the name heuristic is still the fallback.
       name: 'unannotated styles variable still detected by name',
       code: `const styles = { ${BAD} };`,
+      errors: [{ messageId: 'tooManyValues' }],
+    },
+    {
+      // One recognisable style key is enough to keep the object in scope, so a block
+      // map is only skipped when nothing in it looks like tasty at all.
+      name: 'block-map shape with a real style key is still linted',
+      code: `const styles = { ${BAD}, td: { color: 'red' } };`,
       errors: [{ messageId: 'tooManyValues' }],
     },
   ],
