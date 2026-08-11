@@ -42,6 +42,65 @@ tester.run('prefer-custom-property-syntax', rule, {
         tasty({ styles: { fill: 'var(--accent-color)' } });
       `,
     },
+    {
+      // `-color` must END the name. `$purple-color-rgb` is its own property, not
+      // `$purple-color` followed by `-rgb`; rewriting it to `#purple-rgb` produced
+      // `var(--purple-rgb-color)`, which does not exist.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { gap: '$purple-color-rgb' } });
+      `,
+    },
+    {
+      // Same shape after one --fix pass had already run: must stay put.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fill: 'rgb($purple-color-rgb / 0.05)' } });
+      `,
+    },
+    {
+      // `-color` in the middle of a hand-authored name, likewise untouched.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { gap: '$cui-text-color-secondary' } });
+      `,
+    },
+    {
+      // fontFamily has its own handler and passes the value through verbatim, so
+      // `$font-sans` would emit a literal `font-family: $font-sans`.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fontFamily: 'var(--font-sans)' } });
+      `,
+    },
+    {
+      // Colour properties expand `#token` but not `$name`, so the `$` form is
+      // suppressed here even though the same rewrite is correct on `gap`.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fill: 'rgb(var(--purple-color-rgb) / 0.05)' } });
+      `,
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { color: 'var(--cui-text-color-secondary)' } });
+      `,
+    },
+    {
+      // And the mirror image: dimension properties expand `$name` but not `#token`.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fontSize: 'var(--accent-color)' } });
+      `,
+    },
+    {
+      // A state map inherits the outer property's expansion rules.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { color: { '': 'var(--row-color-secondary)' } } });
+      `,
+    },
   ],
   invalid: [
     {
@@ -114,6 +173,32 @@ tester.run('prefer-custom-property-syntax', rule, {
       output: `
         import { tasty } from '@tenphi/tasty';
         tasty({ styles: { fill: '#text' } });
+      `,
+      errors: [{ messageId: 'preferColorToken' }],
+    },
+    {
+      // The guard is per-property, not a blanket mute: `gap` does expand `$name`,
+      // so the same value the `fill` case above leaves alone is still reported —
+      // and with the full, correct property name.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { gap: 'var(--purple-color-rgb)' } });
+      `,
+      output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { gap: '$purple-color-rgb' } });
+      `,
+      errors: [{ messageId: 'preferCustomPropertySyntax' }],
+    },
+    {
+      // `-color` at the end still converts.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { gap: '$purple-color' } });
+      `,
+      output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { gap: '#purple' } });
       `,
       errors: [{ messageId: 'preferColorToken' }],
     },
