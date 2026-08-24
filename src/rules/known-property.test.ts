@@ -59,6 +59,38 @@ tester.run('known-property', rule, {
         tasty({ styles: { strokeWidth: '2', stroke: '#purple', fillOpacity: '0.5' } });
       `,
     },
+    // Modern CSS the hand-maintained property list used to reject
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { mask: 'url(#m)', maskSize: 'cover', maskMode: 'alpha' } });
+      `,
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { anchorName: '--trigger', positionArea: 'block-end', positionTryFallbacks: 'flip-block' } });
+      `,
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { viewTransitionName: 'card', fieldSizing: 'content', textBox: 'trim-both cap alphabetic' } });
+      `,
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { cornerShape: 'squircle', readingFlow: 'grid-order', interpolateSize: 'allow-keywords' } });
+      `,
+    },
+    // SVG geometry properties are real CSS properties in SVG 2
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { cx: '50%', cy: '50%', r: '40%', d: 'path("M0 0")' } });
+      `,
+    },
     // Not a tasty call — should be ignored
     {
       code: `
@@ -81,6 +113,15 @@ tester.run('known-property', rule, {
         tasty({ styles: { boarder: true } });
       `,
       errors: [{ messageId: 'unknownProperty', data: { name: 'boarder' } }],
+    },
+    // A near-miss of a modern property is still a typo — widening the list to cover
+    // `maskSize` must not turn the rule into a pass-through for anything camelCase.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { markSize: 'cover' } });
+      `,
+      errors: [{ messageId: 'unknownProperty', data: { name: 'markSize' } }],
     },
   ],
 });

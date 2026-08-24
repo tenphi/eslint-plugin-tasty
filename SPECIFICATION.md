@@ -220,7 +220,7 @@ The config must be re-read when the user edits it. ESLint does not natively watc
 
 **Severity:** warning (default)
 **Complexity:** Low
-**Feasibility:** High — straightforward AST key matching against a static list
+**Feasibility:** High — straightforward AST key matching against a generated list
 
 Warns when a style property name is not recognized as a valid tasty property or CSS property.
 
@@ -236,7 +236,12 @@ Warns when a style property name is not recognized as a valid tasty property or 
 `recipe`, `textOverflow`
 
 **Also valid:**
-- Any CSS property name (via a CSS property list).
+- Any CSS property name. The list is generated from `known-css-properties` — the
+  MDN/W3C dataset stylelint uses for `property-no-unknown` — so modern properties
+  (`maskSize`, `anchorName`, `fieldSizing`, `viewTransitionName`, `textBox`) are
+  recognized, along with SVG presentation and geometry properties. Properties that
+  ship ahead of the dataset are carried in a small hand-maintained supplement.
+  Regenerate with `pnpm generate:css-properties`.
 - Keys starting with uppercase letter → sub-element (separate rule).
 - Keys starting with `@` → special properties (`@keyframes`, `@properties`).
 - Keys starting with `$` or `$$` → custom CSS property definition (`$name` → `--name`, `$$name` → raw `--name` reference for transitions).

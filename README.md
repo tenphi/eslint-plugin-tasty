@@ -87,7 +87,7 @@ tracked import, so a local barrel needs listing here.
 
 | Rule | Severity | Description |
 |------|----------|-------------|
-| `tasty/known-property` | warn | Unknown style property names |
+| `tasty/known-property` | warn | Unknown style property names (checked against the full MDN/W3C CSS property set) |
 | `tasty/valid-value` | error | Malformed style values (unbalanced parens, !important) |
 | `tasty/valid-color-token` | error | Invalid color token syntax or unknown tokens |
 | `tasty/valid-custom-unit` | error | Unknown custom units |
