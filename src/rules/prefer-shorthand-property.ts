@@ -4,7 +4,7 @@ import { TastyContext, styleObjectListeners } from '../context.js';
 import { getKeyName, getStringValue } from '../utils.js';
 import { SHORTHAND_MAPPING } from '../constants.js';
 
-type MessageIds = 'preferShorthand';
+type MessageIds = 'preferShorthand' | 'preferShorthandExtending';
 
 const CSS_WIDE_KEYWORDS = new Set([
   'inherit',
@@ -47,6 +47,8 @@ export default createRule<[], MessageIds>({
     messages: {
       preferShorthand:
         "Prefer tasty shorthand '{{alternative}}' instead of '{{native}}'.",
+      preferShorthandExtending:
+        "'{{native}}' patches the base component's '{{property}}' from an extension layer. Expose a token in the base's '{{property}}' — e.g. padding: '$v-padding $h-padding' — and set it from here; '{{alternative}}' would replace the whole '{{property}}'.",
     },
     schema: [],
   },
@@ -55,7 +57,8 @@ export default createRule<[], MessageIds>({
     const ctx = new TastyContext(context);
 
     function handleStyleObject(node: TSESTree.ObjectExpression) {
-      if (!ctx.isStyleObject(node)) return;
+      const styleCtx = ctx.getStyleContext(node);
+      if (!styleCtx) return;
 
       for (const prop of node.properties) {
         if (prop.type !== 'Property' || prop.computed) continue;
@@ -66,6 +69,35 @@ export default createRule<[], MessageIds>({
         const mapping = SHORTHAND_MAPPING[key];
         const hint = shorthandHint(key, prop);
         if (mapping && hint) {
+          // An extension layer merges per key, so renaming the key replaces the
+          // base component's whole `mapping.property` instead of patching the
+          // one part written here — `paddingTop: '2x'` -> `padding: '2x top'`
+          // drops the base's other three edges to 0. The token seam belongs in
+          // the base component, which is another file and may not even be the
+          // author's to edit, so this stays a report with no fix.
+          if (styleCtx.isExtending) {
+            // The token seam has to be added to the base component's own
+            // definition, so the suggestion is only actionable when that file
+            // belongs to this project. Over an imported base — a UI kit, say —
+            // the author's remaining options are the longhand they already
+            // wrote or a rewrite that would clobber the base, and a warning
+            // recommending neither is just noise. `ownedSources` opts a
+            // published-from-this-monorepo design system back in.
+            if (!ctx.isOwnedComponent(styleCtx.baseComponent)) continue;
+
+            context.report({
+              node: prop.key,
+              messageId: 'preferShorthandExtending',
+              data: {
+                native: key,
+                alternative: hint,
+                property: mapping.property,
+              },
+            });
+
+            continue;
+          }
+
           context.report({
             node: prop.key,
             messageId: 'preferShorthand',

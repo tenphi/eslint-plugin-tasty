@@ -69,6 +69,7 @@ export default {
   recipes: ['card', 'elevated', 'reset'],
   styles: ['glaze'],
   importSources: ['@my-org/design-system'],
+  ownedSources: ['@my-org/*'],
 };
 ```
 
@@ -77,6 +78,13 @@ validated, set `tokens: false` to disable the check even though a parent config
 sets it. `importSources` matters when you re-export `tasty()` from your own
 module — the plugin only recognizes `tasty({ styles })` when the call comes from a
 tracked import, so a local barrel needs listing here.
+
+`ownedSources` answers a different question: which base components you can edit.
+When a rule's advice is "change the component you are extending", it stays quiet
+over a base imported from someone else's package. Components declared in the same
+file and relative, absolute, `~`, `#` or `@/` imports count as yours already —
+list a scope here only for a design system you publish from your own monorepo
+(`*` matches any run of characters).
 
 > `functions` was called `funcs` before v1. The old spelling is still read as a
 > deprecated alias.
@@ -108,7 +116,7 @@ tracked import, so a local barrel needs listing here.
 | `tasty/require-default-state` | error | Missing default (`''`) or fallback floor (`_`) key in state mappings (skipped for extending calls) |
 | `tasty/no-own-at-root` | warn | `@own()` used at root level where it is redundant |
 | `tasty/valid-default-state-order` | warn | Misplaced default (`''`) or redundant `''` when only `_` is present |
-| `tasty/prefer-shorthand-property` | warn | Use Tasty shorthand instead of native CSS properties (`backgroundColor` → `fill`, etc.) |
+| `tasty/prefer-shorthand-property` | warn | Use Tasty shorthand instead of native CSS properties (`backgroundColor` → `fill`, etc.). In an extension layer the rewrite is report-only and points at a token in the base component, and over a base you cannot edit it is skipped (see `ownedSources`) |
 | `tasty/no-raw-color-values` | warn | Raw hex/rgb/`okhsl`/`okhst`/`oklch`/named colors instead of `#color` tokens |
 | `tasty/consistent-token-usage` | warn | Raw px values when custom units or tokens exist |
 | `tasty/prefer-auto-calc` | warn | `calc(...)` instead of Tasty auto-calc `(...)` |

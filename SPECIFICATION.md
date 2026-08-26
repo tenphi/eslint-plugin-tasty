@@ -180,6 +180,16 @@ interface TastyValidationConfig {
    * @example ['@cube-dev/ui-kit', '@my-org/design-system']
    */
   importSources?: string[];
+
+  /**
+   * Import sources whose components this project can edit. Rules that would send
+   * the author to a base component's own definition stay quiet over a base from
+   * anywhere else. Same-file declarations and relative, absolute, `~`, `#` and
+   * `@/` imports are owned without being listed; `*` matches any run of
+   * characters.
+   * @example ['@my-org/*']
+   */
+  ownedSources?: string[];
 }
 ```
 
@@ -188,6 +198,7 @@ interface TastyValidationConfig {
 - Renamed to `TastyValidationConfig` (shared between ESLint plugin and future tooling).
 - Added `recipes` field — validates `recipe` property values.
 - Added `importSources` field — recognizes custom re-exports of tasty.
+- Added `ownedSources` field — marks which base components are this project's to edit.
 - Kept `extends` for config composition.
 - Removed `presetDescriptions` and `stateDescriptions` — those are IDE tooltip features, not relevant for lint diagnostics.
 
@@ -351,6 +362,42 @@ tasty({ styles: { backgroundColor: '#purple' } });
 
 // ⚠️ Prefer: radius: '1r'
 tasty({ styles: { borderRadius: '6px' } });
+```
+
+**Extension layers.** In an extension layer — `tasty(Base, {...})`, `tastyStatic(Base, {...})`,
+or a `styles` prop — the report switches to the `preferShorthandExtending` message and carries
+no fix. Styles merge per key there, so renaming the key replaces the base component's whole
+property instead of patching the part written in the layer: `paddingTop: '2x'` →
+`padding: '2x top'` drops the base's other three edges to `0`, and `backgroundColor` → `fill`
+replaces a `fill` state map the layer never mentioned.
+
+The recommended shape is a token in the base component, set from the layer:
+
+```js
+// base component — the seam
+const Card = tasty({ styles: { padding: '$v-padding $h-padding' } });
+
+// extension layer — no raw CSS longhand needed
+const TallCard = tasty(Card, { styles: { '$v-padding': '4x' } });
+```
+
+**Ownership.** That advice only lands if the base component is the author's to edit, so the
+report is skipped entirely when the base is imported from a package: over a UI-kit component the
+remaining options are the longhand already written or a rewrite that would clobber the base, and
+recommending neither is noise. Components declared in the same file count as owned, as do
+relative, absolute, `~`, `#` and `@/` imports; a design system published from the same monorepo
+is opted back in with `ownedSources` in `tasty.config.ts`. A base the plugin cannot resolve to
+an import is treated as owned — silence is for a base that is demonstrably someone else's.
+
+```js
+import { Button } from '@uikit/button';
+import { Card } from './card';
+
+// no report — '@uikit/button' is not this project's to change
+tasty(Button, { styles: { paddingTop: '2x' } });
+
+// ⚠️ reported without a fix — the seam belongs in ./card
+tasty(Card, { styles: { paddingTop: '2x' } });
 ```
 
 ---

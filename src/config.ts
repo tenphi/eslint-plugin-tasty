@@ -238,6 +238,7 @@ function mergeConfigs(
     'recipes',
     'styles',
     'importSources',
+    'ownedSources',
   ] as const;
 
   for (const key of arrayKeys) {
@@ -316,6 +317,7 @@ function toResolved(config: TastyValidationConfig): ResolvedConfig {
     recipes: config.recipes ?? [],
     styles: config.styles ?? [],
     importSources: config.importSources ?? DEFAULT_IMPORT_SOURCES,
+    ownedSources: config.ownedSources ?? [],
   };
 }
 
@@ -328,6 +330,7 @@ const DEFAULT_CONFIG: ResolvedConfig = {
   recipes: [],
   styles: [],
   importSources: DEFAULT_IMPORT_SOURCES,
+  ownedSources: [],
 };
 
 function getMtimes(paths: string[]): Map<string, number> {
