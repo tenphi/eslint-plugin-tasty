@@ -108,7 +108,7 @@ tracked import, so a local barrel needs listing here.
 | `tasty/require-default-state` | error | Missing default (`''`) or fallback floor (`_`) key in state mappings (skipped for extending calls) |
 | `tasty/no-own-at-root` | warn | `@own()` used at root level where it is redundant |
 | `tasty/valid-default-state-order` | warn | Misplaced default (`''`) or redundant `''` when only `_` is present |
-| `tasty/prefer-shorthand-property` | warn | Use Tasty shorthand instead of native CSS properties (`backgroundColor` → `fill`, etc.) |
+| `tasty/prefer-shorthand-property` | warn | Use Tasty shorthand instead of native CSS properties (`backgroundColor` → `fill`, etc.). In an extension layer the rewrite is report-only and points at a token in the base component |
 | `tasty/no-raw-color-values` | warn | Raw hex/rgb/`okhsl`/`okhst`/`oklch`/named colors instead of `#color` tokens |
 | `tasty/consistent-token-usage` | warn | Raw px values when custom units or tokens exist |
 | `tasty/prefer-auto-calc` | warn | `calc(...)` instead of Tasty auto-calc `(...)` |

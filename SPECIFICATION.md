@@ -348,6 +348,26 @@ tasty({ styles: { backgroundColor: '#purple' } });
 tasty({ styles: { borderRadius: '6px' } });
 ```
 
+**Extension layers.** In an extension layer (`tasty(Base, {...})`, `tastyStatic(Base, {...})`)
+the report switches to the `preferShorthandExtending` message and carries no fix. Styles merge
+per key there, so renaming the key replaces the base component's whole property instead of
+patching the part written in the layer — `paddingTop: '2x'` → `padding: '2x top'` drops the
+base's other three edges to `0`, and `backgroundColor` → `fill` replaces a `fill` state map the
+layer never mentioned.
+
+The recommended shape is a token in the base component, set from the layer:
+
+```js
+// base component — the seam
+const Card = tasty({ styles: { padding: '$v-padding $h-padding' } });
+
+// extension layer — no raw CSS longhand needed
+const TallCard = tasty(Card, { styles: { '$v-padding': '4x' } });
+```
+
+The base may not be the author's to edit (a UI-kit source, for instance), so this stays a
+suggestion: the native property is still reported, but no rewrite is offered in its place.
+
 ---
 
 ### Value Validation
