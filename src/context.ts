@@ -192,12 +192,39 @@ function jsxStylesPropTarget(node: TSESTree.ObjectExpression): string | null {
 }
 
 /**
+ * Strips the wrappers that carry no runtime value — `Button as any`, `Button!`,
+ * `Button satisfies T`, `<T>Button` — so the expression underneath can be read.
+ */
+function unwrapExpression(node: TSESTree.Node): TSESTree.Node {
+  let current = node;
+
+  while (
+    current.type === 'TSAsExpression' ||
+    current.type === 'TSSatisfiesExpression' ||
+    current.type === 'TSNonNullExpression' ||
+    current.type === 'TSTypeAssertion' ||
+    current.type === 'TSInstantiationExpression'
+  ) {
+    current = current.expression;
+  }
+
+  return current;
+}
+
+/**
  * The identifier a base-component argument resolves to — `tasty(UI.Card, {…})`
  * -> `UI`, which is what the import map is keyed by.
+ *
+ * Type assertions are stripped on the way down. Reading `Button as any` as an
+ * unknown base would quietly promote an imported component to "owned", which is
+ * the reading that produces a warning the author cannot act on.
  */
 function baseComponentName(node: TSESTree.Node): string | null {
-  let current = node;
-  while (current.type === 'MemberExpression') current = current.object;
+  let current = unwrapExpression(node);
+
+  while (current.type === 'MemberExpression') {
+    current = unwrapExpression(current.object);
+  }
 
   return current.type === 'Identifier' ? current.name : null;
 }
@@ -303,7 +330,9 @@ export class TastyContext {
     if (source === undefined) return true;
     if (isInRepoSource(source)) return true;
 
-    return this.config.ownedSources.some((pattern) =>
+    // `ownedSources` is optional on the public `ResolvedConfig`, so a config
+    // built by a consumer rather than by `loadConfig` may not carry it.
+    return (this.config.ownedSources ?? []).some((pattern) =>
       matchesSourcePattern(pattern, source),
     );
   }
@@ -503,7 +532,8 @@ export class TastyContext {
     const args = call.arguments;
 
     // tasty({ styles: { ... } }) or tasty(Component, { styles: { ... } })
-    const isExtending = args.length >= 2 && args[0].type !== 'ObjectExpression';
+    const isExtending =
+      args.length >= 2 && unwrapExpression(args[0]).type !== 'ObjectExpression';
     const optionsArg = isExtending ? args[1] : args[0];
 
     if (
@@ -555,7 +585,7 @@ export class TastyContext {
 
     // tastyStatic(base, { ... }) or tastyStatic('selector', { ... })
     if (args.length === 2 && args[1] === targetNode) {
-      const isSelectorMode = args[0].type === 'Literal';
+      const isSelectorMode = unwrapExpression(args[0]).type === 'Literal';
       return {
         type: 'tastyStatic' as const,
         isStaticCall: true,

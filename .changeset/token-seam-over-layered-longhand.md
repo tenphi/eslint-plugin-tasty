@@ -34,13 +34,18 @@ skipped when the base is imported from a package: over a UI-kit component the au
 remaining options are the longhand they already wrote or a rewrite that would clobber the
 base, and recommending neither is noise. Same-file declarations and relative, absolute, `~`,
 `#` and `@/` imports count as yours; a base that cannot be resolved to an import is treated as
-yours too, so silence needs positive evidence. A design system published from your own
-monorepo is opted back in with the new `ownedSources` config key:
+yours too, so silence needs positive evidence. A type assertion does not hide where a base
+came from — `tasty(Button as any, …)` resolves to `Button` and is classified on its real
+import. A design system published from your own monorepo is opted back in with the new
+`ownedSources` config key:
 
 ```ts
 // tasty.config.ts
 export default { ownedSources: ['@my-org/*'] };
 ```
+
+`ownedSources` is optional on the exported `ResolvedConfig` type, so an object literal written
+against 1.0 still compiles; `loadConfig` always fills it in.
 
 Base definitions, selector-mode `tastyStatic('.card', {...})`, and `variants` are unchanged
 and still auto-fix.

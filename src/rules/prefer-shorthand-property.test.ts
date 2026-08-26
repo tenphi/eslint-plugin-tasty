@@ -46,6 +46,30 @@ tester.run('prefer-shorthand-property', rule, {
         const view = <Card styles={{ paddingTop: '2x' }} />;
       `,
     },
+    // A type assertion must not hide the base's origin: reading `Button as any`
+    // as an unknown base would promote an imported component to "owned" and
+    // produce a warning the author cannot act on.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        import { Button } from '@uikit/button';
+        tasty(Button as any, { styles: { paddingTop: '2x' } });
+      `,
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        import { Button } from '@uikit/button';
+        tasty(Button!, { styles: { backgroundColor: '#purple' } });
+      `,
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        import * as UI from '@uikit';
+        tasty((UI.Button as any)!, { styles: { paddingTop: '2x' } });
+      `,
+    },
     // A package NOT listed in `ownedSources` stays silent even next to a config
     // that lists another one.
     {
@@ -264,6 +288,37 @@ tester.run('prefer-shorthand-property', rule, {
           },
         },
       ],
+    },
+    // The same assertion over a base that IS this project's still reports, so the
+    // unwrapping resolves the name rather than swallowing the case.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        import { Card } from './card';
+        tasty(Card as any, { styles: { paddingTop: '2x' } });
+      `,
+      errors: [
+        {
+          messageId: 'preferShorthandExtending',
+          data: {
+            native: 'paddingTop',
+            alternative: "padding: '... top'",
+            property: 'padding',
+          },
+        },
+      ],
+    },
+    // An `as const` selector is still selector mode, so the fix stands.
+    {
+      code: `
+        import { tastyStatic } from '@tenphi/tasty';
+        tastyStatic('.card' as const, { backgroundColor: '#purple' });
+      `,
+      output: `
+        import { tastyStatic } from '@tenphi/tasty';
+        tastyStatic('.card' as const, { fill: '#purple' });
+      `,
+      errors: [{ messageId: 'preferShorthand' }],
     },
     // `ownedSources: ['@my-org/*']` in the fixture's tasty.config.json opts a
     // design system published from this monorepo back in.

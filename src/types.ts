@@ -38,5 +38,12 @@ export interface ResolvedConfig {
   recipes: string[];
   styles: string[];
   importSources: string[];
-  ownedSources: string[];
+  /**
+   * Optional, unlike every key above it, and deliberately so: `ResolvedConfig` is
+   * part of the published surface, and a consumer's existing object literal must
+   * keep compiling when the plugin learns a new key. `loadConfig` always fills
+   * this in, so plugin code can read it directly; anything else should treat a
+   * missing value as the empty list. See `types.compat.ts` for the guard.
+   */
+  ownedSources?: string[];
 }
