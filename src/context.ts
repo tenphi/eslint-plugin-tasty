@@ -61,6 +61,20 @@ export function styleObjectListeners(
   return listeners;
 }
 
+export interface StyleContext {
+  type: 'tasty' | 'tastyStatic' | 'useStyles' | 'useGlobalStyles';
+  isStaticCall: boolean;
+  isSelectorMode: boolean;
+  isExtending: boolean;
+  /**
+   * Local name of the component this layer extends, when there is one and it is
+   * an identifier. `null` covers every other case — a base definition, a
+   * selector, or a layer whose base cannot be read off the AST — so a rule that
+   * cares must treat `null` as "unknown", not as "not extending".
+   */
+  baseComponent: string | null;
+}
+
 export interface TastyImport {
   localName: string;
   importedName: string;
@@ -156,6 +170,60 @@ function isNamedCssBlockMap(node: TSESTree.ObjectExpression): boolean {
   return true;
 }
 
+/**
+ * The component a `styles` JSX prop overrides — `<Card styles={…} />` -> `Card`.
+ * A namespaced tag (`<UI.Card />`) resolves to its root object, since that is the
+ * name an import can be matched against.
+ */
+function jsxStylesPropTarget(node: TSESTree.ObjectExpression): string | null {
+  const container = node.parent;
+  if (container?.type !== 'JSXExpressionContainer') return null;
+
+  const attribute = container.parent;
+  if (attribute?.type !== 'JSXAttribute') return null;
+
+  const element = attribute.parent;
+  if (element?.type !== 'JSXOpeningElement') return null;
+
+  let name: TSESTree.JSXTagNameExpression = element.name;
+  while (name.type === 'JSXMemberExpression') name = name.object;
+
+  return name.type === 'JSXIdentifier' ? name.name : null;
+}
+
+/**
+ * The identifier a base-component argument resolves to — `tasty(UI.Card, {…})`
+ * -> `UI`, which is what the import map is keyed by.
+ */
+function baseComponentName(node: TSESTree.Node): string | null {
+  let current = node;
+  while (current.type === 'MemberExpression') current = current.object;
+
+  return current.type === 'Identifier' ? current.name : null;
+}
+
+/**
+ * Whether `source` is inside this project. Relative and absolute specifiers are,
+ * as are the conventional in-repo aliases (`~/`, `#internal`, `@/`) — `@` alone
+ * is not, since `@scope/pkg` is a published package.
+ */
+function isInRepoSource(source: string): boolean {
+  return (
+    source.startsWith('.') ||
+    source.startsWith('/') ||
+    source.startsWith('~') ||
+    source.startsWith('#') ||
+    source.startsWith('@/')
+  );
+}
+
+/** Matches a source against an `ownedSources` pattern, where `*` is any run of characters. */
+function matchesSourcePattern(pattern: string, source: string): boolean {
+  const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  return new RegExp(`^${escaped.replace(/\\\*/g, '.*')}$`).test(source);
+}
+
 const TASTY_FUNCTION_NAMES = new Set([
   'tasty',
   'tastyStatic',
@@ -172,6 +240,7 @@ const TASTY_FUNCTION_NAMES = new Set([
 export class TastyContext {
   readonly config: ResolvedConfig;
   private imports = new Map<string, TastyImport>();
+  private moduleSources = new Map<string, string>();
   private importSources: Set<string>;
 
   constructor(
@@ -187,6 +256,14 @@ export class TastyContext {
 
   trackImport(node: TSESTree.ImportDeclaration): void {
     const source = node.source.value;
+
+    // Every import is recorded, tasty or not. Where a *base component* comes
+    // from is what tells a rule whether the file it would send the author to
+    // edit is even theirs — see `isOwnedComponent`.
+    for (const specifier of node.specifiers) {
+      this.moduleSources.set(specifier.local.name, source);
+    }
+
     if (!this.importSources.has(source)) return;
 
     for (const specifier of node.specifiers) {
@@ -210,6 +287,27 @@ export class TastyContext {
     return this.imports.get(localName);
   }
 
+  /**
+   * Whether the base component an extension layer sits on top of lives in a file
+   * this project can edit — so a rule can decide whether pointing the author at
+   * the base's own definition is advice they can act on.
+   *
+   * A name that was never imported is declared in this very file, and an unknown
+   * base (`null`) counts as owned as well: staying quiet is for a base that is
+   * demonstrably someone else's, never for one the plugin merely failed to read.
+   */
+  isOwnedComponent(localName: string | null): boolean {
+    if (localName === null) return true;
+
+    const source = this.moduleSources.get(localName);
+    if (source === undefined) return true;
+    if (isInRepoSource(source)) return true;
+
+    return this.config.ownedSources.some((pattern) =>
+      matchesSourcePattern(pattern, source),
+    );
+  }
+
   isTastyCall(node: TSESTree.CallExpression): TastyImport | undefined {
     if (node.callee.type !== 'Identifier') return undefined;
     return this.imports.get(node.callee.name);
@@ -223,12 +321,7 @@ export class TastyContext {
     return this.getStyleContext(node) !== null;
   }
 
-  getStyleContext(node: TSESTree.Node): {
-    type: 'tasty' | 'tastyStatic' | 'useStyles' | 'useGlobalStyles';
-    isStaticCall: boolean;
-    isSelectorMode: boolean;
-    isExtending: boolean;
-  } | null {
+  getStyleContext(node: TSESTree.Node): StyleContext | null {
     // Sub-element objects inherit their parent style object's context
     if (node.type === 'ObjectExpression') {
       const parent = node.parent;
@@ -248,11 +341,17 @@ export class TastyContext {
     // name required. Checked before the walk, which would otherwise climb past it
     // to an unrelated call or declaration and reject the whole thing.
     if (node.type === 'ObjectExpression' && this.isStylesPropertyValue(node)) {
+      // A `styles` prop is an override layer by construction: the component it
+      // is handed to already carries its own styles and this object lands on
+      // top of them. A Storybook `args.styles` is the same prop by another name,
+      // but the component behind `args` is not on the AST path, so its base
+      // stays unknown.
       return {
         type: 'tasty',
         isStaticCall: false,
         isSelectorMode: false,
-        isExtending: false,
+        isExtending: true,
+        baseComponent: jsxStylesPropTarget(node),
       };
     }
 
@@ -281,6 +380,7 @@ export class TastyContext {
               isStaticCall: false,
               isSelectorMode: false,
               isExtending: false,
+              baseComponent: null,
             };
           }
         }
@@ -292,6 +392,7 @@ export class TastyContext {
               isStaticCall,
               isSelectorMode: true,
               isExtending: false,
+              baseComponent: null,
             };
           }
         }
@@ -305,6 +406,7 @@ export class TastyContext {
           isStaticCall: false,
           isSelectorMode: false,
           isExtending: false,
+          baseComponent: null,
         };
       }
 
@@ -401,10 +503,8 @@ export class TastyContext {
     const args = call.arguments;
 
     // tasty({ styles: { ... } }) or tasty(Component, { styles: { ... } })
-    const optionsArg =
-      args.length >= 2 && args[0].type !== 'ObjectExpression'
-        ? args[1]
-        : args[0];
+    const isExtending = args.length >= 2 && args[0].type !== 'ObjectExpression';
+    const optionsArg = isExtending ? args[1] : args[0];
 
     if (
       optionsArg?.type === 'ObjectExpression' &&
@@ -414,7 +514,8 @@ export class TastyContext {
         type: 'tasty' as const,
         isStaticCall: false,
         isSelectorMode: false,
-        isExtending: args.length >= 2 && args[0].type !== 'ObjectExpression',
+        isExtending,
+        baseComponent: isExtending ? baseComponentName(args[0]) : null,
       };
     }
 
@@ -428,6 +529,7 @@ export class TastyContext {
         isStaticCall: false,
         isSelectorMode: false,
         isExtending: false,
+        baseComponent: null,
       };
     }
 
@@ -447,6 +549,7 @@ export class TastyContext {
         isStaticCall: true,
         isSelectorMode: false,
         isExtending: false,
+        baseComponent: null,
       };
     }
 
@@ -458,6 +561,7 @@ export class TastyContext {
         isStaticCall: true,
         isSelectorMode,
         isExtending: !isSelectorMode,
+        baseComponent: isSelectorMode ? null : baseComponentName(args[0]),
       };
     }
 

@@ -16,6 +16,17 @@ export interface TastyValidationConfig {
   recipes?: string[];
   styles?: string[];
   importSources?: string[];
+  /**
+   * Import sources whose components this project can edit — a design system
+   * published from the same monorepo, for instance. Rules that would send the
+   * author to a base component's own definition stay quiet when the base comes
+   * from somewhere else, since that file is not theirs to change.
+   *
+   * Relative, absolute, `~`, `#` and `@/` specifiers, plus components declared
+   * in the same file, count as owned without being listed. `*` matches any run
+   * of characters, so `@my-org/*` covers every package under the scope.
+   */
+  ownedSources?: string[];
 }
 
 export interface ResolvedConfig {
@@ -27,4 +38,5 @@ export interface ResolvedConfig {
   recipes: string[];
   styles: string[];
   importSources: string[];
+  ownedSources: string[];
 }

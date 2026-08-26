@@ -5,6 +5,7 @@ const tester = new RuleTester({
   languageOptions: {
     ecmaVersion: 2024,
     sourceType: 'module',
+    parserOptions: { ecmaFeatures: { jsx: true } },
   },
 });
 
@@ -63,6 +64,15 @@ tester.run('require-default-state', rule, {
     {
       code: `
         const obj = { fill: { 'hovered': 'red' } };
+      `,
+    },
+    // A `styles` prop is an extension layer: the component it lands on already
+    // provides the normal-state value, so omitting '' is intentional here for
+    // the same reason it is in `tasty(Base, {…})`.
+    {
+      code: `
+        import { Card } from './card';
+        const view = <Card styles={{ fill: { 'hovered': '#blue' } }} />;
       `,
     },
   ],

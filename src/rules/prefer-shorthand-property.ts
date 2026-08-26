@@ -76,6 +76,15 @@ export default createRule<[], MessageIds>({
           // the base component, which is another file and may not even be the
           // author's to edit, so this stays a report with no fix.
           if (styleCtx.isExtending) {
+            // The token seam has to be added to the base component's own
+            // definition, so the suggestion is only actionable when that file
+            // belongs to this project. Over an imported base — a UI kit, say —
+            // the author's remaining options are the longhand they already
+            // wrote or a rewrite that would clobber the base, and a warning
+            // recommending neither is just noise. `ownedSources` opts a
+            // published-from-this-monorepo design system back in.
+            if (!ctx.isOwnedComponent(styleCtx.baseComponent)) continue;
+
             context.report({
               node: prop.key,
               messageId: 'preferShorthandExtending',
