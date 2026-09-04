@@ -65,28 +65,37 @@ describe('token expansion exceptions', () => {
   });
 
   it('keeps the two lists distinct', () => {
-    // Not a style rule — a guard against someone "simplifying" them into one set.
-    // Colour properties expand `#token` but not `$name`; dimension properties do the
-    // reverse. Merging them would suppress correct rewrites and allow broken ones.
-    const colorOnly = [...PROPERTIES_WITHOUT_CUSTOM_PROPERTY_EXPANSION].filter(
-      (property) => !PROPERTIES_WITHOUT_COLOR_TOKEN_EXPANSION.has(property),
-    );
+    // Not a style rule — a guard against someone "simplifying" them into one
+    // set. They answer different questions, and the answers no longer even have
+    // the same shape: since tasty 3.0.2 every property expands `$name`, while
+    // `#token` expansion is still property-scoped. Merging them would make the
+    // empty list swallow the populated one and allow broken `#token` rewrites.
     const propOnly = [...PROPERTIES_WITHOUT_COLOR_TOKEN_EXPANSION].filter(
       (property) => !PROPERTIES_WITHOUT_CUSTOM_PROPERTY_EXPANSION.has(property),
     );
 
-    expect(colorOnly).toContain('fill');
+    expect(PROPERTIES_WITHOUT_CUSTOM_PROPERTY_EXPANSION.size).toBe(0);
     expect(propOnly).toContain('fontSize');
   });
 
-  it('confirms the declarations this rule used to break', () => {
-    // Each of these was produced by --fix in a real codebase and silently dropped.
-    expect(render('fontFamily', '$font-sans')).toBe('font-family: $font-sans;');
+  it('confirms tasty substitutes $name in pass-through values', () => {
+    // Each of these was produced by --fix in a real codebase and silently
+    // dropped, which is why the suppression list existed. tasty 3.0.2 fixed the
+    // handlers (tasty#264), so the same rewrites are now correct — these assert
+    // the fix rather than the breakage.
+    expect(render('fontFamily', '$font-sans')).toBe(
+      'font-family: var(--font-sans);',
+    );
     expect(render('fill', '$purple-color-rgb')).toBe(
-      'background-color: $purple-color-rgb;',
+      'background-color: var(--purple-color-rgb);',
     );
-    expect(render('color', '$cui-text-color-secondary')).toBe(
-      'color: $cui-text-color-secondary;',
+    expect(render('color', '$cui-text-color-secondary')).toContain(
+      'color: var(--cui-text-color-secondary);',
     );
+  });
+
+  it('still passes a #name colour token through a dimension property', () => {
+    // The other list is not vestigial: this is the rewrite it suppresses.
+    expect(render('fontSize', '#test-token')).toBe('font-size: #test-token;');
   });
 });

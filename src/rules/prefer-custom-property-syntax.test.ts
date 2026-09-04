@@ -66,39 +66,11 @@ tester.run('prefer-custom-property-syntax', rule, {
       `,
     },
     {
-      // fontFamily has its own handler and passes the value through verbatim, so
-      // `$font-sans` would emit a literal `font-family: $font-sans`.
-      code: `
-        import { tasty } from '@tenphi/tasty';
-        tasty({ styles: { fontFamily: 'var(--font-sans)' } });
-      `,
-    },
-    {
-      // Colour properties expand `#token` but not `$name`, so the `$` form is
-      // suppressed here even though the same rewrite is correct on `gap`.
-      code: `
-        import { tasty } from '@tenphi/tasty';
-        tasty({ styles: { fill: 'rgb(var(--purple-color-rgb) / 0.05)' } });
-      `,
-    },
-    {
-      code: `
-        import { tasty } from '@tenphi/tasty';
-        tasty({ styles: { color: 'var(--cui-text-color-secondary)' } });
-      `,
-    },
-    {
-      // And the mirror image: dimension properties expand `$name` but not `#token`.
+      // `#token` expansion is still property-scoped: a dimension property passes
+      // `#accent` through verbatim, so the `#` rewrite stays suppressed here.
       code: `
         import { tasty } from '@tenphi/tasty';
         tasty({ styles: { fontSize: 'var(--accent-color)' } });
-      `,
-    },
-    {
-      // A state map inherits the outer property's expansion rules.
-      code: `
-        import { tasty } from '@tenphi/tasty';
-        tasty({ styles: { color: { '': 'var(--row-color-secondary)' } } });
       `,
     },
     {
@@ -152,6 +124,54 @@ tester.run('prefer-custom-property-syntax', rule, {
     },
   ],
   invalid: [
+    // Every property expands `$name` as of tasty 3.0.2 (tasty#264), so the four
+    // cases below — a pass-through handler, two colour properties, and a state
+    // map under one — are rewrites the rule used to suppress and now offers.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fontFamily: 'var(--font-sans)' } });
+      `,
+      output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fontFamily: '$font-sans' } });
+      `,
+      errors: [{ messageId: 'preferCustomPropertySyntax' }],
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fill: 'rgb(var(--purple-color-rgb) / 0.05)' } });
+      `,
+      output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fill: 'rgb($purple-color-rgb / 0.05)' } });
+      `,
+      errors: [{ messageId: 'preferCustomPropertySyntax' }],
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { color: 'var(--cui-text-color-secondary)' } });
+      `,
+      output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { color: '$cui-text-color-secondary' } });
+      `,
+      errors: [{ messageId: 'preferCustomPropertySyntax' }],
+    },
+    {
+      // A state map inherits the outer property's expansion rules.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { color: { '': 'var(--row-color-secondary)' } } });
+      `,
+      output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { color: { '': '$row-color-secondary' } } });
+      `,
+      errors: [{ messageId: 'preferCustomPropertySyntax' }],
+    },
     {
       code: `
         import { tasty } from '@tenphi/tasty';

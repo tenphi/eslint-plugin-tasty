@@ -50,6 +50,10 @@ const BORDER_STYLE_MODS = [
   'hidden',
 ];
 const DIMENSION_MODS = ['min', 'max', 'fixed'];
+// The logical axis handlers take `start`/`end` in place of the four physical
+// sides, plus the same `longhand` output modifier — it emits the two native
+// start/end declarations instead of the axis shorthand.
+const LOGICAL_EDGE_MODS = ['start', 'end', LONGHAND_MOD];
 const FLOW_MODS = [
   'row',
   'column',
@@ -112,14 +116,44 @@ export const PROPERTY_EXPECTATIONS: Record<string, PropertyExpectation> = {
   },
 
   padding: { acceptsColor: false, acceptsMods: BOX_DIRECTIONAL_MODS },
-  paddingInline: VALUE_ONLY,
-  paddingBlock: VALUE_ONLY,
   margin: { acceptsColor: false, acceptsMods: BOX_DIRECTIONAL_MODS },
   fade: { acceptsColor: true, acceptsMods: DIRECTIONAL_MODS },
   inset: { acceptsColor: false, acceptsMods: INSET_MODS },
+  scrollMargin: { acceptsColor: false, acceptsMods: BOX_DIRECTIONAL_MODS },
+  scrollPadding: { acceptsColor: false, acceptsMods: BOX_DIRECTIONAL_MODS },
+
+  // Native logical CSS shorthands. Tasty v3.8 stopped reading these in its
+  // physical handlers, so they are ordinary CSS declarations now: one or two
+  // lengths through the normal value parser, no colours and no modifiers. The
+  // enhanced `blockPadding` / `inlinePadding` below are what take modifiers.
+  paddingInline: VALUE_ONLY,
+  paddingBlock: VALUE_ONLY,
 
   width: { acceptsColor: false, acceptsMods: DIMENSION_MODS },
   height: { acceptsColor: false, acceptsMods: DIMENSION_MODS },
+
+  // Enhanced logical styles. Each axis/category pair mirrors its physical
+  // counterpart's vocabulary with `start`/`end` in place of the four sides.
+  blockPadding: { acceptsColor: false, acceptsMods: LOGICAL_EDGE_MODS },
+  inlinePadding: { acceptsColor: false, acceptsMods: LOGICAL_EDGE_MODS },
+  blockMargin: { acceptsColor: false, acceptsMods: LOGICAL_EDGE_MODS },
+  inlineMargin: { acceptsColor: false, acceptsMods: LOGICAL_EDGE_MODS },
+  blockInset: { acceptsColor: false, acceptsMods: LOGICAL_EDGE_MODS },
+  inlineInset: { acceptsColor: false, acceptsMods: LOGICAL_EDGE_MODS },
+  blockScrollMargin: { acceptsColor: false, acceptsMods: LOGICAL_EDGE_MODS },
+  inlineScrollMargin: { acceptsColor: false, acceptsMods: LOGICAL_EDGE_MODS },
+  blockScrollPadding: { acceptsColor: false, acceptsMods: LOGICAL_EDGE_MODS },
+  inlineScrollPadding: { acceptsColor: false, acceptsMods: LOGICAL_EDGE_MODS },
+  blockBorder: {
+    acceptsColor: true,
+    acceptsMods: [...LOGICAL_EDGE_MODS, ...BORDER_STYLE_MODS],
+  },
+  inlineBorder: {
+    acceptsColor: true,
+    acceptsMods: [...LOGICAL_EDGE_MODS, ...BORDER_STYLE_MODS],
+  },
+  blockSize: { acceptsColor: false, acceptsMods: DIMENSION_MODS },
+  inlineSize: { acceptsColor: false, acceptsMods: DIMENSION_MODS },
 
   gap: VALUE_ONLY,
   columnGap: VALUE_ONLY,

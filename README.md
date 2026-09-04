@@ -105,7 +105,7 @@ list a scope here only for a design system you publish from your own monorepo
 | `tasty/no-nested-state-map` | error | Nested state maps (not supported) |
 | `tasty/no-important` | error | `!important` usage (breaks tasty specificity) |
 | `tasty/valid-sub-element` | error | Sub-element values must be style objects |
-| `tasty/valid-directional-modifier` | error | Directional modifiers on wrong properties, and more than one value in a group that names directions |
+| `tasty/valid-directional-modifier` | error | Directional modifiers on wrong properties, and more than one value in a group that names directions. Physical properties take `top`/`right`/`bottom`/`left`, logical ones `start`/`end`, and mixing the two is reported in either direction |
 | `tasty/valid-radius-shape` | error | Unknown radius shape keywords |
 | `tasty/valid-preset` | error | Unknown preset names |
 | `tasty/valid-recipe` | error | Unknown recipe names |
@@ -116,8 +116,9 @@ list a scope here only for a design system you publish from your own monorepo
 | `tasty/require-default-state` | error | Missing default (`''`) or fallback floor (`_`) key in state mappings (skipped for extending calls) |
 | `tasty/no-own-at-root` | warn | `@own()` used at root level where it is redundant |
 | `tasty/valid-default-state-order` | warn | Misplaced default (`''`) or redundant `''` when only `_` is present |
-| `tasty/prefer-shorthand-property` | warn | Use Tasty shorthand instead of native CSS properties (`backgroundColor` → `fill`, etc.). In an extension layer the rewrite is report-only and points at a token in the base component, and over a base you cannot edit it is skipped (see `ownedSources`) |
+| `tasty/prefer-shorthand-property` | warn | Use Tasty shorthand instead of native CSS properties (`backgroundColor` → `fill`, `paddingBlock` → `blockPadding`, etc.). In an extension layer the rewrite is report-only and points at a token in the base component, and over a base you cannot edit it is skipped (see `ownedSources`) |
 | `tasty/no-raw-color-values` | warn | Raw hex/rgb/`okhsl`/`okhst`/`oklch`/named colors instead of `#color` tokens |
+| `tasty/no-raw-transition-duration` | warn | Hardcoded `transition` duration (`fill 0.2s`) instead of a duration token or tasty's default timing. Suggests each `$…-transition` / `$…duration` token in your config, or dropping the duration; a *delay* is left alone |
 | `tasty/consistent-token-usage` | warn | Raw px values when custom units or tokens exist |
 | `tasty/prefer-auto-calc` | warn | `calc(...)` instead of Tasty auto-calc `(...)` |
 | `tasty/prefer-custom-property-syntax` | warn | `var(--prop)` / `$x-color` / `transparent` / `currentColor` instead of `$prop` / `#color` / `#clear` / `#current` |
@@ -134,6 +135,38 @@ list a scope here only for a design system you publish from your own monorepo
 | `tasty/no-unknown-state-alias` | warn | Unknown `@name` state aliases |
 | `tasty/no-styles-prop` | warn | Direct `styles` prop usage |
 | `tasty/no-runtime-styles-mutation` | warn | Dynamic values in style objects |
+
+## Logical styles
+
+Tasty 3.8 added one enhanced handler per logical axis/category pair, which the plugin
+validates alongside the physical properties:
+
+| Category | Block axis | Inline axis |
+|---|---|---|
+| Size | `blockSize` | `inlineSize` |
+| Padding | `blockPadding` | `inlinePadding` |
+| Margin | `blockMargin` | `inlineMargin` |
+| Inset | `blockInset` | `inlineInset` |
+| Scroll margin | `blockScrollMargin` | `inlineScrollMargin` |
+| Scroll padding | `blockScrollPadding` | `inlineScrollPadding` |
+| Border | `blockBorder` | `inlineBorder` |
+
+```js
+tasty({
+  styles: {
+    direction: 'rtl',
+    inlinePadding: '1x start, 2x end',
+    inlineBorder: '1bw solid #accent start',
+    blockInset: '0 end',
+  },
+});
+```
+
+These take `start`/`end` modifiers (never physical sides), accept `true` for their
+category default, and follow the same one-value-per-directional-group rule as their
+physical counterparts. The native CSS spellings — `paddingBlock`, `insetInlineStart`,
+`borderBlockColor` — stay valid keys, but tasty no longer gives them category defaults or
+directional behaviour, so `prefer-shorthand-property` points them at the enhanced style.
 
 ## License
 

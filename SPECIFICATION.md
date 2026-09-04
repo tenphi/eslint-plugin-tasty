@@ -238,13 +238,32 @@ Warns when a style property name is not recognized as a valid tasty property or 
 **Known tasty properties** (built-in):
 `display`, `font`, `preset`, `hide`, `whiteSpace`, `opacity`, `transition`,
 `gridArea`, `order`, `gridColumn`, `gridRow`, `placeSelf`, `alignSelf`, `justifySelf`, `zIndex`, `margin`, `inset`, `position`,
-`padding`, `paddingInline`, `paddingBlock`, `overflow`, `scrollbar`, `textAlign`,
+`padding`, `overflow`, `scrollbar`, `textAlign`, `scrollMargin`, `scrollPadding`,
 `border`, `radius`, `shadow`, `outline`,
 `color`, `fill`, `fade`, `image`,
 `textTransform`, `fontWeight`, `fontStyle`,
 `width`, `height`, `flexBasis`, `flexGrow`, `flexShrink`, `flex`,
 `flow`, `placeItems`, `placeContent`, `alignItems`, `alignContent`, `justifyItems`, `justifyContent`, `align`, `justify`, `gap`, `columnGap`, `rowGap`, `gridColumns`, `gridRows`, `gridTemplate`, `gridAreas`,
 `recipe`, `textOverflow`
+
+**Enhanced logical styles** (tasty >= 3.8) — one handler per logical axis/category
+pair, emitting native logical CSS rather than converting to a physical edge:
+
+| Category | Block axis | Inline axis |
+|---|---|---|
+| Size | `blockSize` (+ `minBlockSize`, `maxBlockSize`) | `inlineSize` (+ `minInlineSize`, `maxInlineSize`) |
+| Padding | `blockPadding` | `inlinePadding` |
+| Margin | `blockMargin` | `inlineMargin` |
+| Inset | `blockInset` | `inlineInset` |
+| Scroll margin | `blockScrollMargin` | `inlineScrollMargin` |
+| Scroll padding | `blockScrollPadding` | `inlineScrollPadding` |
+| Border | `blockBorder` | `inlineBorder` |
+
+The native CSS spellings (`paddingBlock`, `insetInlineStart`, `borderBlockColor`, …)
+remain valid keys through the CSS property list, but are no longer *tasty* properties:
+tasty 3.8 stopped reading `paddingBlock`/`paddingInline`/`insetBlock`/`insetInline` in
+its physical handlers, so they carry no category default and no directional behaviour.
+`tasty/prefer-shorthand-property` points them at the enhanced style.
 
 **Also valid:**
 - Any CSS property name. The list is generated from `known-css-properties` — the
@@ -354,6 +373,33 @@ Suggests the tasty shorthand when a native CSS property with a tasty alternative
 | `fontWeight` | `preset` (with `strong` modifier) |
 | `lineHeight` | `preset` (with `tight` modifier) |
 | `boxShadow` | `shadow` |
+
+**Logical mapping** (tasty >= 3.8). Mirrors the physical rows one for one, because
+tasty moved the enhanced behaviour onto the `<axis><Category>` names and left the
+native spellings as plain CSS:
+
+| Native CSS | Tasty alternative |
+|---|---|
+| `paddingBlock` / `paddingInline` | `blockPadding` / `inlinePadding` |
+| `paddingBlockStart` | `blockPadding: '... start'` |
+| `paddingInlineEnd` | `inlinePadding: '... end'` |
+| `marginBlock` / `marginInline` | `blockMargin` / `inlineMargin` |
+| `insetBlock` / `insetInline` | `blockInset` / `inlineInset` |
+| `insetInlineStart` | `inlineInset: '... start'` |
+| `scrollMarginBlock` / `scrollPaddingInline` | `blockScrollMargin` / `inlineScrollPadding` |
+| `borderBlock`, `borderBlockColor`, `borderBlockWidth`, `borderBlockStyle` | `blockBorder` |
+| `borderInlineStart` | `inlineBorder: '... start'` |
+| `minBlockSize` / `maxBlockSize` | `blockSize: 'min ...'` / `blockSize: 'max ...'` |
+| `minInlineSize` / `maxInlineSize` | `inlineSize: 'min ...'` / `inlineSize: 'max ...'` |
+
+Only the axis shorthand renames are auto-fixed: `paddingBlock: '1x 2x'` and
+`blockPadding: '1x 2x'` both emit `padding-block: 1x 2x`, so the key rename is the whole
+edit. An edge longhand needs a `start`/`end` modifier added to the value, and a
+`border-*` rename additionally gains the style/colour defaults `border-block` never had
+(`border-block: 1bw` renders nothing), so those stay report-only.
+
+Logical *radius* (`borderStartStartRadius` & co.) is deliberately absent: `radius` is a
+physical-corner property, so pointing a logical corner at it would be wrong advice.
 
 **Examples:**
 ```js
@@ -688,6 +734,54 @@ fill: '#danger'
 
 ---
 
+#### `tasty/no-raw-transition-duration`
+
+**Severity:** warning (default)
+**Complexity:** Low
+**Feasibility:** High — one slot of the `transition` value, checked against a time literal
+
+Suggests a duration token, or tasty's default timing, instead of a hardcoded transition
+duration. A design system that owns its motion timing owns it in one place; a `0.2s`
+sprinkled through components is the same drift as a raw hex colour.
+
+**What is checked:** the *duration* slot only — the second token of a comma group, when
+it is not an easing. A tasty transition value is `[name] [duration] [easing] [delay]` or
+`[name] [easing] [delay]`, so a later time value is a **delay** and is left alone: omitting
+a delay means "no delay", a real rendering change, whereas omitting a duration falls back
+to the design system's own timing.
+
+**What counts as hardcoded:** a CSS time literal — `0.2s`, `200ms`, `.15s`, and a bare `0`
+(still a duration, and "no transition" is better expressed as a state). Already-tokenised
+and derived forms are left alone: `$transition`, `var(--transition)`, `(0.2s * 2)`,
+`calc(var(--transition) * 2)`.
+
+**Suggestions** (never an auto-fix — both change what the browser renders):
+1. Replace the duration with each duration token in the project config — a `tokens` entry
+   named `$transition`, `*-transition`, or containing `duration`.
+2. Remove the duration, inheriting `var(--<name>-transition, var(--transition))`.
+
+`@tenphi/tasty` ships a `tasty.config.ts` listing `$transition`, and the plugin reads that
+as the base of the config chain, so there is always at least one token to name.
+
+**Examples:**
+```js
+// ⚠️ Warning: Transition duration '0.2s' is hardcoded. Use a duration token
+//    ($transition), or omit it to inherit $fill-transition (falling back to $transition).
+transition: 'fill 0.2s'
+
+// ✅ OK — a token
+transition: 'fill $transition'
+
+// ✅ OK — no duration, so tasty substitutes the per-name timing
+transition: 'fill'
+transition: 'fill ease-in'
+
+// ✅ OK — a delay, not a duration
+transition: 'fill ease-in 0.1s'
+```
+
+---
+
 #### `tasty/valid-boolean-property`
 
 **Severity:** error (default)
@@ -697,7 +791,14 @@ fill: '#danger'
 Validates that `true` / `false` literal values are only used on properties that support them.
 
 **Properties supporting `true`:**
-`border`, `radius`, `padding`, `gap`, `fill`, `color`, `outline`, `width`, `height`, `hide`, `preset`, `font`, `scrollbar`
+`border`, `radius`, `padding`, `margin`, `inset`, `gap`, `fill`, `color`, `fade`, `outline`,
+`shadow`, `width`, `height`, `hide`, `preset`, `font`, `scrollbar`, `scrollMargin`,
+`scrollPadding`, and every enhanced logical style. Each carries its category's
+design-system default: `1x` for spacing and scroll edges, `0` for inset, `1bw` for
+border, a reset for the sizes.
+
+Native logical CSS (`paddingInlineStart`) gets no category default, so `true` there is
+an error.
 
 **Properties supporting `false`:**
 All properties (means "tombstone — remove this property entirely").
@@ -721,24 +822,40 @@ textAlign: true
 **Complexity:** Medium
 **Feasibility:** High — parse value string, check last tokens against modifier list per property
 
-Validates that directional modifiers (`top`, `right`, `bottom`, `left`) are used only on properties that support them.
+Validates that directional modifiers are used only on properties that support them,
+in the vocabulary that property speaks — physical (`top`, `right`, `bottom`, `left`)
+or logical (`start`, `end`).
 
 **Properties supporting directional modifiers:**
 - `border` — `top`, `right`, `bottom`, `left`
 - `radius` — `top`, `right`, `bottom`, `left`, `top-left`, `top-right`, `bottom-left`, `bottom-right`
 - `padding` — `top`, `right`, `bottom`, `left`
 - `margin` — `top`, `right`, `bottom`, `left`
-- `outline` — (no directional modifiers)
+- `inset` — `top`, `right`, `bottom`, `left`, `dock`
+- `scrollMargin`, `scrollPadding` — `top`, `right`, `bottom`, `left`
 - `fade` — `top`, `right`, `bottom`, `left`
+- `outline` — (no directional modifiers)
+- every enhanced logical style — `start`, `end`
+
+The two vocabularies do not mix, in either direction: an axis handler drops a physical
+side silently, and a physical handler drops `start`/`end`, so both are reported.
 
 **Examples:**
 ```js
 // ✅ Valid
 border: '1bw #red top'
 padding: '2x left right'
+inlinePadding: '1x start, 2x end'
+blockBorder: '1bw solid #accent start'
 
 // ❌ Error: Property 'fill' does not support directional modifiers
 fill: '#purple top'
+
+// ❌ Error: Modifier 'top' is not valid for 'blockPadding'. Accepted: start, end.
+blockPadding: '1x top'
+
+// ❌ Error: Modifier 'start' is not valid for 'padding'. Accepted: top, right, bottom, left.
+padding: '1x start'
 ```
 
 ---
@@ -1265,6 +1382,7 @@ The plugin should export preset configurations:
   'tasty/no-duplicate-state': 'warn',
   'tasty/no-styles-prop': 'warn',
   'tasty/no-raw-color-values': 'warn',
+  'tasty/no-raw-transition-duration': 'warn',
   'tasty/consistent-token-usage': 'warn',
   'tasty/no-runtime-styles-mutation': 'warn',
   'tasty/valid-state-definition': 'warn',
@@ -1312,6 +1430,7 @@ Use the TypeScript type checker to resolve types. Any object expression whose ty
 | `valid-recipe` | Low | P1 |
 | `valid-transition` | Low | P2 |
 | `no-raw-color-values` | Medium | P3 |
+| `no-raw-transition-duration` | Low | P3 |
 | `valid-boolean-property` | Low | P1 |
 | `valid-directional-modifier` | Medium | P1 |
 | `valid-radius-shape` | Low | P1 |

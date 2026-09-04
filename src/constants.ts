@@ -1,4 +1,68 @@
 /**
+ * Enhanced logical style families, mirroring `@tenphi/tasty`'s `logical-list.ts`.
+ *
+ * Tasty v3.8 gave each logical axis/category pair its own handler, named
+ * `<axis><Category>` — `blockPadding`, `inlineBorder` — which emits native
+ * logical CSS (`padding-block`, `border-inline`) rather than converting the
+ * value to a physical edge. The browser resolves `start`/`end` from the
+ * element's `writingMode` and `direction`.
+ *
+ * The native CSS spellings (`paddingBlock`, `insetInlineStart`, …) stay valid
+ * keys, but they are now *ordinary* CSS properties: tasty stopped reading
+ * `paddingBlock`/`paddingInline`/`insetBlock`/`insetInline` in its physical
+ * handlers, so they no longer get category defaults or directional behaviour.
+ * That is why they are absent from {@link KNOWN_TASTY_PROPERTIES} (they are
+ * still recognised, via {@link KNOWN_CSS_PROPERTIES}) and why
+ * {@link SHORTHAND_MAPPING} points them at the enhanced style instead.
+ */
+export const LOGICAL_AXES = ['block', 'inline'] as const;
+
+/** Logical edge modifiers, the `start`/`end` counterpart of {@link BOX_SIDES}. */
+export const LOGICAL_EDGES = ['start', 'end'] as const;
+
+/** Enhanced logical sizes. `min`/`max` variants are read by the same handler. */
+export const LOGICAL_SIZE_STYLES = ['blockSize', 'inlineSize'] as const;
+export const LOGICAL_SIZE_CONSTRAINT_STYLES = [
+  'minBlockSize',
+  'maxBlockSize',
+  'minInlineSize',
+  'maxInlineSize',
+] as const;
+
+/**
+ * Enhanced logical spacing and inset axes — the categories that take a value
+ * per logical edge, so they share the `start`/`end` modifier vocabulary and the
+ * one-value-per-directional-group rule.
+ */
+export const LOGICAL_SPACING_STYLES = [
+  'blockPadding',
+  'inlinePadding',
+  'blockMargin',
+  'inlineMargin',
+  'blockInset',
+  'inlineInset',
+  'blockScrollMargin',
+  'inlineScrollMargin',
+  'blockScrollPadding',
+  'inlineScrollPadding',
+] as const;
+
+/**
+ * Enhanced logical borders. Kept apart from {@link LOGICAL_SPACING_STYLES}
+ * because a border group legitimately carries width + style + colour, exactly
+ * as physical `border` does, so it is not subject to the single-value rule.
+ */
+export const LOGICAL_BORDER_STYLES = ['blockBorder', 'inlineBorder'] as const;
+
+/** Every enhanced logical style, in the order tasty's own lists declare them. */
+export const LOGICAL_STYLES = [
+  ...LOGICAL_SIZE_STYLES,
+  ...LOGICAL_SIZE_CONSTRAINT_STYLES,
+  ...LOGICAL_SPACING_STYLES,
+  ...LOGICAL_BORDER_STYLES,
+] as const;
+
+/**
  * Built-in tasty style properties that are always valid as style keys.
  */
 export const KNOWN_TASTY_PROPERTIES = new Set([
@@ -21,8 +85,6 @@ export const KNOWN_TASTY_PROPERTIES = new Set([
   'inset',
   'position',
   'padding',
-  'paddingInline',
-  'paddingBlock',
   'overflow',
   'scrollbar',
   'textAlign',
@@ -103,6 +165,12 @@ export const KNOWN_TASTY_PROPERTIES = new Set([
   'caretColor',
   'accentColor',
   'colorScheme',
+  // Physical scroll shorthands: tasty v3.8 gave `scrollPadding` its own
+  // directional handler alongside the `scrollMargin` one, so both take the
+  // padding vocabulary (modifiers, `true`, one value per directional group).
+  'scrollMargin',
+  'scrollPadding',
+  ...LOGICAL_STYLES,
 ]);
 
 /**
@@ -1064,6 +1132,12 @@ export const BOOLEAN_TRUE_PROPERTIES = new Set([
   'preset',
   'font',
   'scrollbar',
+  'scrollMargin',
+  'scrollPadding',
+  // Every enhanced logical category carries the same design-system default as
+  // its physical counterpart: `1x` for spacing and scroll edges, `0` for inset,
+  // `1bw` for border, and a reset for the sizes.
+  ...LOGICAL_STYLES,
 ]);
 
 /**
@@ -1085,7 +1159,17 @@ export const DIRECTIONAL_MODIFIERS: Record<string, Set<string>> = {
   margin: new Set(['top', 'right', 'bottom', 'left']),
   fade: new Set(['top', 'right', 'bottom', 'left']),
   scrollMargin: new Set(['top', 'right', 'bottom', 'left']),
+  scrollPadding: new Set(['top', 'right', 'bottom', 'left']),
   inset: new Set(['top', 'right', 'bottom', 'left', 'dock']),
+  // Enhanced logical styles take `start`/`end` and nothing else. Listing them
+  // here is what makes a physical modifier on a logical axis — `blockPadding:
+  // '1x top'`, which the handler silently drops — a report rather than silence.
+  ...Object.fromEntries(
+    [...LOGICAL_SPACING_STYLES, ...LOGICAL_BORDER_STYLES].map((style) => [
+      style,
+      new Set<string>(LOGICAL_EDGES),
+    ]),
+  ),
 };
 
 /**
@@ -1101,12 +1185,17 @@ export const DIRECTIONAL_MODIFIERS: Record<string, Set<string>> = {
  * `leaf`/`backleaf`; neither takes the positional-per-side form, so neither is
  * subject to the rule.
  */
-export const SINGLE_VALUE_DIRECTIONAL_PROPERTIES = new Set([
+export const SINGLE_VALUE_DIRECTIONAL_PROPERTIES = new Set<string>([
   'padding',
   'margin',
   'inset',
   'scrollMargin',
+  'scrollPadding',
   'fade',
+  // The logical axis handlers bucket values and modifiers the same way, and warn
+  // on a second value in a group that names an edge. `blockBorder`/`inlineBorder`
+  // are excluded for the same reason `border` is: width + style + colour.
+  ...LOGICAL_SPACING_STYLES,
 ]);
 
 /**
@@ -1283,6 +1372,164 @@ export const SHORTHAND_MAPPING: Record<
     property: 'textOverflow',
     hint: "textOverflow: 'ellipsis / {lines}'",
   },
+
+  // --- Native logical CSS -> the enhanced Tasty logical style. ---
+  //
+  // These mirror the physical rows above one for one. Tasty v3.8 moved the
+  // enhanced behaviour onto `<axis><Category>` names and stopped reading the
+  // native spellings in its handlers, so `paddingBlock` is now a plain CSS
+  // declaration with no category default: the rename is the same advice as
+  // `paddingTop` -> `padding: '... top'`, not a new opinion.
+  //
+  // Only the axis shorthands carry `safeFix`. `paddingBlock: '1x 2x'` and
+  // `blockPadding: '1x 2x'` both emit `padding-block: 1x 2x`, so the key rename
+  // is the whole edit. An edge longhand needs a `start`/`end` modifier added to
+  // the value, and a `border-*` rename also gains the style/colour defaults
+  // `border-block` never had (`border-block: 1bw` renders nothing at all), so
+  // those stay report-only.
+  paddingBlock: {
+    property: 'blockPadding',
+    hint: "blockPadding: '...'",
+    safeFix: true,
+  },
+  paddingBlockStart: {
+    property: 'blockPadding',
+    hint: "blockPadding: '... start'",
+  },
+  paddingBlockEnd: {
+    property: 'blockPadding',
+    hint: "blockPadding: '... end'",
+  },
+  paddingInline: {
+    property: 'inlinePadding',
+    hint: "inlinePadding: '...'",
+    safeFix: true,
+  },
+  paddingInlineStart: {
+    property: 'inlinePadding',
+    hint: "inlinePadding: '... start'",
+  },
+  paddingInlineEnd: {
+    property: 'inlinePadding',
+    hint: "inlinePadding: '... end'",
+  },
+  marginBlock: {
+    property: 'blockMargin',
+    hint: "blockMargin: '...'",
+    safeFix: true,
+  },
+  marginBlockStart: {
+    property: 'blockMargin',
+    hint: "blockMargin: '... start'",
+  },
+  marginBlockEnd: { property: 'blockMargin', hint: "blockMargin: '... end'" },
+  marginInline: {
+    property: 'inlineMargin',
+    hint: "inlineMargin: '...'",
+    safeFix: true,
+  },
+  marginInlineStart: {
+    property: 'inlineMargin',
+    hint: "inlineMargin: '... start'",
+  },
+  marginInlineEnd: {
+    property: 'inlineMargin',
+    hint: "inlineMargin: '... end'",
+  },
+  insetBlock: {
+    property: 'blockInset',
+    hint: "blockInset: '...'",
+    safeFix: true,
+  },
+  insetBlockStart: { property: 'blockInset', hint: "blockInset: '... start'" },
+  insetBlockEnd: { property: 'blockInset', hint: "blockInset: '... end'" },
+  insetInline: {
+    property: 'inlineInset',
+    hint: "inlineInset: '...'",
+    safeFix: true,
+  },
+  insetInlineStart: {
+    property: 'inlineInset',
+    hint: "inlineInset: '... start'",
+  },
+  insetInlineEnd: { property: 'inlineInset', hint: "inlineInset: '... end'" },
+  scrollMarginBlock: {
+    property: 'blockScrollMargin',
+    hint: "blockScrollMargin: '...'",
+    safeFix: true,
+  },
+  scrollMarginBlockStart: {
+    property: 'blockScrollMargin',
+    hint: "blockScrollMargin: '... start'",
+  },
+  scrollMarginBlockEnd: {
+    property: 'blockScrollMargin',
+    hint: "blockScrollMargin: '... end'",
+  },
+  scrollMarginInline: {
+    property: 'inlineScrollMargin',
+    hint: "inlineScrollMargin: '...'",
+    safeFix: true,
+  },
+  scrollMarginInlineStart: {
+    property: 'inlineScrollMargin',
+    hint: "inlineScrollMargin: '... start'",
+  },
+  scrollMarginInlineEnd: {
+    property: 'inlineScrollMargin',
+    hint: "inlineScrollMargin: '... end'",
+  },
+  scrollPaddingBlock: {
+    property: 'blockScrollPadding',
+    hint: "blockScrollPadding: '...'",
+    safeFix: true,
+  },
+  scrollPaddingBlockStart: {
+    property: 'blockScrollPadding',
+    hint: "blockScrollPadding: '... start'",
+  },
+  scrollPaddingBlockEnd: {
+    property: 'blockScrollPadding',
+    hint: "blockScrollPadding: '... end'",
+  },
+  scrollPaddingInline: {
+    property: 'inlineScrollPadding',
+    hint: "inlineScrollPadding: '...'",
+    safeFix: true,
+  },
+  scrollPaddingInlineStart: {
+    property: 'inlineScrollPadding',
+    hint: "inlineScrollPadding: '... start'",
+  },
+  scrollPaddingInlineEnd: {
+    property: 'inlineScrollPadding',
+    hint: "inlineScrollPadding: '... end'",
+  },
+  borderBlock: { property: 'blockBorder', hint: "blockBorder: '...'" },
+  borderBlockColor: { property: 'blockBorder', hint: "blockBorder: '...'" },
+  borderBlockWidth: { property: 'blockBorder', hint: "blockBorder: '...'" },
+  borderBlockStyle: { property: 'blockBorder', hint: "blockBorder: '...'" },
+  borderBlockStart: {
+    property: 'blockBorder',
+    hint: "blockBorder: '... start'",
+  },
+  borderBlockEnd: { property: 'blockBorder', hint: "blockBorder: '... end'" },
+  borderInline: { property: 'inlineBorder', hint: "inlineBorder: '...'" },
+  borderInlineColor: { property: 'inlineBorder', hint: "inlineBorder: '...'" },
+  borderInlineWidth: { property: 'inlineBorder', hint: "inlineBorder: '...'" },
+  borderInlineStyle: { property: 'inlineBorder', hint: "inlineBorder: '...'" },
+  borderInlineStart: {
+    property: 'inlineBorder',
+    hint: "inlineBorder: '... start'",
+  },
+  borderInlineEnd: {
+    property: 'inlineBorder',
+    hint: "inlineBorder: '... end'",
+  },
+  minBlockSize: { property: 'blockSize', hint: "blockSize: 'min ...'" },
+  maxBlockSize: { property: 'blockSize', hint: "blockSize: 'max ...'" },
+  minInlineSize: { property: 'inlineSize', hint: "inlineSize: 'min ...'" },
+  maxInlineSize: { property: 'inlineSize', hint: "inlineSize: 'max ...'" },
 };
 
 /**
@@ -1602,6 +1849,8 @@ export const COLOR_BEARING_PROPERTIES = new Set<string>([
   'accentColor',
   'shadow',
   'border',
+  'blockBorder',
+  'inlineBorder',
   'outline',
   'fade',
   // CSS background
@@ -1613,6 +1862,14 @@ export const COLOR_BEARING_PROPERTIES = new Set<string>([
   'borderRightColor',
   'borderBottomColor',
   'borderLeftColor',
+  // CSS logical border colors — the `block`/`inline` counterparts of the four
+  // above, which a writing-mode-aware codebase reaches for just as often.
+  'borderBlockColor',
+  'borderBlockStartColor',
+  'borderBlockEndColor',
+  'borderInlineColor',
+  'borderInlineStartColor',
+  'borderInlineEndColor',
   // CSS shadows
   'boxShadow',
   'textShadow',
@@ -1632,41 +1889,28 @@ export const COLOR_BEARING_PROPERTIES = new Set<string>([
 /**
  * Properties where tasty does NOT expand a `$name` custom-property reference.
  *
- * These have their own style handlers that pass the value through verbatim, so
- * `fontFamily: '$font-sans'` emits a literal `font-family: $font-sans` — an
- * invalid declaration the browser drops. Rewriting `var(--font-sans)` to
- * `$font-sans` here silently deletes the style.
+ * **Empty since tasty 3.0.2**, which taught the pass-through style handlers to
+ * substitute `$name` refs too (tasty#264). Before that, `fontFamily:
+ * '$font-sans'` emitted a literal `font-family: $font-sans` — an invalid
+ * declaration the browser drops — so `prefer-custom-property-syntax` had to
+ * suppress the rewrite for two dozen properties. It no longer does, which means
+ * those rewrites are now offered where they were previously (and, since 3.0.2,
+ * needlessly) held back.
  *
- * Note that the colour properties (`color`, `fill`, `backgroundColor`) are in
- * this list but NOT in {@link PROPERTIES_WITHOUT_COLOR_TOKEN_EXPANSION}: they
- * expand `#token` and not `$name`. The two sets are genuinely different.
+ * The set is kept rather than deleted: it is the seam the round-trip guard
+ * writes to, so a future handler that regains pass-through behaviour surfaces
+ * as a failing test instead of a silently broken autofix. That is also why the
+ * plugin's `@tenphi/tasty` peer floor is 3.0.2 — on 3.0.0/3.0.1 an empty list
+ * here would let `--fix` delete a declaration.
+ *
+ * Note that {@link PROPERTIES_WITHOUT_COLOR_TOKEN_EXPANSION} is *not* empty:
+ * `#token` expansion is still property-scoped (`fontSize: '#accent'` is
+ * meaningless and passes through). The two sets are genuinely different.
  *
  * Derived from the runtime, not by hand — `constants.round-trip.test.ts` rebuilds
  * both sets against the installed `@tenphi/tasty` and fails if either drifts.
  */
-export const PROPERTIES_WITHOUT_CUSTOM_PROPERTY_EXPANSION = new Set([
-  'align',
-  'alignContent',
-  'alignItems',
-  'backgroundAttachment',
-  'backgroundClip',
-  'backgroundColor',
-  'backgroundOrigin',
-  'backgroundRepeat',
-  'color',
-  'display',
-  'fill',
-  'font',
-  'fontFamily',
-  'justify',
-  'justifyContent',
-  'justifyItems',
-  'overflow',
-  'placeContent',
-  'placeItems',
-  'textTransform',
-  'whiteSpace',
-]);
+export const PROPERTIES_WITHOUT_CUSTOM_PROPERTY_EXPANSION = new Set<string>([]);
 
 /**
  * Properties where tasty does NOT expand a `#name` colour token.

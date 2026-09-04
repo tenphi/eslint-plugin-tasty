@@ -55,7 +55,7 @@
   },
   "homepage": "https://github.com/tenphi/eslint-plugin-tasty#readme",
   "peerDependencies": {
-    "@tenphi/tasty": ">=3",
+    "@tenphi/tasty": ">=3.0.2",
     "eslint": ">=8.0.0"
   },
   "dependencies": {
@@ -66,7 +66,7 @@
     "@changesets/changelog-github": "^0.5.2",
     "@changesets/cli": "^2.29.8",
     "@eslint/js": "^10.0.1",
-    "@tenphi/tasty": "^3.0.1",
+    "@tenphi/tasty": "^3.8.0",
     "@types/node": "^22.0.0",
     "@typescript-eslint/parser": "^8.56.1",
     "@typescript-eslint/rule-tester": "^8.56.1",
