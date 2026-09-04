@@ -4,7 +4,7 @@ ESLint plugin for validating `tasty()`, `tastyStatic()`, `useStyles()`, `useGlob
 
 Catch typos, invalid syntax, and enforce best practices in your tasty style objects at lint time.
 
-**Targets `@tenphi/tasty` v3.** v1 of this plugin validates the v3 style DSL: kebab-case at-rule keys (`@property`, `@font-face`, `@counter-style`, `@function`), `$$name(...)` CSS-function calls, and one value per directional group. The v2 at-rule spellings are reported with an auto-fix, so `eslint --fix` handles most of the upgrade. For tasty v2, pin `@tenphi/eslint-plugin-tasty@^0.11`.
+**Targets `@tenphi/tasty` v3.8+.** v1 of this plugin validates the v3 style DSL: kebab-case at-rule keys (`@property`, `@font-face`, `@counter-style`, `@function`), `$$name(...)` CSS-function calls, and one value per directional group. The v2 at-rule spellings are reported with an auto-fix, so `eslint --fix` handles most of the upgrade. For tasty v2, pin `@tenphi/eslint-plugin-tasty@^0.11`.
 
 ## Installation
 
@@ -164,9 +164,39 @@ tasty({
 
 These take `start`/`end` modifiers (never physical sides), accept `true` for their
 category default, and follow the same one-value-per-directional-group rule as their
-physical counterparts. The native CSS spellings — `paddingBlock`, `insetInlineStart`,
-`borderBlockColor` — stay valid keys, but tasty no longer gives them category defaults or
-directional behaviour, so `prefer-shorthand-property` points them at the enhanced style.
+physical counterparts.
+
+### Migrating off the native CSS spellings
+
+Tasty 3.8 stopped reading `paddingBlock`, `paddingInline`, `insetBlock`, `insetInline`,
+`marginBlock`, `marginInline` and the scroll variants in its physical handlers. They stay
+valid keys as ordinary CSS, so nothing breaks — but `prefer-shorthand-property` reports
+each one with an **auto-fix** onto the enhanced style, so `eslint --fix` migrates a
+codebase in one pass:
+
+```diff
+- paddingBlock: '1x 2x'
++ blockPadding: '1x 2x'
+- insetInline: '0'
++ inlineInset: '0'
+```
+
+These are pure key renames: both keys emit the same declaration, which the test suite
+asserts against the installed tasty rather than by hand.
+
+Three groups are reported **without** a fix, because the rewrite is not equivalent — apply
+them by hand:
+
+| Native CSS | Suggested | Why no auto-fix |
+|---|---|---|
+| `paddingBlockStart`, `insetInlineEnd`, … | `blockPadding: '... start'` | The axis handler resets the edge you do not name, so the rewrite zeroes the opposite edge |
+| `borderBlock`, `borderInlineColor`, … | `blockBorder` | Fills in the style and colour defaults `border-block` never had (`border-block: 1bw` renders nothing) |
+| `minBlockSize`, `maxInlineSize`, … | `blockSize: 'min ...'` | Also emits `block-size` and `max-block-size` |
+
+**Requires `@tenphi/tasty` >= 3.8.** The plugin never imports tasty, so it cannot adapt to
+your installed version — and on 3.7 and below `blockPadding` is not a style tasty knows
+(an unhandled camelCase key renders through to `block-padding`, which the browser drops).
+The peer range floor is 3.8.0 for that reason.
 
 ## License
 

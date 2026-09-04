@@ -263,7 +263,8 @@ The native CSS spellings (`paddingBlock`, `insetInlineStart`, `borderBlockColor`
 remain valid keys through the CSS property list, but are no longer *tasty* properties:
 tasty 3.8 stopped reading `paddingBlock`/`paddingInline`/`insetBlock`/`insetInline` in
 its physical handlers, so they carry no category default and no directional behaviour.
-`tasty/prefer-shorthand-property` points them at the enhanced style.
+`tasty/prefer-shorthand-property` reports each one with a migration onto the enhanced
+style, auto-fixed where the rename is a pure key edit.
 
 **Also valid:**
 - Any CSS property name. The list is generated from `known-css-properties` — the

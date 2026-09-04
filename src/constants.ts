@@ -1383,10 +1383,20 @@ export const SHORTHAND_MAPPING: Record<
   //
   // Only the axis shorthands carry `safeFix`. `paddingBlock: '1x 2x'` and
   // `blockPadding: '1x 2x'` both emit `padding-block: 1x 2x`, so the key rename
-  // is the whole edit. An edge longhand needs a `start`/`end` modifier added to
-  // the value, and a `border-*` rename also gains the style/colour defaults
-  // `border-block` never had (`border-block: 1bw` renders nothing at all), so
-  // those stay report-only.
+  // is the whole edit — `constants.round-trip.test.ts` asserts that against the
+  // installed runtime rather than trusting this comment. An edge longhand needs
+  // a `start`/`end` modifier added to the value, and a `border-*` rename also
+  // gains the style/colour defaults `border-block` never had (`border-block:
+  // 1bw` renders nothing at all), so those stay report-only.
+  //
+  // These renames are why the `@tenphi/tasty` peer floor is 3.8.0. The plugin
+  // never imports tasty, so its constants are fixed at publish time and cannot
+  // adapt to the consumer's version: on 3.7 and below `blockPadding` is not a
+  // style tasty knows, and an unhandled camelCase key renders straight through
+  // to `block-padding`, which the browser drops. The fix would silently delete
+  // the padding, so the floor is the only thing standing between that and a
+  // consumer — recognising the logical names is harmless on an older tasty
+  // (a missed warning), but rewriting *to* them is not.
   paddingBlock: {
     property: 'blockPadding',
     hint: "blockPadding: '...'",
@@ -1899,9 +1909,11 @@ export const COLOR_BEARING_PROPERTIES = new Set<string>([
  *
  * The set is kept rather than deleted: it is the seam the round-trip guard
  * writes to, so a future handler that regains pass-through behaviour surfaces
- * as a failing test instead of a silently broken autofix. That is also why the
- * plugin's `@tenphi/tasty` peer floor is 3.0.2 — on 3.0.0/3.0.1 an empty list
- * here would let `--fix` delete a declaration.
+ * as a failing test instead of a silently broken autofix.
+ *
+ * An empty list here would let `--fix` delete a declaration on 3.0.0/3.0.1,
+ * which the `@tenphi/tasty` peer floor rules out — that floor is 3.8.0, set by
+ * the logical renames in {@link SHORTHAND_MAPPING} rather than by this list.
  *
  * Note that {@link PROPERTIES_WITHOUT_COLOR_TOKEN_EXPANSION} is *not* empty:
  * `#token` expansion is still property-scoped (`fontSize: '#accent'` is

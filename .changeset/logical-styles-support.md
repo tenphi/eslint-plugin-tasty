@@ -24,6 +24,38 @@ properties, and each rule that reads a property vocabulary knows theirs:
 - `no-raw-color-values` covers `blockBorder`/`inlineBorder` and the logical CSS border
   colours.
 
-`paddingBlock`, `paddingInline`, `insetBlock` and `insetInline` are no longer *tasty*
-properties: 3.8 stopped reading them in its physical handlers, so they carry no category
-default. They remain valid keys as ordinary CSS properties.
+**The `@tenphi/tasty` peer floor moves from `>=3` to `>=3.8.0`.** The plugin never imports
+tasty, so its constants are baked at publish time and cannot adapt to the consumer's
+version — and on 3.7 and below `blockPadding` is not a style tasty knows. An unhandled
+camelCase key renders straight through to `block-padding`, which the browser drops, so the
+auto-fix below would silently delete the padding. Recognising the logical names is harmless
+on an older tasty (a missed warning); rewriting *to* them is not.
+
+**Migrating off the native spellings.** `paddingBlock`, `paddingInline`, `insetBlock`,
+`insetInline`, `marginBlock`, `marginInline`, `scrollMarginBlock`, `scrollPaddingInline`
+and the rest are no longer *tasty* properties: 3.8 stopped reading them in its physical
+handlers, so they carry no category default. They stay valid keys as ordinary CSS, so
+nothing breaks — but each is reported with an **auto-fix** onto the enhanced style, so
+`eslint --fix` migrates a codebase in one pass:
+
+```diff
+- paddingBlock: '1x 2x'
++ blockPadding: '1x 2x'
+- insetInline: '0'
++ inlineInset: '0'
+```
+
+The axis renames are pure key edits — both keys emit the same declaration — and
+`constants.round-trip.test.ts` now asserts that against the installed runtime for every
+`safeFix` rename, so a handler that starts adding a default fails a test instead of
+shipping an autofix that changes rendering.
+
+Three groups are reported **without** a fix, because the rewrite is not equivalent:
+
+- Edge longhands (`paddingBlockStart` → `blockPadding: '... start'`). The axis handler
+  resets the edge you do not name, so the rewrite zeroes the opposite edge — the same
+  reason `paddingTop` → `padding: '... top'` has never been auto-fixed.
+- `borderBlock` and friends → `blockBorder`, which fills in the style and colour
+  defaults `border-block` never had (`border-block: 1bw` renders nothing at all).
+- `minBlockSize` → `blockSize: 'min ...'`, which also emits `block-size` and
+  `max-block-size`, mirroring `minWidth`.

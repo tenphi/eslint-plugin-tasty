@@ -12,5 +12,5 @@ plugin's own round-trip guard, which re-derives it from the installed runtime, c
 this on the bump to 3.8.0. `fontFamily`, `fill`, `color` and the rest now get the
 rewrite.
 
-The `@tenphi/tasty` peer range floor moves from `>=3` to `>=3.0.2` accordingly: on
-3.0.0/3.0.1 the rewrite this unlocks would delete a declaration.
+This needs tasty >= 3.0.2, which the peer floor now covers — see the logical-styles
+changeset, which raises it to `>=3.8.0` for a stronger reason.
