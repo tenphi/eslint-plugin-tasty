@@ -792,14 +792,26 @@ transition: 'fill ease-in 0.1s'
 Validates that `true` / `false` literal values are only used on properties that support them.
 
 **Properties supporting `true`:**
-`border`, `radius`, `padding`, `margin`, `inset`, `gap`, `fill`, `color`, `fade`, `outline`,
+`border`, `radius`, `padding`, `margin`, `inset`, `gap`, `color`, `fade`, `outline`,
 `shadow`, `width`, `height`, `hide`, `preset`, `font`, `scrollbar`, `scrollMargin`,
-`scrollPadding`, and every enhanced logical style. Each carries its category's
-design-system default: `1x` for spacing and scroll edges, `0` for inset, `1bw` for
-border, a reset for the sizes.
+`scrollPadding`, and the enhanced logical size, spacing and border categories. Each
+carries its category's design-system default: `1x` for spacing and scroll edges, `0` for
+inset, `1bw` for border, a reset for the sizes.
 
-Native logical CSS (`paddingInlineStart`) gets no category default, so `true` there is
-an error.
+Checked in a state map as well as on a direct value — `fill: { '': '#surface', hovered:
+true }` puts `true` on `fill` just as surely as writing it inline, and is the likelier
+spelling.
+
+**Deliberately excluded:**
+- `fill`, though the tasty docs list it. As of tasty 3.8 the handler passes the boolean
+  through, so `fill: true` emits `background-color: true` — a declaration the browser
+  drops, leaving the element with no background. Reporting it is the useful answer while
+  that is what runs. `constants.round-trip.test.ts` holds a canary that fails when tasty
+  resolves this, either way.
+- `minWidth` / `maxWidth` / `minHeight` / `maxHeight` and the logical `minBlockSize` &
+  co. The runtime accepts `true` there but resets the whole axis rather than defaulting
+  the one constraint named; `width: true` / `blockSize: true` is how to ask for that.
+- Native logical CSS (`paddingInlineStart`), which gets no category default at all.
 
 **Properties supporting `false`:**
 All properties (means "tombstone — remove this property entirely").

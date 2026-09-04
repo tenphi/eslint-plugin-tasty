@@ -2,6 +2,7 @@ import * as tasty from '@tenphi/tasty';
 import { renderStyles } from '@tenphi/tasty';
 
 import {
+  BOOLEAN_TRUE_PROPERTIES,
   COLOR_BEARING_PROPERTIES,
   KNOWN_CSS_PROPERTIES,
   KNOWN_TASTY_PROPERTIES,
@@ -204,5 +205,46 @@ describe('tasty public style lists', () => {
       .sort();
 
     expect(unrecognised).toEqual([]);
+  });
+});
+
+/**
+ * The sync guard for `BOOLEAN_TRUE_PROPERTIES`.
+ *
+ * `true` means "use the design-system default", which only works if the handler
+ * actually resolves it. When one does not, the boolean reaches CSS verbatim —
+ * `background-color: true` — and the browser drops the declaration, so the style
+ * silently disappears. That is indistinguishable from a typo at lint time, which
+ * is why the list has to be checked against the runtime rather than the docs.
+ */
+function swallowsTrue(property: string): boolean {
+  return /(^|[^-\w])true([^-\w]|$)/.test(render(property, true as never) ?? '');
+}
+
+describe('`true` support', () => {
+  it('is real for every property the plugin accepts it on', () => {
+    expect([...BOOLEAN_TRUE_PROPERTIES].filter(swallowsTrue).sort()).toEqual(
+      [],
+    );
+  });
+
+  it('still leaks on `fill`, which is why `fill` is excluded', () => {
+    // The canary for that exclusion. Tasty's docs list `fill` as accepting
+    // `true`; its handler currently does not resolve it. When that is fixed this
+    // test fails, which is the signal to put `fill` back into the set — rather
+    // than the plugin going on reporting valid code.
+    expect(render('fill', true as never)).toBe('background-color: true;');
+    expect(BOOLEAN_TRUE_PROPERTIES.has('fill')).toBe(false);
+  });
+
+  it('resolves to a real declaration for a representative spread', () => {
+    // Spot-checks that the guard above is not vacuous — these are the values a
+    // reader would want to see written down.
+    expect(render('padding', true as never)).toBe('padding: 8px;');
+    expect(render('radius', true as never)).toBe('border-radius: 6px;');
+    expect(render('color', true as never)).toBe('color: currentColor;');
+    expect(render('hide', true as never)).toBe('display: none;');
+    expect(render('blockPadding', true as never)).toBe('padding-block: 8px;');
+    expect(render('inlineInset', true as never)).toBe('inset-inline: 0;');
   });
 });

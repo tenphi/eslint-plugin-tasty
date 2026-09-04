@@ -1115,6 +1115,15 @@ export const CSS_UNITS = new Set([
 
 /**
  * Properties that accept `true` as a value (means "use default").
+ *
+ * `fill` is documented as accepting `true` but is deliberately absent: as of
+ * tasty 3.8 the handler passes the boolean straight through, so `fill: true`
+ * emits `background-color: true` — a declaration the browser drops, leaving no
+ * background at all. Reporting it is the useful answer while that is what runs.
+ * `constants.round-trip.test.ts` pins both halves of that: no property in this
+ * set may swallow `true`, and `fill` still does — so whichever way tasty
+ * resolves it (docs or implementation), a test says so rather than the plugin
+ * quietly disagreeing with the runtime.
  */
 export const BOOLEAN_TRUE_PROPERTIES = new Set([
   'border',
@@ -1122,7 +1131,6 @@ export const BOOLEAN_TRUE_PROPERTIES = new Set([
   'padding',
   'margin',
   'gap',
-  'fill',
   'color',
   'shadow',
   'outline',

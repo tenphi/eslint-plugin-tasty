@@ -99,7 +99,7 @@ list a scope here only for a design system you publish from your own monorepo
 | `tasty/valid-value` | error | Malformed style values (unbalanced parens, !important) |
 | `tasty/valid-color-token` | error | Invalid color token syntax or unknown tokens |
 | `tasty/valid-custom-unit` | error | Unknown custom units |
-| `tasty/valid-boolean-property` | error | `true` on properties that don't support it |
+| `tasty/valid-boolean-property` | error | `true` on properties that don't support it, in a state map as well as on a direct value. Includes `fill`, which tasty documents as taking `true` but currently renders as `background-color: true` |
 | `tasty/valid-state-key` | error | Invalid state key syntax in style mappings (including misuse of the `_` fallback floor) |
 | `tasty/valid-styles-structure` | error | Invalid styles object structure, and the v2 at-rule key spellings (auto-fixable) |
 | `tasty/no-nested-state-map` | error | Nested state maps (not supported) |
