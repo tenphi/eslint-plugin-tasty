@@ -2,9 +2,24 @@ import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
 import { getKeyName, getStringValue } from '../utils.js';
+import { LOGICAL_BORDER_STYLES } from '../constants.js';
 import { replaceStringValue, replaceInStringValue } from '../fix-utils.js';
 
 type MessageIds = 'preferToken' | 'replaceWithToken';
+
+/**
+ * Properties whose value carries a border width, so a `1px` in one is the
+ * `1bw` token spelled out.
+ *
+ * The logical axes belong here for the same reason `border` does: they take the
+ * same width/style/colour value, parsed by the same `parseBorderValue`. Leaving
+ * them out would make the advice depend on which axis vocabulary the author
+ * happened to use.
+ */
+const BORDER_WIDTH_PROPERTIES = new Set<string>([
+  'border',
+  ...LOGICAL_BORDER_STYLES,
+]);
 
 const PX_TO_UNIT: Record<string, string> = {
   '8px': '1x',
@@ -83,7 +98,7 @@ export default createRule<[], MessageIds>({
       }
 
       // Check 1px in border context
-      if (property === 'border' && trimmed.includes('1px')) {
+      if (BORDER_WIDTH_PROPERTIES.has(property) && trimmed.includes('1px')) {
         const edits: { start: number; end: number; replacement: string }[] = [];
         const re = /\b1px\b/g;
         let match: RegExpExecArray | null;

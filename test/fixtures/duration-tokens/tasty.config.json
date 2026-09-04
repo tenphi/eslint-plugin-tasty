@@ -1,0 +1,9 @@
+{
+  "tokens": [
+    "$transition",
+    "$fast-transition",
+    "$modal-duration",
+    "$gap",
+    "#primary"
+  ]
+}

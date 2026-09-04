@@ -12,6 +12,19 @@ import type { ValueToken } from '../parsers/index.js';
 
 type MessageIds = 'invalidDirectionalModifier' | 'tooManyValues';
 
+/**
+ * Every direction word the rule recognises, across physical and logical
+ * vocabularies. A word here is read as a *modifier*; whether it is accepted is
+ * then decided per property by `DIRECTIONAL_MODIFIERS`.
+ *
+ * `start` and `end` are ordinary CSS *values* for a long tail of properties
+ * (`textAlign: 'start'`, `justifyContent: 'end'`), which is exactly what the
+ * `DIRECTIONAL_MODIFIERS` gate in `checkValue` exists to keep out: only the
+ * properties with a directional vocabulary are ever inspected. Inside that set
+ * no property takes `start`/`end` as a value, so reading them as modifiers is
+ * safe — and it is what turns `padding: '1x start'` (a physical property given
+ * a logical edge, which the handler drops) into a report.
+ */
 const ALL_DIRECTIONS = new Set([
   'top',
   'right',
@@ -21,6 +34,8 @@ const ALL_DIRECTIONS = new Set([
   'top-right',
   'bottom-left',
   'bottom-right',
+  'start',
+  'end',
 ]);
 
 /**

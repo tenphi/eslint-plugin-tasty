@@ -21,6 +21,7 @@ export { default as validTransition } from './valid-transition.js';
 export { default as requireDefaultState } from './require-default-state.js';
 export { default as noUnknownStateAlias } from './no-unknown-state-alias.js';
 export { default as noRawColorValues } from './no-raw-color-values.js';
+export { default as noRawTransitionDuration } from './no-raw-transition-duration.js';
 export { default as noStylesProp } from './no-styles-prop.js';
 export { default as consistentTokenUsage } from './consistent-token-usage.js';
 export { default as noRuntimeStylesMutation } from './no-runtime-styles-mutation.js';

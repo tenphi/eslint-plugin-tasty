@@ -24,6 +24,7 @@ export const recommended: TSESLint.SharedConfig.RulesRecord = {
   'tasty/valid-default-state-order': 'warn',
   'tasty/prefer-shorthand-property': 'warn',
   'tasty/no-raw-color-values': 'warn',
+  'tasty/no-raw-transition-duration': 'warn',
   'tasty/consistent-token-usage': 'warn',
   'tasty/prefer-auto-calc': 'warn',
   'tasty/prefer-custom-property-syntax': 'warn',
