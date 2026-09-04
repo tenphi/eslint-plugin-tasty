@@ -59,6 +59,9 @@ tester.run('no-raw-transition-duration', rule, {
     // are a different vocabulary with no token fallback.
     wrap(`animation: 'spin 0.2s linear'`),
 
+    // A dynamic value is not a static string, so there is nothing to read.
+    'import { tasty } from "@tenphi/tasty";\nconst d = "0.2s";\ntasty({ styles: { transition: `fill ${d}` } });',
+
     // React inline styles, not tasty. The variable name said `styles`; the type
     // says otherwise, and the type wins — there is no `--transition` to inherit
     // here, so the advice would be wrong.
@@ -247,6 +250,90 @@ tester.run('no-raw-transition-duration', rule, {
           ],
         },
       ],
+    },
+    {
+      // A sub-element is a style object in its own right.
+      code: wrap(`Icon: { transition: 'fill 0.2s' }`),
+      errors: [
+        {
+          messageId: 'rawTransitionDuration',
+          suggestions: [
+            {
+              messageId: 'useDurationToken',
+              data: { duration: '0.2s', token: '$transition' },
+              output: wrap(`Icon: { transition: 'fill $transition' }`),
+            },
+            {
+              messageId: 'useDefaultDuration',
+              output: wrap(`Icon: { transition: 'fill' }`),
+            },
+          ],
+        },
+      ],
+    },
+    {
+      // So is a variant.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ variants: { big: { transition: 'fill 0.2s' } } });
+      `,
+      errors: [
+        {
+          messageId: 'rawTransitionDuration',
+          suggestions: [
+            {
+              messageId: 'useDurationToken',
+              data: { duration: '0.2s', token: '$transition' },
+              output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ variants: { big: { transition: 'fill $transition' } } });
+      `,
+            },
+            {
+              messageId: 'useDefaultDuration',
+              output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ variants: { big: { transition: 'fill' } } });
+      `,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      // Unit case is not significant.
+      code: wrap(`transition: 'fill 0.2S'`),
+      errors: [
+        {
+          messageId: 'rawTransitionDuration',
+          data: {
+            duration: '0.2S',
+            available: ' ($transition)',
+            fallback: '$fill-transition (falling back to $transition)',
+          },
+          suggestions: [
+            {
+              messageId: 'useDurationToken',
+              data: { duration: '0.2S', token: '$transition' },
+              output: wrap(`transition: 'fill $transition'`),
+            },
+            {
+              messageId: 'useDefaultDuration',
+              output: wrap(`transition: 'fill'`),
+            },
+          ],
+        },
+      ],
+    },
+    {
+      // An escape means the raw text and the cooked value have different
+      // offsets, so no edit can be placed safely. The report still stands —
+      // it just carries no suggestion, rather than a mis-aimed one.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { transition: 'fill\\u00200.2s' } });
+      `,
+      errors: [{ messageId: 'rawTransitionDuration', suggestions: [] }],
     },
     {
       // With duration tokens in the project config, each is offered as a

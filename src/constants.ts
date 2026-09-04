@@ -106,6 +106,7 @@ export const KNOWN_TASTY_PROPERTIES = new Set([
   'flexShrink',
   'flex',
   'flow',
+  'place',
   'placeItems',
   'placeContent',
   'alignItems',
@@ -1134,10 +1135,21 @@ export const BOOLEAN_TRUE_PROPERTIES = new Set([
   'scrollbar',
   'scrollMargin',
   'scrollPadding',
-  // Every enhanced logical category carries the same design-system default as
+  // Every enhanced logical *category* carries the same design-system default as
   // its physical counterpart: `1x` for spacing and scroll edges, `0` for inset,
-  // `1bw` for border, and a reset for the sizes.
-  ...LOGICAL_STYLES,
+  // `1bw` for border, a reset for the sizes.
+  //
+  // The min/max size constraints are deliberately excluded, mirroring the
+  // absence of `minWidth`/`maxWidth` here. The runtime does accept `true` on
+  // them — they route through the same dimension handler as the axis — but what
+  // it does with it is reset the whole axis: `minBlockSize: true` emits
+  // `block-size: auto; min-block-size: initial; max-block-size: initial`, not a
+  // default for the one constraint named. `blockSize: true` is how you ask for
+  // that, so the constraint spellings stay an error, exactly as `minWidth: true`
+  // already is.
+  ...LOGICAL_SIZE_STYLES,
+  ...LOGICAL_SPACING_STYLES,
+  ...LOGICAL_BORDER_STYLES,
 ]);
 
 /**
@@ -1954,6 +1966,7 @@ export const PROPERTIES_WITHOUT_COLOR_TOKEN_EXPANSION = new Set([
   'lineHeight',
   'outlineOffset',
   'overflow',
+  'place',
   'placeContent',
   'placeItems',
   'textTransform',

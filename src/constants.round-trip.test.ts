@@ -1,3 +1,4 @@
+import * as tasty from '@tenphi/tasty';
 import { renderStyles } from '@tenphi/tasty';
 
 import {
@@ -147,5 +148,61 @@ describe('auto-fixable shorthand renames', () => {
         render(native, value),
       );
     }
+  });
+});
+
+/**
+ * The sync guard for the property list itself.
+ *
+ * Tasty exports its public style lists (`CONTAINER_STYLES`, `FLOW_STYLES`, …),
+ * which is the documented user-facing surface. Every name in them has to be a
+ * property this plugin recognises, or `known-property` reports valid code — the
+ * failure mode that made this guard worth writing: `place` shipped in
+ * `FLOW_STYLES` and `CONTAINER_STYLES` and was reported as unknown, because it
+ * is a Tasty style with no CSS property of the same name to fall back on.
+ *
+ * Deliberately reads the exported lists rather than the `STYLE_TO_CHUNK`
+ * registry. That registry also carries chunk-routing entries with no user-facing
+ * handler — `boldFontWeight` renders `bold-font-weight: 700`, the same dead
+ * passthrough any unknown camelCase key gets — and adding those would suppress a
+ * correct report.
+ */
+const PUBLIC_STYLE_LISTS = [
+  'BASE_STYLES',
+  'COLOR_STYLES',
+  'TEXT_STYLES',
+  'DIMENSION_STYLES',
+  'POSITION_STYLES',
+  'BLOCK_STYLES',
+  'BLOCK_INNER_STYLES',
+  'BLOCK_OUTER_STYLES',
+  'FLOW_STYLES',
+  'CONTAINER_STYLES',
+  'INNER_STYLES',
+  'OUTER_STYLES',
+] as const;
+
+describe('tasty public style lists', () => {
+  const exported = tasty as unknown as Record<string, unknown>;
+
+  it.each(PUBLIC_STYLE_LISTS)('%s is still exported as an array', (name) => {
+    // A renamed or withdrawn list would otherwise make the check below vacuous.
+    expect(Array.isArray(exported[name]), name).toBe(true);
+  });
+
+  it('recognises every style in them', () => {
+    const names = new Set<string>();
+    for (const list of PUBLIC_STYLE_LISTS) {
+      for (const name of exported[list] as string[]) names.add(name);
+    }
+
+    const unrecognised = [...names]
+      .filter(
+        (name) =>
+          !KNOWN_TASTY_PROPERTIES.has(name) && !KNOWN_CSS_PROPERTIES.has(name),
+      )
+      .sort();
+
+    expect(unrecognised).toEqual([]);
   });
 });

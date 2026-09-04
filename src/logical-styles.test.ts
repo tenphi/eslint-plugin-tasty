@@ -7,6 +7,7 @@ import {
   KNOWN_TASTY_PROPERTIES,
   LOGICAL_BORDER_STYLES,
   LOGICAL_SIZE_CONSTRAINT_STYLES,
+  LOGICAL_SIZE_STYLES,
   LOGICAL_SPACING_STYLES,
   LOGICAL_STYLES,
   SHORTHAND_MAPPING,
@@ -142,11 +143,21 @@ tester.run('known-property (logical styles)', knownProperty, {
 tester.run('valid-boolean-property (logical styles)', validBooleanProperty, {
   valid: [
     // `true` means "the design-system default" for every logical category:
-    // `1x` for spacing and scroll edges, `0` for inset, `1bw` for border.
-    ...LOGICAL_STYLES.map((style) => wrap(`${style}: true`)),
+    // `1x` for spacing and scroll edges, `0` for inset, `1bw` for border, a
+    // reset for the sizes.
+    ...LOGICAL_SIZE_STYLES.map((style) => wrap(`${style}: true`)),
+    ...LOGICAL_SPACING_STYLES.map((style) => wrap(`${style}: true`)),
+    ...LOGICAL_BORDER_STYLES.map((style) => wrap(`${style}: true`)),
     wrap(`scrollMargin: true, scrollPadding: true`),
   ],
   invalid: [
+    // The min/max constraints are an error, mirroring `minWidth: true`. The
+    // runtime accepts them, but resets the whole axis rather than defaulting the
+    // one constraint named — `blockSize: true` is how you ask for that.
+    ...LOGICAL_SIZE_CONSTRAINT_STYLES.map((style) => ({
+      code: wrap(`${style}: true`),
+      errors: [{ messageId: 'invalidBooleanTrue' as const }],
+    })),
     {
       // Native logical CSS gets no category default, so `true` is meaningless.
       code: wrap(`paddingInlineStart: true`),
