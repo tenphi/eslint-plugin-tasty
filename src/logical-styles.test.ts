@@ -3,6 +3,7 @@ import knownProperty from './rules/known-property.js';
 import validBooleanProperty from './rules/valid-boolean-property.js';
 import validDirectionalModifier from './rules/valid-directional-modifier.js';
 import preferShorthandProperty from './rules/prefer-shorthand-property.js';
+import consistentTokenUsage from './rules/consistent-token-usage.js';
 import {
   KNOWN_TASTY_PROPERTIES,
   LOGICAL_BORDER_STYLES,
@@ -285,3 +286,46 @@ tester.run(
     ],
   },
 );
+
+tester.run('consistent-token-usage (logical styles)', consistentTokenUsage, {
+  valid: [
+    wrap(`blockBorder: '1bw solid #accent'`),
+    wrap(`inlineBorder: true`),
+
+    // No logical radius exists, so the `6px` -> `1r` case has no counterpart.
+    wrap(`blockPadding: '1px'`),
+  ],
+  invalid: [
+    {
+      // A border width is `1bw` whichever axis vocabulary the author used.
+      code: wrap(`blockBorder: '1px solid #accent'`),
+      errors: [
+        {
+          messageId: 'preferToken',
+          suggestions: [
+            {
+              messageId: 'replaceWithToken',
+              data: { raw: '1px', suggestion: '1bw' },
+              output: wrap(`blockBorder: '1bw solid #accent'`),
+            },
+          ],
+        },
+      ],
+    },
+    {
+      code: wrap(`inlineBorder: '1px solid #accent start'`),
+      errors: [
+        {
+          messageId: 'preferToken',
+          suggestions: [
+            {
+              messageId: 'replaceWithToken',
+              data: { raw: '1px', suggestion: '1bw' },
+              output: wrap(`inlineBorder: '1bw solid #accent start'`),
+            },
+          ],
+        },
+      ],
+    },
+  ],
+});

@@ -1,21 +1,24 @@
-/**
- * Enhanced logical style families, mirroring `@tenphi/tasty`'s `logical-list.ts`.
- *
- * Tasty v3.8 gave each logical axis/category pair its own handler, named
- * `<axis><Category>` — `blockPadding`, `inlineBorder` — which emits native
- * logical CSS (`padding-block`, `border-inline`) rather than converting the
- * value to a physical edge. The browser resolves `start`/`end` from the
- * element's `writingMode` and `direction`.
- *
- * The native CSS spellings (`paddingBlock`, `insetInlineStart`, …) stay valid
- * keys, but they are now *ordinary* CSS properties: tasty stopped reading
- * `paddingBlock`/`paddingInline`/`insetBlock`/`insetInline` in its physical
- * handlers, so they no longer get category defaults or directional behaviour.
- * That is why they are absent from {@link KNOWN_TASTY_PROPERTIES} (they are
- * still recognised, via {@link KNOWN_CSS_PROPERTIES}) and why
- * {@link SHORTHAND_MAPPING} points them at the enhanced style instead.
- */
-export const LOGICAL_AXES = ['block', 'inline'] as const;
+// ---------------------------------------------------------------------------
+// Enhanced logical style families, mirroring `@tenphi/tasty`'s `logical-list.ts`.
+//
+// Tasty v3.8 gave each logical axis/category pair its own handler, named
+// `<axis><Category>` — `blockPadding`, `inlineBorder` — which emits native
+// logical CSS (`padding-block`, `border-inline`) rather than converting the
+// value to a physical edge. The browser resolves `start`/`end` from the
+// element's `writingMode` and `direction`.
+//
+// The native CSS spellings (`paddingBlock`, `insetInlineStart`, …) stay valid
+// keys, but they are now *ordinary* CSS properties: tasty stopped reading
+// `paddingBlock`/`paddingInline`/`insetBlock`/`insetInline` in its physical
+// handlers, so they no longer get category defaults or directional behaviour.
+// That is why they are absent from `KNOWN_TASTY_PROPERTIES` (they are still
+// recognised, via `KNOWN_CSS_PROPERTIES`) and why `SHORTHAND_MAPPING` points
+// them at the enhanced style instead.
+//
+// The groups are split by *vocabulary*, not for tidiness: each one is spread
+// into a different set below, and the splits are what keep `true` off the size
+// constraints and the single-value rule off the borders.
+// ---------------------------------------------------------------------------
 
 /** Logical edge modifiers, the `start`/`end` counterpart of {@link BOX_SIDES}. */
 export const LOGICAL_EDGES = ['start', 'end'] as const;

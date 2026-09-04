@@ -59,3 +59,14 @@ Three groups are reported **without** a fix, because the rewrite is not equivale
   defaults `border-block` never had (`border-block: 1bw` renders nothing at all).
 - `minBlockSize` → `blockSize: 'min ...'`, which also emits `block-size` and
   `max-block-size`, mirroring `minWidth`.
+
+`consistent-token-usage` also treats a `1px` in `blockBorder`/`inlineBorder` as the
+`1bw` token spelled out, as it already did for physical `border` — the logical axes take
+the same width/style/colour value through the same parser, so the advice should not
+depend on which vocabulary the author used.
+
+`place` is recognised as well. It is a real Tasty style (`place: 'center start'` emits
+four alignment declarations) with no CSS property of the same name to fall back on, so
+`known-property` had been reporting valid code. Found by checking the constants against
+tasty's exported style lists, which is now a test: every style in them must be a
+property the plugin recognises.
