@@ -5,7 +5,7 @@ export interface StyleFunctionConfig {
   /** A style object, or Tasty options containing `styles` and `variants`. */
   kind: 'styles' | 'options';
   /** Treat styles as a partial override of existing styles. Defaults to false. */
-  isExtending?: boolean;
+  partial?: boolean;
 }
 
 export interface TastyValidationConfig {

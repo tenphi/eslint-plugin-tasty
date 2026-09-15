@@ -33,8 +33,8 @@ describe('styleFunctions configuration', () => {
     mkdirSync(join(root, 'src'));
     writeConfig(join(root, 'base.json'), {
       styleFunctions: {
-        defineComponent: { argument: 0, kind: 'options', isExtending: true },
-        mergeStyles: { argument: 'all', kind: 'styles', isExtending: true },
+        defineComponent: { argument: 0, kind: 'options', partial: true },
+        mergeStyles: { argument: 'all', kind: 'styles', partial: true },
       },
     });
     writeConfig(join(root, 'tasty.config.json'), {
@@ -54,7 +54,7 @@ describe('styleFunctions configuration', () => {
     expect(resolved.importSources).toContain('@my-org/styling');
     expect(resolved.styleFunctions).toEqual({
       defineComponent: { argument: 1, kind: 'options' },
-      mergeStyles: { argument: 'all', kind: 'styles', isExtending: true },
+      mergeStyles: { argument: 'all', kind: 'styles', partial: true },
       resolveComponentStyles: { argument: 1, kind: 'styles' },
     });
   });

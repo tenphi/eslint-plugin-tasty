@@ -598,7 +598,7 @@ export class TastyContext {
           type: 'tasty',
           isStaticCall: false,
           isSelectorMode: false,
-          isExtending: !isVariant && (config.isExtending ?? false),
+          isExtending: !isVariant && (config.partial ?? false),
           baseComponent: null,
         };
       }

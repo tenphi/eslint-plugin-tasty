@@ -124,7 +124,7 @@ export default {
   styleFunctions: {
     defineComponent: { argument: 1, kind: 'options' },
     resolveComponentStyles: { argument: 1, kind: 'styles' },
-    mergeStyles: { argument: 'all', kind: 'styles', isExtending: true },
+    mergeStyles: { argument: 'all', kind: 'styles', partial: true },
   },
 } satisfies TastyValidationConfig;
 ```
@@ -145,7 +145,7 @@ mergeStyles(base, { fill: { hovered: '#active' } });
 | `argument` | Zero-based argument index, or `'all'` to inspect every argument. |
 | `kind: 'styles'` | The argument itself is a Tasty style object. |
 | `kind: 'options'` | The argument contains `styles` and/or `variants`; each variant is a style object. Other options are ignored. |
-| `isExtending` | Defaults to `false`. Set to `true` for helpers that merge partial overrides into existing styles. Allows state maps without a default and disables shorthand fixes that could overwrite a base style. Variants remain independent definitions, like `tasty(Base, options)`. |
+| `partial` | Defaults to `false`. Set to `true` for helpers that merge partial overrides into existing styles. Allows state maps without a default and disables shorthand fixes that could overwrite a base style. Variants remain independent definitions, like `tasty(Base, options)`. |
 
 Signatures are keyed by the **exported name**, so named import aliases work.
 Default imports, namespace calls, local functions, and imports from unlisted
