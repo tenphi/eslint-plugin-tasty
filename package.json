@@ -21,6 +21,7 @@
   "scripts": {
     "build": "tsdown",
     "test": "vitest run",
+    "test:linters": "node test/linter-integration.mjs",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
@@ -73,6 +74,7 @@
     "eslint": "^10.0.0",
     "eslint-config-prettier": "^10.1.8",
     "known-css-properties": "^0.37.0",
+    "oxlint": "1.83.0",
     "prettier": "^3.8.1",
     "react": "^19.2.8",
     "tsdown": "^0.20.3",

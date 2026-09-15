@@ -6,7 +6,6 @@ import {
   getStringValue,
   isKnownStateAlias,
   collectLocalStateAliases,
-  findRootStyleObject,
 } from '../utils.js';
 
 type MessageIds = 'unknownAlias';
@@ -57,7 +56,7 @@ export default createRule<[], MessageIds>({
     function handleStyleObject(node: TSESTree.ObjectExpression) {
       if (!ctx.isStyleObject(node)) return;
 
-      const rootObj = findRootStyleObject(node);
+      const rootObj = ctx.getRootStyleObject(node);
       const localAliases = collectLocalStateAliases(rootObj);
 
       // Skip if no states configured and no local aliases

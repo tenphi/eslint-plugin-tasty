@@ -79,4 +79,8 @@ const plugin = {
 export default plugin;
 
 export { recommended, strict } from './configs.js';
-export type { TastyValidationConfig, ResolvedConfig } from './types.js';
+export type {
+  TastyValidationConfig,
+  ResolvedConfig,
+  StyleFunctionConfig,
+} from './types.js';

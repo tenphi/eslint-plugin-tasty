@@ -1,6 +1,6 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import type { RuleContext } from '@typescript-eslint/utils/ts-eslint';
-import type { ResolvedConfig } from './types.js';
+import type { ResolvedConfig, StyleFunctionConfig } from './types.js';
 import { loadConfig } from './config.js';
 import {
   DEFAULT_IMPORT_SOURCES,
@@ -8,7 +8,7 @@ import {
   KNOWN_TASTY_PROPERTIES,
   SPECIAL_STYLE_KEYS,
 } from './constants.js';
-import { getKeyName } from './utils.js';
+import { getKeyName, unwrapExpression } from './utils.js';
 
 /**
  * AST selectors that match ObjectExpressions in all known tasty style contexts:
@@ -192,26 +192,6 @@ function jsxStylesPropTarget(node: TSESTree.ObjectExpression): string | null {
 }
 
 /**
- * Strips the wrappers that carry no runtime value — `Button as any`, `Button!`,
- * `Button satisfies T`, `<T>Button` — so the expression underneath can be read.
- */
-function unwrapExpression(node: TSESTree.Node): TSESTree.Node {
-  let current = node;
-
-  while (
-    current.type === 'TSAsExpression' ||
-    current.type === 'TSSatisfiesExpression' ||
-    current.type === 'TSNonNullExpression' ||
-    current.type === 'TSTypeAssertion' ||
-    current.type === 'TSInstantiationExpression'
-  ) {
-    current = current.expression;
-  }
-
-  return current;
-}
-
-/**
  * The identifier a base-component argument resolves to — `tasty(UI.Card, {…})`
  * -> `UI`, which is what the import map is keyed by.
  *
@@ -291,15 +271,21 @@ export class TastyContext {
       this.moduleSources.set(specifier.local.name, source);
     }
 
-    if (!this.importSources.has(source)) return;
+    if (!this.importSources.has(source) || node.importKind === 'type') return;
 
     for (const specifier of node.specifiers) {
-      if (specifier.type === 'ImportSpecifier') {
+      if (
+        specifier.type === 'ImportSpecifier' &&
+        specifier.importKind !== 'type'
+      ) {
         const importedName =
           specifier.imported.type === 'Identifier'
             ? specifier.imported.name
             : specifier.imported.value;
-        if (TASTY_FUNCTION_NAMES.has(importedName)) {
+        if (
+          TASTY_FUNCTION_NAMES.has(importedName) ||
+          Object.hasOwn(this.config.styleFunctions ?? {}, importedName)
+        ) {
           this.imports.set(specifier.local.name, {
             localName: specifier.local.name,
             importedName,
@@ -338,8 +324,25 @@ export class TastyContext {
   }
 
   isTastyCall(node: TSESTree.CallExpression): TastyImport | undefined {
-    if (node.callee.type !== 'Identifier') return undefined;
-    return this.imports.get(node.callee.name);
+    const callee = unwrapExpression(node.callee);
+    if (callee.type !== 'Identifier') return undefined;
+    const imp = this.imports.get(callee.name);
+    if (!imp) return undefined;
+
+    // A parameter or local declaration can shadow the imported helper. Only
+    // the import binding carries evidence that the call accepts Tasty styles.
+    let scope = this.context.sourceCode.getScope(callee);
+    while (scope) {
+      const variable = scope.set.get(callee.name);
+      if (variable) {
+        return variable.defs.some((def) => def.type === 'ImportBinding')
+          ? imp
+          : undefined;
+      }
+      if (!scope.upper) break;
+      scope = scope.upper;
+    }
+    return undefined;
   }
 
   /**
@@ -350,18 +353,62 @@ export class TastyContext {
     return this.getStyleContext(node) !== null;
   }
 
+  private getSubElementParent(
+    node: TSESTree.ObjectExpression,
+  ): TSESTree.ObjectExpression | null {
+    let wrapped: TSESTree.Node = node;
+    while (wrapped.parent && unwrapExpression(wrapped.parent) === node) {
+      wrapped = wrapped.parent;
+    }
+    const parent = wrapped.parent;
+    if (parent?.type !== 'Property' || parent.computed) return null;
+    const key = getKeyName(parent.key);
+    return key &&
+      /^[A-Z]/.test(key) &&
+      parent.parent.type === 'ObjectExpression'
+      ? parent.parent
+      : null;
+  }
+
+  /** Follow only sub-elements of recognized styles, never a variants container. */
+  getRootStyleObject(
+    node: TSESTree.ObjectExpression,
+  ): TSESTree.ObjectExpression {
+    let current = node;
+    while (true) {
+      const parent = this.getSubElementParent(current);
+      if (!parent || !this.isStyleObject(parent)) return current;
+      current = parent;
+    }
+  }
+
+  /** Include helper calls nested inside a real sub-element, but not variant names. */
+  isInsideSubElement(node: TSESTree.Node): boolean {
+    let current = node.parent;
+    while (current) {
+      if (current.type === 'Property' && !current.computed) {
+        const key = getKeyName(current.key);
+        if (
+          key &&
+          /^[A-Z]/.test(key) &&
+          current.parent.type === 'ObjectExpression' &&
+          this.isStyleObject(current.parent)
+        ) {
+          return true;
+        }
+      }
+      current = current.parent;
+    }
+    return false;
+  }
+
   getStyleContext(node: TSESTree.Node): StyleContext | null {
     // Sub-element objects inherit their parent style object's context
     if (node.type === 'ObjectExpression') {
-      const parent = node.parent;
-      if (parent?.type === 'Property' && !parent.computed) {
-        const key = getKeyName(parent.key);
-        if (key && /^[A-Z]/.test(key)) {
-          const grandparent = parent.parent;
-          if (grandparent?.type === 'ObjectExpression') {
-            return this.getStyleContext(grandparent);
-          }
-        }
+      const parent = this.getSubElementParent(node);
+      if (parent) {
+        const inherited = this.getStyleContext(parent);
+        if (inherited) return inherited;
       }
     }
 
@@ -424,6 +471,12 @@ export class TastyContext {
               baseComponent: null,
             };
           }
+        }
+
+        // Built-in signatures always take precedence over configured ones.
+        const custom = this.config.styleFunctions?.[name];
+        if (!TASTY_FUNCTION_NAMES.has(name) && custom) {
+          return this.getCustomCallContext(current, node, custom);
         }
 
         return null;
@@ -503,6 +556,55 @@ export class TastyContext {
     }
 
     return false;
+  }
+
+  private getCustomCallContext(
+    call: TSESTree.CallExpression,
+    targetNode: TSESTree.Node,
+    config: StyleFunctionConfig,
+  ): StyleContext | null {
+    const { argument, kind } = config;
+    if (argument !== 'all' && (!Number.isInteger(argument) || argument < 0)) {
+      return null;
+    }
+    // A preceding spread makes the runtime argument index unknown. Never apply
+    // style rewrites to an object that might occupy a different parameter.
+    if (
+      argument !== 'all' &&
+      call.arguments
+        .slice(0, argument)
+        .some((arg) => arg.type === 'SpreadElement')
+    ) {
+      return null;
+    }
+
+    const args =
+      argument === 'all' ? call.arguments : [call.arguments[argument]];
+    for (const arg of args) {
+      if (!arg) continue;
+      const value = unwrapExpression(arg);
+      if (value.type !== 'ObjectExpression') continue;
+
+      const isVariant =
+        kind === 'options' && this.isInsideVariantsProperty(value, targetNode);
+      const matches =
+        kind === 'styles'
+          ? value === targetNode
+          : kind === 'options' &&
+            (this.isInsideStylesProperty(value, targetNode) || isVariant);
+
+      if (matches) {
+        return {
+          type: 'tasty',
+          isStaticCall: false,
+          isSelectorMode: false,
+          isExtending: !isVariant && (config.partial ?? false),
+          baseComponent: null,
+        };
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -605,9 +707,9 @@ export class TastyContext {
     for (const prop of optionsObj.properties) {
       if (
         prop.type === 'Property' &&
-        prop.key.type === 'Identifier' &&
-        prop.key.name === 'styles' &&
-        prop.value === targetNode
+        !prop.computed &&
+        getKeyName(prop.key) === 'styles' &&
+        unwrapExpression(prop.value) === targetNode
       ) {
         return true;
       }
@@ -622,14 +724,15 @@ export class TastyContext {
     for (const prop of optionsObj.properties) {
       if (
         prop.type === 'Property' &&
-        prop.key.type === 'Identifier' &&
-        prop.key.name === 'variants' &&
-        prop.value.type === 'ObjectExpression'
+        !prop.computed &&
+        getKeyName(prop.key) === 'variants'
       ) {
-        for (const variantProp of prop.value.properties) {
+        const variants = unwrapExpression(prop.value);
+        if (variants.type !== 'ObjectExpression') continue;
+        for (const variantProp of variants.properties) {
           if (
             variantProp.type === 'Property' &&
-            variantProp.value === targetNode
+            unwrapExpression(variantProp.value) === targetNode
           ) {
             return true;
           }

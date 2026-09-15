@@ -1,7 +1,7 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
-import { getKeyName } from '../utils.js';
+import { getKeyName, unwrapExpression } from '../utils.js';
 
 type MessageIds = 'subElementNotObject';
 
@@ -31,15 +31,14 @@ export default createRule<[], MessageIds>({
         const key = getKeyName(prop.key);
         if (key === null || !/^[A-Z]/.test(key)) continue;
 
-        if (prop.value.type !== 'ObjectExpression') {
-          if (prop.value.type === 'Literal' && prop.value.value === false) {
+        const value = unwrapExpression(prop.value);
+        if (value.type !== 'ObjectExpression') {
+          if (value.type === 'Literal' && value.value === false) {
             continue;
           }
 
           const valueType =
-            prop.value.type === 'Literal'
-              ? typeof prop.value.value
-              : prop.value.type;
+            value.type === 'Literal' ? typeof value.value : value.type;
 
           context.report({
             node: prop.value,

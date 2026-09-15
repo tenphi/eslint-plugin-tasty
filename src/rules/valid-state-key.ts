@@ -5,7 +5,6 @@ import {
   getKeyName,
   getStringValue,
   collectLocalStateAliases,
-  findRootStyleObject,
 } from '../utils.js';
 import { parseStateKey } from '../parsers/state-key-parser.js';
 import type { StateKeyParserOptions } from '../parsers/state-key-parser.js';
@@ -34,26 +33,9 @@ export default createRule<[], MessageIds>({
       knownAliases: ctx.config.states,
     };
 
-    function isInsideSubElement(node: TSESTree.Node): boolean {
-      let current: TSESTree.Node | undefined = node.parent;
-      while (current) {
-        if (
-          current.type === 'Property' &&
-          !current.computed &&
-          current.key.type === 'Identifier' &&
-          /^[A-Z]/.test(current.key.name)
-        ) {
-          return true;
-        }
-        current = current.parent;
-      }
-      return false;
-    }
-
     function checkStateKey(
       key: string,
       keyNode: TSESTree.Node,
-      insideSubElement: boolean,
       localAliases: string[],
     ): void {
       if (key === '') return;
@@ -90,8 +72,7 @@ export default createRule<[], MessageIds>({
     function handleStyleObject(node: TSESTree.ObjectExpression) {
       if (!ctx.isStyleObject(node)) return;
 
-      const insideSubElement = isInsideSubElement(node);
-      const rootObj = findRootStyleObject(node);
+      const rootObj = ctx.getRootStyleObject(node);
       const localAliases = collectLocalStateAliases(rootObj);
 
       for (const prop of node.properties) {
@@ -113,12 +94,7 @@ export default createRule<[], MessageIds>({
             : getStringValue(stateProp.key);
           if (stateKey === null) continue;
 
-          checkStateKey(
-            stateKey,
-            stateProp.key,
-            insideSubElement,
-            localAliases,
-          );
+          checkStateKey(stateKey, stateProp.key, localAliases);
         }
       }
     }

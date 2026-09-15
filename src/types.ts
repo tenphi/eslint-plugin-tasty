@@ -1,3 +1,13 @@
+/** A named import whose arguments contain Tasty styles. */
+export interface StyleFunctionConfig {
+  /** Zero-based argument index, or every argument for a variadic style helper. */
+  argument: number | 'all';
+  /** A style object, or Tasty options containing `styles` and `variants`. */
+  kind: 'styles' | 'options';
+  /** Treat styles as a partial override of existing styles. Defaults to false. */
+  partial?: boolean;
+}
+
 export interface TastyValidationConfig {
   extends?: string;
   tokens?: false | string[];
@@ -16,6 +26,8 @@ export interface TastyValidationConfig {
   recipes?: string[];
   styles?: string[];
   importSources?: string[];
+  /** Custom calls, keyed by exported name, from tracked `importSources`. */
+  styleFunctions?: Record<string, StyleFunctionConfig>;
   /**
    * Import sources whose components this project can edit — a design system
    * published from the same monorepo, for instance. Rules that would send the
@@ -46,4 +58,6 @@ export interface ResolvedConfig {
    * missing value as the empty list. See `types.compat.ts` for the guard.
    */
   ownedSources?: string[];
+  /** Optional for compatibility with existing consumer-built configs. */
+  styleFunctions?: Record<string, StyleFunctionConfig>;
 }

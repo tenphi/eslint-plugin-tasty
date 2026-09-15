@@ -54,6 +54,26 @@ export default [
 ];
 ```
 
+### oxlint
+
+Use oxlint's [JavaScript plugins](https://oxc.rs/docs/guide/usage/linter/js-plugins)
+to load the same plugin and rule maps. JavaScript plugin support is experimental;
+the integration tests run against oxlint 1.83.0.
+
+```ts
+// oxlint.config.ts
+import { defineConfig } from 'oxlint';
+import { recommended } from '@tenphi/eslint-plugin-tasty';
+
+export default defineConfig({
+  jsPlugins: [{ name: 'tasty', specifier: '@tenphi/eslint-plugin-tasty' }],
+  rules: recommended,
+});
+```
+
+Run `oxlint --config oxlint.config.ts src`. Both linters read `tasty.config.*`
+relative to the file being linted, including custom function signatures below.
+
 ## Project Configuration
 
 Create a `tasty.config.ts` (or `.js`, `.json`) at your project root to configure validation:
@@ -88,6 +108,60 @@ list a scope here only for a design system you publish from your own monorepo
 
 > `functions` was called `funcs` before v1. The old spelling is still read as a
 > deprecated alias.
+
+### Custom style functions
+
+Design systems can wrap Tasty with their own component factories and style
+helpers. Register their named exports in `styleFunctions` and list their modules
+in `importSources`:
+
+```ts
+// tasty.config.ts
+import type { TastyValidationConfig } from '@tenphi/eslint-plugin-tasty';
+
+export default {
+  importSources: ['@my-org/styling'],
+  styleFunctions: {
+    defineComponent: { argument: 1, kind: 'options' },
+    resolveComponentStyles: { argument: 1, kind: 'styles' },
+    mergeStyles: { argument: 'all', kind: 'styles', partial: true },
+  },
+} satisfies TastyValidationConfig;
+```
+
+```ts
+import { defineComponent as component, resolveComponentStyles, mergeStyles } from '@my-org/styling';
+
+component('Card', {
+  styles: { padding: '1x', Label: { color: '#text' } },
+  variants: { compact: { padding: '0.5x' } },
+});
+resolveComponentStyles('Card', { padding: '1x' });
+mergeStyles(base, { fill: { hovered: '#active' } });
+```
+
+| Option | Meaning |
+| --- | --- |
+| `argument` | Zero-based argument index, or `'all'` to inspect every argument. |
+| `kind: 'styles'` | The argument itself is a Tasty style object. |
+| `kind: 'options'` | The argument contains `styles` and/or `variants`; each variant is a style object. Other options are ignored. |
+| `partial` | Defaults to `false`. Set to `true` for helpers that merge partial overrides into existing styles. Allows state maps without a default and disables shorthand fixes that could overwrite a base style. Variants remain independent definitions, like `tasty(Base, options)`. |
+
+Signatures are keyed by the **exported name**, so named import aliases work.
+Default imports, namespace calls, local functions, and imports from unlisted
+modules are not matched through this configuration. A local binding that shadows
+an imported helper is ignored. Only inline object literals are inspected, including
+TypeScript `as` and `satisfies` wrappers; arguments are not evaluated or followed
+through variable references. Existing `Styles` variable detection still applies.
+For a fixed argument index, calls with a preceding spread argument are skipped
+because its length could move the object to a different parameter.
+
+Sub-elements inherit their containing style context. Built-in Tasty signatures
+take precedence and cannot be redefined. Config inheritance merges `styleFunctions`
+by name, with the nearest config replacing the entire signature for that name.
+The `functions` setting above continues to describe functions inside style values;
+`styleFunctions` describes JavaScript calls. `StyleFunctionConfig` is also exported
+for typing shared signatures.
 
 ## Rules
 

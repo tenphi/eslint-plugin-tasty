@@ -26,28 +26,10 @@ export default createRule<[], MessageIds>({
   create(context) {
     const ctx = new TastyContext(context);
 
-    function isInsideSubElement(node: TSESTree.Node): boolean {
-      let current: TSESTree.Node | undefined = node.parent;
-      while (current) {
-        if (
-          current.type === 'Property' &&
-          !current.computed &&
-          current.key.type === 'Identifier' &&
-          /^[A-Z]/.test(current.key.name)
-        ) {
-          return true;
-        }
-        current = current.parent;
-      }
-      return false;
-    }
-
     function handleStyleObject(node: TSESTree.ObjectExpression) {
       if (!ctx.isStyleObject(node)) return;
 
-      const insideSubElement = isInsideSubElement(node);
-
-      if (insideSubElement) return;
+      if (ctx.isInsideSubElement(node)) return;
 
       for (const prop of node.properties) {
         if (prop.type !== 'Property' || prop.computed) continue;
