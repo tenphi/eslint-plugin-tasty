@@ -153,6 +153,8 @@ modules are not matched through this configuration. A local binding that shadows
 an imported helper is ignored. Only inline object literals are inspected, including
 TypeScript `as` and `satisfies` wrappers; arguments are not evaluated or followed
 through variable references. Existing `Styles` variable detection still applies.
+For a fixed argument index, calls with a preceding spread argument are skipped
+because its length could move the object to a different parameter.
 
 Sub-elements inherit their containing style context. Built-in Tasty signatures
 take precedence and cannot be redefined. Config inheritance merges `styleFunctions`

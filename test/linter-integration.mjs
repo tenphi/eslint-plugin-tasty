@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { recommended, strict } from '../dist/index.js';
 
 const require = createRequire(import.meta.url);
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -62,12 +63,29 @@ const expectedFixed = invalid
   .replace(' !important', '')
   .replace("backgroundColor: '#surface'", "fill: '#surface'");
 
+const presetValid =
+  imports +
+  `
+component('Card', {
+  styles: { Label: { fill: '#clear' } satisfies Styles },
+  variants: {
+    Active: {
+      '@active': ':hover',
+      fill: { '': '#clear', '@active': '#white' },
+      'Label': ({ fill: { '': '#clear', '@active': '#white', '@own(:focus)': '#black' } } as Styles),
+    },
+  },
+});
+`;
+
 const linters = [
   {
     name: 'ESLint',
     bin: join(dirname(require.resolve('eslint/package.json')), 'bin/eslint.js'),
     configName: 'eslint.config.mjs',
-    config: `import tasty from ${JSON.stringify(pathToFileURL(pluginPath).href)};
+    config: (
+      rules,
+    ) => `import tasty from ${JSON.stringify(pathToFileURL(pluginPath).href)};
 import parser from ${JSON.stringify(pathToFileURL(require.resolve('@typescript-eslint/parser')).href)};
 export default [{ files: ['**/*.ts'], languageOptions: { parser }, plugins: { tasty }, rules: ${JSON.stringify(rules)} }];`,
     diagnostics: (result) =>
@@ -80,11 +98,12 @@ export default [{ files: ['**/*.ts'], languageOptions: { parser }, plugins: { ta
     name: 'oxlint',
     bin: join(dirname(require.resolve('oxlint/package.json')), 'bin/oxlint'),
     configName: '.oxlintrc.json',
-    config: JSON.stringify({
-      categories: { correctness: 'off' },
-      jsPlugins: [{ name: 'tasty', specifier: pluginPath }],
-      rules,
-    }),
+    config: (rules) =>
+      JSON.stringify({
+        categories: { correctness: 'off' },
+        jsPlugins: [{ name: 'tasty', specifier: pluginPath }],
+        rules,
+      }),
     diagnostics: (result) =>
       result.diagnostics.map((diagnostic) =>
         diagnostic.code.replace(/^tasty[(/]/, '').replace(/\)$/, ''),
@@ -98,7 +117,7 @@ for (const linter of linters) {
   try {
     writeFileSync(join(dir, 'package.json'), '{"type":"module"}');
     writeFileSync(join(dir, 'tasty.config.json'), config);
-    writeFileSync(join(dir, linter.configName), linter.config);
+    writeFileSync(join(dir, linter.configName), linter.config(rules));
     writeFileSync(join(dir, 'valid.ts'), valid);
     writeFileSync(join(dir, 'invalid.ts'), invalid);
 
@@ -153,8 +172,27 @@ for (const linter of linters) {
         'require-default-state',
       ].sort(),
     });
+
+    writeFileSync(join(dir, 'presets-valid.ts'), presetValid);
+    writeFileSync(
+      join(dir, 'presets-invalid.ts'),
+      presetValid.replace("fill: '#clear'", "paddding: '1x'"),
+    );
+    for (const [name, preset] of Object.entries({ recommended, strict })) {
+      writeFileSync(join(dir, linter.configName), linter.config(preset));
+      assert.deepEqual(
+        run('presets-valid.ts'),
+        { status: 0, rules: [] },
+        `${linter.name}: ${name} accepts wrapped sub-elements and variant aliases`,
+      );
+      assert.deepEqual(
+        run('presets-invalid.ts'),
+        { status: 0, rules: ['known-property'] },
+        `${linter.name}: ${name} still validates wrapped sub-elements`,
+      );
+    }
     console.log(
-      `${linter.name}: custom calls, import boundaries, diagnostics, and fixes passed`,
+      `${linter.name}: custom calls, import boundaries, diagnostics, fixes, and full presets passed`,
     );
   } finally {
     rmSync(dir, { recursive: true, force: true });

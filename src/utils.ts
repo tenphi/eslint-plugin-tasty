@@ -6,6 +6,23 @@ import {
 } from './constants.js';
 import type { ResolvedConfig } from './types.js';
 
+/** Strip TypeScript wrappers that do not change an expression's runtime value. */
+export function unwrapExpression(node: TSESTree.Node): TSESTree.Node {
+  let current = node;
+
+  while (
+    current.type === 'TSAsExpression' ||
+    current.type === 'TSSatisfiesExpression' ||
+    current.type === 'TSNonNullExpression' ||
+    current.type === 'TSTypeAssertion' ||
+    current.type === 'TSInstantiationExpression'
+  ) {
+    current = current.expression;
+  }
+
+  return current;
+}
+
 /**
  * Gets the string value of a property key node.
  */
@@ -34,6 +51,7 @@ export function getStringValue(node: TSESTree.Node): string | null {
  * Checks if a value node is a static literal.
  */
 export function isStaticValue(node: TSESTree.Node): boolean {
+  node = unwrapExpression(node);
   if (node.type === 'Literal') return true;
   if (
     node.type === 'UnaryExpression' &&
@@ -208,36 +226,4 @@ export function collectLocalStateAliases(
   }
 
   return aliases;
-}
-
-/**
- * Walks up the AST through sub-element properties (capitalized keys) to find
- * the outermost styles ObjectExpression. Local states are always defined at
- * the root level, so sub-elements inherit them.
- */
-export function findRootStyleObject(
-  node: TSESTree.ObjectExpression,
-): TSESTree.ObjectExpression {
-  let current: TSESTree.ObjectExpression = node;
-
-  while (current.parent) {
-    const parent = current.parent;
-
-    if (parent.type === 'Property' && !parent.computed) {
-      const key = getKeyName(parent.key);
-
-      if (
-        key &&
-        /^[A-Z]/.test(key) &&
-        parent.parent?.type === 'ObjectExpression'
-      ) {
-        current = parent.parent;
-        continue;
-      }
-    }
-
-    break;
-  }
-
-  return current;
 }

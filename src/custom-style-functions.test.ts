@@ -4,6 +4,7 @@ import noImportant from './rules/no-important.js';
 import knownProperty from './rules/known-property.js';
 import requireDefaultState from './rules/require-default-state.js';
 import preferShorthand from './rules/prefer-shorthand-property.js';
+import noOwnAtRoot from './rules/no-own-at-root.js';
 
 const filename = fileURLToPath(
   new URL('../test/fixtures/style-functions/component.ts', import.meta.url),
@@ -44,6 +45,10 @@ tester.run('custom style functions: detection and fixes', noImportant, {
       `resolveComponentStyles('Card', { metadata: { nested: { fill: 'red !important' } } });`,
     imports +
       `defineComponent('Card'); resolveComponentStyles(); mergeStyles(...others);`,
+    // A preceding spread can move this object to an unrelated parameter.
+    imports +
+      `defineComponent(...names, { styles: { fill: 'red !important' } });`,
+    imports + `resolveComponentStyles(...names, { fill: 'red !important' });`,
     // The fixture attempts to override tasty's signature; built-ins win.
     `import { tasty } from '@tenphi/tasty'; tasty(Base, {}, { fill: 'red !important' });`,
   ],
@@ -62,6 +67,8 @@ tester.run('custom style functions: detection and fixes', noImportant, {
       `defineComponent('Card', { styles: resolveComponentStyles('Card', { fill: 'red !important' }) });`,
       `mergeStyles(base, { fill: 'red !important' }, other);`,
       `mergeStyles({ fill: 'red !important' }, base, other);`,
+      `mergeStyles(...others, { fill: 'red !important' });`,
+      `resolveComponentStyles('Card', { fill: 'red !important' }, ...others);`,
       `(defineComponent as Factory)('Card', { styles: { fill: 'red !important' } });`,
     ].map((code) => ({
       code: imports + code,
@@ -87,6 +94,30 @@ tester.run('custom style functions: detection and fixes', noImportant, {
     },
   ],
 });
+
+tester.run(
+  'custom style functions: sub-element helper calls preserve @own',
+  noOwnAtRoot,
+  {
+    valid: [
+      imports +
+        `defineComponent('Card', { styles: {
+      'Label': resolveComponentStyles('Label', { fill: { '': '#clear', '@own(:hover)': '#white' } }),
+    } });`,
+    ],
+    invalid: [
+      {
+        code:
+          imports +
+          `const registry = { Card: defineComponent('Card', { styles: { fill: { '': '#clear', '@own(:hover)': '#white' } } }) };`,
+        output:
+          imports +
+          `const registry = { Card: defineComponent('Card', { styles: { fill: { '': '#clear', ':hover': '#white' } } }) };`,
+        errors: [{ messageId: 'ownAtRoot' }],
+      },
+    ],
+  },
+);
 
 tester.run('custom style functions: options are not styles', knownProperty, {
   valid: [

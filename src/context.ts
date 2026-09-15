@@ -8,7 +8,7 @@ import {
   KNOWN_TASTY_PROPERTIES,
   SPECIAL_STYLE_KEYS,
 } from './constants.js';
-import { getKeyName } from './utils.js';
+import { getKeyName, unwrapExpression } from './utils.js';
 
 /**
  * AST selectors that match ObjectExpressions in all known tasty style contexts:
@@ -192,26 +192,6 @@ function jsxStylesPropTarget(node: TSESTree.ObjectExpression): string | null {
 }
 
 /**
- * Strips the wrappers that carry no runtime value — `Button as any`, `Button!`,
- * `Button satisfies T`, `<T>Button` — so the expression underneath can be read.
- */
-function unwrapExpression(node: TSESTree.Node): TSESTree.Node {
-  let current = node;
-
-  while (
-    current.type === 'TSAsExpression' ||
-    current.type === 'TSSatisfiesExpression' ||
-    current.type === 'TSNonNullExpression' ||
-    current.type === 'TSTypeAssertion' ||
-    current.type === 'TSInstantiationExpression'
-  ) {
-    current = current.expression;
-  }
-
-  return current;
-}
-
-/**
  * The identifier a base-component argument resolves to — `tasty(UI.Card, {…})`
  * -> `UI`, which is what the import map is keyed by.
  *
@@ -373,23 +353,62 @@ export class TastyContext {
     return this.getStyleContext(node) !== null;
   }
 
+  private getSubElementParent(
+    node: TSESTree.ObjectExpression,
+  ): TSESTree.ObjectExpression | null {
+    let wrapped: TSESTree.Node = node;
+    while (wrapped.parent && unwrapExpression(wrapped.parent) === node) {
+      wrapped = wrapped.parent;
+    }
+    const parent = wrapped.parent;
+    if (parent?.type !== 'Property' || parent.computed) return null;
+    const key = getKeyName(parent.key);
+    return key &&
+      /^[A-Z]/.test(key) &&
+      parent.parent.type === 'ObjectExpression'
+      ? parent.parent
+      : null;
+  }
+
+  /** Follow only sub-elements of recognized styles, never a variants container. */
+  getRootStyleObject(
+    node: TSESTree.ObjectExpression,
+  ): TSESTree.ObjectExpression {
+    let current = node;
+    while (true) {
+      const parent = this.getSubElementParent(current);
+      if (!parent || !this.isStyleObject(parent)) return current;
+      current = parent;
+    }
+  }
+
+  /** Include helper calls nested inside a real sub-element, but not variant names. */
+  isInsideSubElement(node: TSESTree.Node): boolean {
+    let current = node.parent;
+    while (current) {
+      if (current.type === 'Property' && !current.computed) {
+        const key = getKeyName(current.key);
+        if (
+          key &&
+          /^[A-Z]/.test(key) &&
+          current.parent.type === 'ObjectExpression' &&
+          this.isStyleObject(current.parent)
+        ) {
+          return true;
+        }
+      }
+      current = current.parent;
+    }
+    return false;
+  }
+
   getStyleContext(node: TSESTree.Node): StyleContext | null {
     // Sub-element objects inherit their parent style object's context
     if (node.type === 'ObjectExpression') {
-      let wrapped: TSESTree.Node = node;
-      while (wrapped.parent && unwrapExpression(wrapped.parent) === node) {
-        wrapped = wrapped.parent;
-      }
-      const parent = wrapped.parent;
-      if (parent?.type === 'Property' && !parent.computed) {
-        const key = getKeyName(parent.key);
-        if (key && /^[A-Z]/.test(key)) {
-          const grandparent = parent.parent;
-          if (grandparent?.type === 'ObjectExpression') {
-            const inherited = this.getStyleContext(grandparent);
-            if (inherited) return inherited;
-          }
-        }
+      const parent = this.getSubElementParent(node);
+      if (parent) {
+        const inherited = this.getStyleContext(parent);
+        if (inherited) return inherited;
       }
     }
 
@@ -546,6 +565,16 @@ export class TastyContext {
   ): StyleContext | null {
     const { argument, kind } = config;
     if (argument !== 'all' && (!Number.isInteger(argument) || argument < 0)) {
+      return null;
+    }
+    // A preceding spread makes the runtime argument index unknown. Never apply
+    // style rewrites to an object that might occupy a different parameter.
+    if (
+      argument !== 'all' &&
+      call.arguments
+        .slice(0, argument)
+        .some((arg) => arg.type === 'SpreadElement')
+    ) {
       return null;
     }
 
