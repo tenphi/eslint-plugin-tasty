@@ -1,0 +1,10 @@
+{
+  "importSources": ["@my-org/styling"],
+  "styleFunctions": {
+    "defineComponent": { "argument": 1, "kind": "options" },
+    "resolveComponentStyles": { "argument": 1, "kind": "styles" },
+    "mergeStyles": { "argument": "all", "kind": "styles", "isExtending": true },
+    "extendComponent": { "argument": 1, "kind": "options", "isExtending": true },
+    "tasty": { "argument": 2, "kind": "styles" }
+  }
+}

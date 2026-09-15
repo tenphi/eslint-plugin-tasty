@@ -260,6 +260,13 @@ function mergeConfigs(
     }
   }
 
+  if (child.styleFunctions !== undefined) {
+    result.styleFunctions = {
+      ...parent.styleFunctions,
+      ...child.styleFunctions,
+    };
+  }
+
   return result;
 }
 
@@ -318,6 +325,7 @@ function toResolved(config: TastyValidationConfig): ResolvedConfig {
     styles: config.styles ?? [],
     importSources: config.importSources ?? DEFAULT_IMPORT_SOURCES,
     ownedSources: config.ownedSources ?? [],
+    styleFunctions: config.styleFunctions ?? {},
   };
 }
 
@@ -331,6 +339,7 @@ const DEFAULT_CONFIG: ResolvedConfig = {
   styles: [],
   importSources: DEFAULT_IMPORT_SOURCES,
   ownedSources: [],
+  styleFunctions: {},
 };
 
 function getMtimes(paths: string[]): Map<string, number> {
