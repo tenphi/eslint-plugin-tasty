@@ -1,5 +1,13 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.2.0
+
+### Minor Changes
+
+- [#53](https://github.com/tenphi/eslint-plugin-tasty/pull/53) [`54c2968`](https://github.com/tenphi/eslint-plugin-tasty/commit/54c29681edcea76f457ff39a5551922824a8c634) Thanks [@tenphi](https://github.com/tenphi)! - Improve transition duration warnings for styled component props and raw time
+  expressions, while allowing intentional zero durations. Add an opt-in warning
+  for raw animation and explicit CSS durations.
+
 ## 1.1.0
 
 ### Minor Changes
