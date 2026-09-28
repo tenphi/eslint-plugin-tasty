@@ -21,6 +21,21 @@ tester.run('prefer-shorthand-property', rule, {
         tasty({ styles: { fill: '#purple', radius: '1r' } });
       `,
     },
+    // A motion longhand can override one part of an existing effect. A
+    // shorthand rewrite could reset its other parts, including a timeline.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: {
+          transition: 'fill',
+          transitionDuration: { hovered: '$slow-duration' },
+          animation: 'pulse $duration infinite',
+          animationDuration: { hovered: '$slow-duration' },
+          animationTimeline: 'view()',
+          animationRange: 'entry 0% cover 100%',
+        } });
+      `,
+    },
     // Extending a component imported from a package: the token seam would have
     // to be added to someone else's file, and the shorthand rewrite would
     // clobber the base, so there is nothing actionable left to report.

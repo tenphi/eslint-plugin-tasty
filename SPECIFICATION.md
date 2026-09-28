@@ -339,6 +339,15 @@ tasty({
 
 Suggests the tasty shorthand when a native CSS property with a tasty alternative is used.
 
+Motion longhands are intentionally excluded. Tasty already provides an enhanced
+`transition` shorthand and accepts the native CSS `animation` shorthand through
+its generic style path, with local keyframe tracking. Replacing
+`transitionDuration`, `animationDuration`, or other motion longhands with a
+shorthand could reset other values in a state or extension; `animation` can also
+reset `animationTimeline` and `animationRange`. Use a shorthand to define a
+complete effect and longhands to change one part. The motion duration rules
+handle raw timing values in either form.
+
 **Mapping:**
 
 | Native CSS | Tasty alternative |

@@ -231,6 +231,21 @@ inherit Tasty's implicit transition timing. Zero, delays, and values based on
 tokens are left alone. Lengths and widths remain covered by the separate
 `consistent-token-usage` rule; valid custom units such as `x` and `bw` are fine.
 
+### Animation and transition shorthands
+
+Use Tasty's semantic `transition` value when defining a complete transition,
+and the native CSS `animation` shorthand when defining a complete animation.
+Tasty already supports both: `transition` uses semantic names and duration
+tokens, while `animation` accepts tokens and tracks local keyframes. No
+additional animation style handler is needed. Keep longhands such as
+`transitionDuration`, `animationDuration`, and `animationTimeline` when changing
+one part of an existing effect in a state or component extension.
+
+`prefer-shorthand-property` deliberately leaves these motion longhands alone.
+Replacing one with a shorthand can reset the other parts of the effect, including
+an animation's timeline and range. The duration rules above still encourage
+tokens wherever a duration is written.
+
 ## Logical styles
 
 Tasty 3.8 added one enhanced handler per logical axis/category pair, which the plugin
