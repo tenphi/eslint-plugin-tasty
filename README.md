@@ -192,7 +192,7 @@ for typing shared signatures.
 | `tasty/valid-default-state-order` | warn | Misplaced default (`''`) or redundant `''` when only `_` is present |
 | `tasty/prefer-shorthand-property` | warn | Use Tasty shorthand instead of native CSS properties (`backgroundColor` → `fill`, `paddingBlock` → `blockPadding`, etc.). In an extension layer the rewrite is report-only and points at a token in the base component, and over a base you cannot edit it is skipped (see `ownedSources`) |
 | `tasty/no-raw-color-values` | warn | Raw hex/rgb/`okhsl`/`okhst`/`oklch`/named colors instead of `#color` tokens |
-| `tasty/no-raw-transition-duration` | warn | Hardcoded `transition` duration (`fill 0.2s`) instead of a duration token or tasty's default timing. Suggests each `$…-transition` / `$…duration` token in your config, or dropping the duration; a *delay* is left alone |
+| `tasty/no-raw-transition-duration` | warn | Hardcoded `transition` duration (`fill 0.2s`) in Tasty styles or a local `tasty()` component's `transition` prop. Suggests a configured duration token or the implicit per-name timing; zero and delays are left alone |
 | `tasty/consistent-token-usage` | warn | Raw px values when custom units or tokens exist |
 | `tasty/prefer-auto-calc` | warn | `calc(...)` instead of Tasty auto-calc `(...)` |
 | `tasty/prefer-custom-property-syntax` | warn | `var(--prop)` / `$x-color` / `transparent` / `currentColor` instead of `$prop` / `#color` / `#clear` / `#current` |
@@ -209,6 +209,27 @@ for typing shared signatures.
 | `tasty/no-unknown-state-alias` | warn | Unknown `@name` state aliases |
 | `tasty/no-styles-prop` | warn | Direct `styles` prop usage |
 | `tasty/no-runtime-styles-mutation` | warn | Dynamic values in style objects |
+
+### Optional motion duration rule
+
+Enable `tasty/no-raw-motion-duration` as a warning if your design system uses
+tokens for animation timing and explicit CSS durations:
+
+```js
+import tasty from '@tenphi/eslint-plugin-tasty';
+
+export default [
+  tasty.configs.recommended,
+  { rules: { 'tasty/no-raw-motion-duration': 'warn' } },
+];
+```
+
+It checks `animation`, `animationDuration`, and `transitionDuration` in Tasty
+style objects. It suggests configured `$…duration` tokens when
+available. It never suggests removing a duration, since these properties do not
+inherit Tasty's implicit transition timing. Zero, delays, and values based on
+tokens are left alone. Lengths and widths remain covered by the separate
+`consistent-token-usage` rule; valid custom units such as `x` and `bw` are fine.
 
 ## Logical styles
 

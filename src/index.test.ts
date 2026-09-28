@@ -28,6 +28,12 @@ describe('plugin surface', () => {
     }
   });
 
+  it('recommends transition timing and leaves broader motion timing opt-in', () => {
+    expect(recommended['tasty/no-raw-transition-duration']).toBe('warn');
+    expect(recommended['tasty/no-raw-motion-duration']).toBeUndefined();
+    expect(plugin.rules['no-raw-motion-duration']).toBeDefined();
+  });
+
   it('gives every rule a matching meta.docs.url', () => {
     for (const [id, rule] of Object.entries(plugin.rules)) {
       expect(rule.meta.docs?.url, id).toContain(id);

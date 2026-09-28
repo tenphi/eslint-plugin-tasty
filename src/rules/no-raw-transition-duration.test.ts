@@ -2,7 +2,11 @@ import { RuleTester } from '@typescript-eslint/rule-tester';
 import rule from './no-raw-transition-duration.js';
 
 const tester = new RuleTester({
-  languageOptions: { ecmaVersion: 2024, sourceType: 'module' },
+  languageOptions: {
+    ecmaVersion: 2024,
+    sourceType: 'module',
+    parserOptions: { ecmaFeatures: { jsx: true } },
+  },
 });
 
 const wrap = (styles: string) => `
@@ -36,10 +40,18 @@ tester.run('no-raw-transition-duration', rule, {
     wrap(`transition: 'fill $fast-transition ease-in'`),
     wrap(`transition: 'fill var(--transition)'`),
 
-    // A duration derived from a token is somebody using the token, not
-    // hardcoding a number.
-    wrap(`transition: 'fill (0.2s * 2)'`),
+    // A duration derived from a token uses the design system's timing.
+    wrap(`transition: 'fill ($transition * 2)'`),
     wrap(`transition: 'fill calc(var(--transition) * 2)'`),
+
+    // Zero explicitly disables motion. Replacing it with a token or the
+    // implicit default would change that intent.
+    wrap(`transition: 'fill 0'`),
+    wrap(`transition: 'fill 0s'`),
+    wrap(`transition: 'fill 0ms'`),
+    wrap(`transition: 'fill (0ms * 2)'`),
+    wrap(`transition: 'none 0.2s'`),
+    wrap(`transition: 'inherit 0.2s'`),
 
     // The third slot is a *delay*. Omitting one means "no delay", a real
     // rendering change, so the advice this rule gives would not hold.
@@ -51,6 +63,7 @@ tester.run('no-raw-transition-duration', rule, {
     // instead of reporting a duration for a property called `1)`.
     wrap(`transition: 'fill cubic-bezier(0.4, 0, 0.2, 1) 1s'`),
     wrap(`transition: 'fill steps(4, end) 1s'`),
+    wrap(`transition: 'fill cubic-bezier(0.4, 0, 0.2, 1) 1s, radius ease-in'`),
 
     // A CSS-wide keyword carries no duration.
     wrap(`transition: 'inherit'`),
@@ -71,6 +84,10 @@ tester.run('no-raw-transition-duration', rule, {
           wrapper: { transition: 'background-color 0.2s' },
         };
       `,
+    // A transition prop on another component does not prove Tasty semantics.
+    `const Button = (props) => null; <Button transition="fill 0.2s" />;`,
+    `import { tasty } from '@tenphi/tasty'; const Button = tasty({ styles: {} });
+      function Other(Button) { return <Button transition="fill 0.2s" />; }`,
   ],
   invalid: [
     {
@@ -87,6 +104,29 @@ tester.run('no-raw-transition-duration', rule, {
             {
               messageId: 'useDefaultDuration',
               output: wrap(`transition: 'fill'`),
+            },
+          ],
+        },
+      ],
+    },
+    {
+      code: wrap(`transition: '##theme 200ms'`),
+      errors: [
+        {
+          messageId: 'rawTransitionDuration',
+          data: {
+            duration: '200ms',
+            available: ' ($transition)',
+            fallback: '$theme-color-transition (falling back to $transition)',
+          },
+          suggestions: [
+            {
+              messageId: 'useDurationToken',
+              output: wrap(`transition: '##theme $transition'`),
+            },
+            {
+              messageId: 'useDefaultDuration',
+              output: wrap(`transition: '##theme'`),
             },
           ],
         },
@@ -133,21 +173,107 @@ tester.run('no-raw-transition-duration', rule, {
       ],
     },
     {
-      // A bare `0` is still a hardcoded duration — and "no transition" is
-      // better expressed as a state than as a zero.
-      code: wrap(`transition: 'fill 0'`),
+      // Raw time inside an arithmetic expression is still a magic duration.
+      // There is no safe one-click replacement for the entire expression.
+      code: wrap(`transition: 'fill (0.2s * 2)'`),
+      errors: [{ messageId: 'rawTransitionDurationExpression' }],
+    },
+    {
+      code: wrap(`transition: 'fill calc(200ms * 2)'`),
+      errors: [{ messageId: 'rawTransitionDurationExpression' }],
+    },
+    {
+      // Commas inside easing functions must not split the next transition.
+      code: wrap(
+        `transition: 'fill cubic-bezier(0.4, 0, 0.2, 1) 1s, radius 0.3s'`,
+      ),
       errors: [
         {
           messageId: 'rawTransitionDuration',
           suggestions: [
             {
               messageId: 'useDurationToken',
-              data: { duration: '0', token: '$transition' },
-              output: wrap(`transition: 'fill $transition'`),
+              output: wrap(
+                `transition: 'fill cubic-bezier(0.4, 0, 0.2, 1) 1s, radius $transition'`,
+              ),
             },
             {
               messageId: 'useDefaultDuration',
-              output: wrap(`transition: 'fill'`),
+              output: wrap(
+                `transition: 'fill cubic-bezier(0.4, 0, 0.2, 1) 1s, radius'`,
+              ),
+            },
+          ],
+        },
+      ],
+    },
+    {
+      code: `import { tasty as styled } from '@tenphi/tasty';
+        const Button = styled({ styles: {} });
+        <Button transition="fill 0.2s" />;`,
+      errors: [
+        {
+          messageId: 'rawTransitionDuration',
+          suggestions: [
+            {
+              messageId: 'useDurationToken',
+              output: `import { tasty as styled } from '@tenphi/tasty';
+        const Button = styled({ styles: {} });
+        <Button transition="fill $transition" />;`,
+            },
+            {
+              messageId: 'useDefaultDuration',
+              output: `import { tasty as styled } from '@tenphi/tasty';
+        const Button = styled({ styles: {} });
+        <Button transition="fill" />;`,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      code: `import { tasty } from '@tenphi/tasty';
+        const Button = tasty({ styles: {} });
+        <Button transition={'fill 200ms'} />;`,
+      errors: [
+        {
+          messageId: 'rawTransitionDuration',
+          suggestions: [
+            {
+              messageId: 'useDurationToken',
+              output: `import { tasty } from '@tenphi/tasty';
+        const Button = tasty({ styles: {} });
+        <Button transition={'fill $transition'} />;`,
+            },
+            {
+              messageId: 'useDefaultDuration',
+              output: `import { tasty } from '@tenphi/tasty';
+        const Button = tasty({ styles: {} });
+        <Button transition={'fill'} />;`,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      code: `import { tasty } from '@tenphi/tasty';
+        function App() { return <Button transition="fill 200ms" />; }
+        const Button = tasty({ styles: {} });`,
+      errors: [
+        {
+          messageId: 'rawTransitionDuration',
+          suggestions: [
+            {
+              messageId: 'useDurationToken',
+              output: `import { tasty } from '@tenphi/tasty';
+        function App() { return <Button transition="fill $transition" />; }
+        const Button = tasty({ styles: {} });`,
+            },
+            {
+              messageId: 'useDefaultDuration',
+              output: `import { tasty } from '@tenphi/tasty';
+        function App() { return <Button transition="fill" />; }
+        const Button = tasty({ styles: {} });`,
             },
           ],
         },
@@ -188,8 +314,7 @@ tester.run('no-raw-transition-duration', rule, {
       ],
     },
     {
-      // A custom-property transition has no per-name timing token, so the
-      // message points at the global one.
+      // Custom-property references also use a per-name timing token.
       code: wrap(`transition: '$$custom-prop 0.3s'`),
       errors: [
         {
@@ -197,7 +322,7 @@ tester.run('no-raw-transition-duration', rule, {
           data: {
             duration: '0.3s',
             available: ' ($transition)',
-            fallback: '$transition',
+            fallback: '$custom-prop-transition (falling back to $transition)',
           },
           suggestions: [
             {
@@ -295,6 +420,27 @@ tester.run('no-raw-transition-duration', rule, {
         import { tasty } from '@tenphi/tasty';
         tasty({ variants: { big: { transition: 'fill' } } });
       `,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      code: `import { useStyles } from '@tenphi/tasty';
+        useStyles({ transition: 'fill 200ms' });`,
+      errors: [
+        {
+          messageId: 'rawTransitionDuration',
+          suggestions: [
+            {
+              messageId: 'useDurationToken',
+              output: `import { useStyles } from '@tenphi/tasty';
+        useStyles({ transition: 'fill $transition' });`,
+            },
+            {
+              messageId: 'useDefaultDuration',
+              output: `import { useStyles } from '@tenphi/tasty';
+        useStyles({ transition: 'fill' });`,
             },
           ],
         },

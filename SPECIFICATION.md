@@ -738,7 +738,7 @@ fill: '#danger'
 #### `tasty/no-raw-transition-duration`
 
 **Severity:** warning (default)
-**Complexity:** Low
+**Complexity:** Medium
 **Feasibility:** High — one slot of the `transition` value, checked against a time literal
 
 Suggests a duration token, or tasty's default timing, instead of a hardcoded transition
@@ -751,18 +751,25 @@ it is not an easing. A tasty transition value is `[name] [duration] [easing] [de
 a delay means "no delay", a real rendering change, whereas omitting a duration falls back
 to the design system's own timing.
 
-**What counts as hardcoded:** a CSS time literal — `0.2s`, `200ms`, `.15s`, and a bare `0`
-(still a duration, and "no transition" is better expressed as a state). Already-tokenised
-and derived forms are left alone: `$transition`, `var(--transition)`, `(0.2s * 2)`,
+**What counts as hardcoded:** a nonzero CSS time literal — `0.2s`, `200ms`, `.15s` —
+or an arithmetic expression with a raw time and no token, such as `(0.2s * 2)`.
+Explicit zero disables motion and is left alone. Token values and expressions
+derived from them are also accepted: `$transition`, `var(--transition)`,
 `calc(var(--transition) * 2)`.
 
-**Suggestions** (never an auto-fix — both change what the browser renders):
+**Suggestions for literal durations** (never an auto-fix — both change what the browser renders):
 1. Replace the duration with each duration token in the project config — a `tokens` entry
    named `$transition`, `*-transition`, or containing `duration`.
 2. Remove the duration, inheriting `var(--<name>-transition, var(--transition))`.
 
+Expressions with raw times are reported without a suggestion, since replacing
+or removing the whole expression may change its intended calculation.
+
 `@tenphi/tasty` ships a `tasty.config.ts` listing `$transition`, and the plugin reads that
 as the base of the config chain, so there is always at least one token to name.
+The rule also checks a direct `transition` JSX prop when the component is a local
+`const` initialized by an imported `tasty()` call. Other components' props are not
+assumed to use Tasty's transition syntax.
 
 **Examples:**
 ```js
@@ -779,6 +786,28 @@ transition: 'fill ease-in'
 
 // ✅ OK — a delay, not a duration
 transition: 'fill ease-in 0.1s'
+```
+
+---
+
+#### `tasty/no-raw-motion-duration`
+
+**Severity:** off by default; opt in as a warning
+
+Checks the duration in `animation` and the values of `animationDuration` and
+`transitionDuration` inside Tasty style objects. A second time in an animation
+shorthand is a delay and is left alone. Explicit zero and token-based timing are
+accepted. Configured duration tokens are offered as suggestions where their
+names fit the property; the rule never suggests removing a duration because
+these CSS properties have no Tasty timing fallback.
+
+Spacing and other numeric style values are outside this rule. Tasty's custom
+units (`x`, `bw`, etc.) and the existing `consistent-token-usage` guidance
+handle lengths separately.
+
+```js
+// Opt in alongside the recommended preset.
+rules: { 'tasty/no-raw-motion-duration': 'warn' }
 ```
 
 ---
@@ -1443,7 +1472,8 @@ Use the TypeScript type checker to resolve types. Any object expression whose ty
 | `valid-recipe` | Low | P1 |
 | `valid-transition` | Low | P2 |
 | `no-raw-color-values` | Medium | P3 |
-| `no-raw-transition-duration` | Low | P3 |
+| `no-raw-transition-duration` | Medium | P3 |
+| `no-raw-motion-duration` | Medium | P3 (opt-in) |
 | `valid-boolean-property` | Low | P1 |
 | `valid-directional-modifier` | Medium | P1 |
 | `valid-radius-shape` | Low | P1 |
