@@ -28,6 +28,7 @@ const ruleMap: Record<string, TSESLint.RuleModule<string, unknown[]>> = {
   'no-unknown-state-alias': rules.noUnknownStateAlias,
   'no-raw-color-values': rules.noRawColorValues,
   'no-raw-transition-duration': rules.noRawTransitionDuration,
+  'no-raw-motion-duration': rules.noRawMotionDuration,
   'no-styles-prop': rules.noStylesProp,
   'consistent-token-usage': rules.consistentTokenUsage,
   'no-runtime-styles-mutation': rules.noRuntimeStylesMutation,
