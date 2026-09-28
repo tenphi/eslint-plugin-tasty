@@ -34,6 +34,13 @@ describe('plugin surface', () => {
     expect(plugin.rules['no-raw-motion-duration']).toBeDefined();
   });
 
+  it('recommends static style values and separately warns about spreads', () => {
+    expect(recommended['tasty/no-runtime-styles-mutation']).toBe('warn');
+    expect(recommended['tasty/no-style-spread']).toBe('warn');
+    expect(plugin.rules['no-runtime-styles-mutation']).toBeDefined();
+    expect(plugin.rules['no-style-spread']).toBeDefined();
+  });
+
   it('gives every rule a matching meta.docs.url', () => {
     for (const [id, rule] of Object.entries(plugin.rules)) {
       expect(rule.meta.docs?.url, id).toContain(id);

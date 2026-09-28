@@ -193,6 +193,8 @@ for typing shared signatures.
 | `tasty/prefer-shorthand-property` | warn | Use Tasty shorthand instead of native CSS properties (`backgroundColor` → `fill`, `paddingBlock` → `blockPadding`, etc.). In an extension layer the rewrite is report-only and points at a token in the base component, and over a base you cannot edit it is skipped (see `ownedSources`) |
 | `tasty/no-raw-color-values` | warn | Raw hex/rgb/`okhsl`/`okhst`/`oklch`/named colors instead of `#color` tokens |
 | `tasty/no-raw-transition-duration` | warn | Hardcoded `transition` duration (`fill 0.2s`) in Tasty styles or a local `tasty()` component's `transition` prop. Suggests a configured duration token or the implicit per-name timing; zero and delays are left alone |
+| `tasty/no-runtime-styles-mutation` | warn | JavaScript variables, calls, conditionals, computed keys, or interpolated templates in Tasty style values; use states and tokens instead |
+| `tasty/no-style-spread` | warn | Object or array spreads inside runtime Tasty styles; suppress an intentional spread on its line with an ESLint comment and a reason |
 | `tasty/consistent-token-usage` | warn | Raw px values when custom units or tokens exist |
 | `tasty/prefer-auto-calc` | warn | `calc(...)` instead of Tasty auto-calc `(...)` |
 | `tasty/prefer-custom-property-syntax` | warn | `var(--prop)` / `$x-color` / `transparent` / `currentColor` instead of `$prop` / `#color` / `#clear` / `#current` |
@@ -208,7 +210,33 @@ for typing shared signatures.
 | `tasty/valid-state-definition` | warn | Invalid state definition values in `configure()` or `tasty.config` |
 | `tasty/no-unknown-state-alias` | warn | Unknown `@name` state aliases |
 | `tasty/no-styles-prop` | warn | Direct `styles` prop usage |
-| `tasty/no-runtime-styles-mutation` | warn | Dynamic values in style objects |
+
+### Static values and intentional spreads
+
+The recommended rules flag JavaScript-computed style values, including
+identifiers, conditionals, function calls, computed keys, and template
+interpolation. Use a Tasty state map with `mods` for discrete states, or a token
+for a value that changes per instance. Literal CSS strings, token references,
+and state maps are accepted.
+
+Spreads in runtime style objects get a separate warning because they hide which
+properties are defined and can make overrides hard to review. If a spread is
+necessary, suppress just that line and explain why:
+
+```js
+const Card = tasty({
+  styles: {
+    // eslint-disable-next-line tasty/no-style-spread -- generated defaults are shared by all cards
+    ...sharedStyles,
+    fill: { '': '#surface', active: '#primary' },
+  },
+});
+```
+
+`tastyStatic()` still rejects spreads and dynamic expressions as errors because
+its build-time extractor cannot evaluate them. An ESLint suppression does not
+make a spread valid there. To make warnings fail CI until addressed or explicitly
+suppressed, run ESLint with `--max-warnings=0`.
 
 ### Optional motion duration rule
 

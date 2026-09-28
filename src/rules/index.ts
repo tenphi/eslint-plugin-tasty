@@ -26,6 +26,7 @@ export { default as noRawMotionDuration } from './no-raw-motion-duration.js';
 export { default as noStylesProp } from './no-styles-prop.js';
 export { default as consistentTokenUsage } from './consistent-token-usage.js';
 export { default as noRuntimeStylesMutation } from './no-runtime-styles-mutation.js';
+export { default as noStyleSpread } from './no-style-spread.js';
 export { default as validStateDefinition } from './valid-state-definition.js';
 export { default as noOwnAtRoot } from './no-own-at-root.js';
 export { default as validDefaultStateOrder } from './valid-default-state-order.js';

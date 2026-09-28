@@ -32,5 +32,19 @@ tester.run('static-no-dynamic-values', rule, {
       `,
       errors: [{ messageId: 'dynamicValue' }],
     },
+    {
+      code: `
+        import { tastyStatic } from '@tenphi/tasty/static';
+        tastyStatic({ ...baseStyles });
+      `,
+      errors: [{ messageId: 'dynamicValue' }],
+    },
+    {
+      code: [
+        "import { tastyStatic } from '@tenphi/tasty/static';",
+        'tastyStatic({ padding: `${size}x` });',
+      ].join('\n'),
+      errors: [{ messageId: 'dynamicValue' }],
+    },
   ],
 });

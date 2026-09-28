@@ -1293,18 +1293,24 @@ Requires knowing the resolved token values, which may come from the tasty config
 
 #### `tasty/no-runtime-styles-mutation`
 
-**Severity:** warning (default)
+**Severity:** warning (recommended)
 **Complexity:** High
-**Feasibility:** Medium — requires data-flow analysis to detect dynamic style objects
+**Feasibility:** High for inline style objects — inspect their AST values without resolving JavaScript bindings
 
-Warns when the `styles` object passed to `tasty()` or `tastyStatic()` contains runtime-computed values (variables, function calls, ternaries, etc.).
+Warns when runtime Tasty style objects contain JavaScript-computed values
+(variables, function calls, ternaries, computed keys, template interpolation,
+etc.). It reports the specific value inside a state map or sub-element. The
+build-time `tastyStatic()` rule handles its own dynamic-value errors. At-rule
+definition objects (`@keyframes`, `@font-face`, etc.) are excluded because they
+may be shared JavaScript data rather than individual style values.
 
 Tasty style values should be static and known at write time. Dynamic behavior should be achieved via modifiers (`mods` prop), tokens (`tokens` prop), or CSS custom properties.
 
 **Checks:**
 1. Detect non-literal values in style objects (template literals, variables, function calls).
 2. Detect conditional expressions in style values.
-3. Allow `@inherit`, `null`, `false`, `true` as known special values.
+3. Allow literal CSS strings, `null`, `false`, and `true`.
+4. Leave spreads to `tasty/no-style-spread` so they can be suppressed separately.
 
 **Examples:**
 ```js
@@ -1325,6 +1331,30 @@ tasty({
   },
 });
 ```
+
+---
+
+#### `tasty/no-style-spread`
+
+**Severity:** warning (recommended)
+
+Reports object and array spreads anywhere inside a runtime Tasty style object,
+including state maps and sub-elements. Spreads can hide properties and override
+behavior. An intentional spread should use a single-line suppression with a
+reason immediately above it:
+
+```js
+const Card = tasty({
+  styles: {
+    // eslint-disable-next-line tasty/no-style-spread -- generated defaults are shared
+    ...sharedStyles,
+  },
+});
+```
+
+`tastyStatic()` spreads remain errors under `static-no-dynamic-values` because
+the extractor rejects them. Warnings require `--max-warnings=0` if CI should
+reject unsuppressed cases.
 
 ---
 
@@ -1419,6 +1449,8 @@ The plugin should export preset configurations:
   'tasty/no-nested-selector': 'warn',
   'tasty/static-no-dynamic-values': 'error',
   'tasty/static-valid-selector': 'error',
+  'tasty/no-runtime-styles-mutation': 'warn',
+  'tasty/no-style-spread': 'warn',
 }
 
 // Strict — recommended + best practices
@@ -1435,7 +1467,6 @@ The plugin should export preset configurations:
   'tasty/no-raw-color-values': 'warn',
   'tasty/no-raw-transition-duration': 'warn',
   'tasty/consistent-token-usage': 'warn',
-  'tasty/no-runtime-styles-mutation': 'warn',
   'tasty/valid-state-definition': 'warn',
 }
 ```
