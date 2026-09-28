@@ -1,20 +1,23 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
-import { isStaticValue } from '../utils.js';
+import { SPECIAL_STYLE_KEYS } from '../constants.js';
+import { getKeyName, isStaticValue, unwrapExpression } from '../utils.js';
 
-type MessageIds = 'dynamicStyleValue';
+type MessageIds = 'dynamicStyleValue' | 'dynamicStyleKey';
 
 export default createRule<[], MessageIds>({
   name: 'no-runtime-styles-mutation',
   meta: {
     type: 'suggestion',
     docs: {
-      description: 'Warn when style objects contain runtime-computed values',
+      description: 'Warn when style objects contain JavaScript-computed values',
     },
     messages: {
       dynamicStyleValue:
-        "Style value for '{{property}}' should be static. Use the 'mods' prop, tokens, or CSS custom properties for dynamic behavior.",
+        "Style value for '{{property}}' should be static. Use states with mods, tokens, or styleProps for dynamic behavior.",
+      dynamicStyleKey:
+        "Style key for '{{property}}' should be static. Define states as literal keys instead of computing them in JavaScript.",
     },
     schema: [],
   },
@@ -22,60 +25,72 @@ export default createRule<[], MessageIds>({
   create(context) {
     const ctx = new TastyContext(context);
 
-    function checkProperties(
-      node: TSESTree.ObjectExpression,
-      parentProperty: string | null = null,
+    function checkValue(
+      node: TSESTree.Node,
+      property: string,
+      isStateMap = false,
     ): void {
-      for (const prop of node.properties) {
-        if (prop.type === 'SpreadElement') {
-          context.report({
-            node: prop,
-            messageId: 'dynamicStyleValue',
-            data: { property: parentProperty ?? '(spread)' },
-          });
-          continue;
-        }
+      const value = unwrapExpression(node);
 
-        if (prop.type !== 'Property') continue;
-
-        const key =
-          !prop.computed && prop.key.type === 'Identifier'
-            ? prop.key.name
-            : parentProperty;
-
-        // Skip sub-elements (they contain nested style objects)
-        if (
-          !prop.computed &&
-          prop.key.type === 'Identifier' &&
-          /^[A-Z]/.test(prop.key.name)
-        ) {
-          if (prop.value.type === 'ObjectExpression') {
-            checkProperties(prop.value, key);
+      if (value.type === 'ObjectExpression') {
+        checkProperties(value, property, isStateMap);
+      } else if (value.type === 'ArrayExpression') {
+        for (const element of value.elements) {
+          // A separate rule reports spreads, including array spreads.
+          if (element && element.type !== 'SpreadElement') {
+            checkValue(element, property);
           }
-          continue;
         }
-
-        // Skip at-rule blocks (@keyframes, @property, ...)
-        if (
-          !prop.computed &&
-          prop.key.type === 'Identifier' &&
-          prop.key.name.startsWith('@')
-        ) {
-          continue;
-        }
-
-        if (!isStaticValue(prop.value)) {
-          context.report({
-            node: prop.value,
-            messageId: 'dynamicStyleValue',
-            data: { property: key ?? '(unknown)' },
-          });
-        }
+      } else if (!isStaticValue(value)) {
+        context.report({
+          node: value,
+          messageId: 'dynamicStyleValue',
+          data: { property },
+        });
       }
     }
 
-    function handleStyleObject(node: TSESTree.ObjectExpression) {
-      if (!ctx.isStyleObject(node)) return;
+    function checkProperties(
+      node: TSESTree.ObjectExpression,
+      parentProperty = '(style)',
+      isStateMap = false,
+    ): void {
+      for (const prop of node.properties) {
+        // Spreads have their own warning and explicit per-line suppression.
+        if (prop.type === 'SpreadElement') continue;
+
+        // At-rule definitions have their own shape and may legitimately be
+        // assembled as JavaScript objects (for example, shared keyframes).
+        const key = !prop.computed ? getKeyName(prop.key) : null;
+        if (key && SPECIAL_STYLE_KEYS.has(key)) continue;
+
+        const property =
+          isStateMap || prop.computed
+            ? parentProperty
+            : (key ?? parentProperty);
+
+        if (prop.computed) {
+          context.report({
+            node: prop.key,
+            messageId: 'dynamicStyleKey',
+            data: { property },
+          });
+        }
+
+        const value = unwrapExpression(prop.value);
+        const childIsStateMap =
+          value.type === 'ObjectExpression' && ctx.isStateMap(value, prop);
+        checkValue(prop.value, property, childIsStateMap);
+      }
+    }
+
+    function handleStyleObject(node: TSESTree.ObjectExpression): void {
+      const styleCtx = ctx.getStyleContext(node);
+      // tastyStatic has a stricter build-time error for dynamic values.
+      if (!styleCtx || styleCtx.isStaticCall) return;
+      // Walk the full tree once; sub-element objects also match AST selectors.
+      if (ctx.getRootStyleObject(node) !== node) return;
+
       checkProperties(node);
     }
 

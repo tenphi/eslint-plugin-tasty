@@ -32,6 +32,7 @@ const ruleMap: Record<string, TSESLint.RuleModule<string, unknown[]>> = {
   'no-styles-prop': rules.noStylesProp,
   'consistent-token-usage': rules.consistentTokenUsage,
   'no-runtime-styles-mutation': rules.noRuntimeStylesMutation,
+  'no-style-spread': rules.noStyleSpread,
   'valid-state-definition': rules.validStateDefinition,
   'no-own-at-root': rules.noOwnAtRoot,
   'valid-default-state-order': rules.validDefaultStateOrder,
