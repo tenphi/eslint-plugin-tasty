@@ -197,6 +197,7 @@ for typing shared signatures.
 | `tasty/no-style-spread` | warn | Object or array spreads inside runtime Tasty styles; suppress an intentional spread on its line with an ESLint comment and a reason |
 | `tasty/consistent-token-usage` | warn | Raw px values when custom units or tokens exist |
 | `tasty/prefer-auto-calc` | warn | `calc(...)` instead of Tasty auto-calc `(...)` |
+| `tasty/prefer-state-negation` | warn | Top-level `:not(...)` in state keys instead of the `!` prefix (autofixable; nested CSS selectors stay intact) |
 | `tasty/prefer-custom-property-syntax` | warn | `var(--prop)` / `$x-color` / `transparent` / `currentColor` instead of `$prop` / `#color` / `#clear` / `#current` |
 | `tasty/prefer-hide` | warn | `display: 'none'` instead of `hide: true` |
 | `tasty/prefer-directional-shorthand` | warn | 4-value `margin`/`padding`/`inset`/`radius`/`fade`/`border` with placeholder positions instead of directional form |

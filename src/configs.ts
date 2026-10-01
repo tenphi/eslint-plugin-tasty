@@ -29,6 +29,7 @@ export const recommended: TSESLint.SharedConfig.RulesRecord = {
   'tasty/no-style-spread': 'warn',
   'tasty/consistent-token-usage': 'warn',
   'tasty/prefer-auto-calc': 'warn',
+  'tasty/prefer-state-negation': 'warn',
   'tasty/prefer-custom-property-syntax': 'warn',
   'tasty/prefer-hide': 'warn',
   'tasty/prefer-directional-shorthand': 'warn',
