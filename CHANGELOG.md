@@ -1,5 +1,15 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.3.0
+
+### Minor Changes
+
+- [#55](https://github.com/tenphi/eslint-plugin-tasty/pull/55) [`9ed0efd`](https://github.com/tenphi/eslint-plugin-tasty/commit/9ed0efdb7d5fec71b6f41254062a10d4ae35b2ef) Thanks [@tenphi](https://github.com/tenphi)! - Warn by default when runtime Tasty styles use JavaScript-computed values or
+  spreads. Keep spread warnings separately suppressible and preserve build-time
+  errors for `tastyStatic()`.
+
+- [#57](https://github.com/tenphi/eslint-plugin-tasty/pull/57) [`96105cc`](https://github.com/tenphi/eslint-plugin-tasty/commit/96105ccaa41e22980dacaec3fc536dde58139bc5) Thanks [@tenphi](https://github.com/tenphi)! - Add `prefer-state-negation`, enabled as a warning in the recommended and strict presets. Autofix top-level `:not(...)` state keys to the `!` prefix while preserving nested selectors and wrapping selector lists or compounds in `!:is(...)`.
+
 ## 1.2.0
 
 ### Minor Changes
