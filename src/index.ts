@@ -37,6 +37,7 @@ const ruleMap: Record<string, TSESLint.RuleModule<string, unknown[]>> = {
   'no-own-at-root': rules.noOwnAtRoot,
   'valid-default-state-order': rules.validDefaultStateOrder,
   'prefer-auto-calc': rules.preferAutoCalc,
+  'prefer-state-negation': rules.preferStateNegation,
   'prefer-custom-property-syntax': rules.preferCustomPropertySyntax,
   'prefer-hide': rules.preferHide,
   'prefer-directional-shorthand': rules.preferDirectionalShorthand,

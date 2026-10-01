@@ -1,4 +1,5 @@
 import { KNOWN_PSEUDO_CLASSES } from '../constants.js';
+import type { StringEdit } from '../fix-utils.js';
 
 // ============================================================================
 // Types
@@ -654,6 +655,45 @@ function findTopLevelComma(str: string): number {
 // ============================================================================
 // Public API
 // ============================================================================
+
+/**
+ * Rewrite :not() state atoms, leaving raw CSS inside other functions alone.
+ * A selector list/compound must stay inside :is(): negating individual parts
+ * would change which elements match. Only a single pseudo can be unwrapped.
+ */
+export function getStateNegationEdits(stateKey: string): StringEdit[] {
+  if (!stateKey.includes(':not(')) return [];
+  if (parseStateKey(stateKey).errors.length > 0) return [];
+
+  const { tokens } = tokenize(stateKey);
+  return tokens
+    .filter(
+      (token) => token.type === 'STATE' && token.value.startsWith(':not('),
+    )
+    .flatMap((token) => {
+      const inner = token.value.slice(5, -1).trim();
+      if (!inner) return [];
+
+      const { tokens: innerTokens, errors } = tokenize(inner);
+      const singlePseudo =
+        errors.length === 0 &&
+        innerTokens.length === 1 &&
+        innerTokens[0].type === 'STATE' &&
+        innerTokens[0].value === inner &&
+        inner.startsWith(':') &&
+        parseStateKey(inner).errors.length === 0 &&
+        !inner.startsWith(':not(') &&
+        !inner.startsWith(':where(');
+
+      return [
+        {
+          start: token.offset,
+          end: token.offset + token.length,
+          replacement: singlePseudo ? `!${inner}` : `!:is(${inner})`,
+        },
+      ];
+    });
+}
 
 /**
  * Validate a state key string and return detailed errors.
