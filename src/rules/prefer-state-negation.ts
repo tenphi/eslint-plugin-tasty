@@ -45,7 +45,16 @@ export default createRule<[], 'preferStateNegation'>({
         )
           continue;
 
-        for (const stateProp of prop.value.properties) {
+        const stateMap = prop.value;
+        // Unknown keys can collide with the replacement. Overwriting one can
+        // also move a state's authored priority to an earlier object slot.
+        const hasUnknownKeys = stateMap.properties.some(
+          (stateProp) =>
+            stateProp.type !== 'Property' ||
+            (stateProp.computed && getStringValue(stateProp.key) === null),
+        );
+
+        for (const stateProp of stateMap.properties) {
           if (stateProp.type !== 'Property') continue;
           const stateKey = !stateProp.computed
             ? getKeyName(stateProp.key)
@@ -60,22 +69,21 @@ export default createRule<[], 'preferStateNegation'>({
             node: stateProp.key,
             messageId: 'preferStateNegation',
             fix(fixer) {
+              if (hasUnknownKeys) return null;
               const replacement = applyEdits(stateKey, edits);
               // Never overwrite another entry when two spellings coexist.
-              const collision =
-                prop.value.type === 'ObjectExpression' &&
-                prop.value.properties.some((other) => {
-                  if (other === stateProp || other.type !== 'Property')
-                    return false;
-                  const otherKey = other.computed
-                    ? getStringValue(other.key)
-                    : getKeyName(other.key);
-                  return (
-                    otherKey !== null &&
-                    applyEdits(otherKey, getStateNegationEdits(otherKey)) ===
-                      replacement
-                  );
-                });
+              const collision = stateMap.properties.some((other) => {
+                if (other === stateProp || other.type !== 'Property')
+                  return false;
+                const otherKey = other.computed
+                  ? getStringValue(other.key)
+                  : getKeyName(other.key);
+                return (
+                  otherKey !== null &&
+                  applyEdits(otherKey, getStateNegationEdits(otherKey)) ===
+                    replacement
+                );
+              });
               if (collision) return null;
               return replaceInStringValue(
                 fixer,

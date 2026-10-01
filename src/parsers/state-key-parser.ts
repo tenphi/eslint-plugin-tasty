@@ -1,5 +1,6 @@
 import { KNOWN_PSEUDO_CLASSES } from '../constants.js';
 import type { StringEdit } from '../fix-utils.js';
+import { checkBracketBalance } from './utils.js';
 
 // ============================================================================
 // Types
@@ -663,6 +664,7 @@ function findTopLevelComma(str: string): number {
  */
 export function getStateNegationEdits(stateKey: string): StringEdit[] {
   if (!stateKey.includes(':not(')) return [];
+  if (checkBracketBalance(stateKey)) return [];
   if (parseStateKey(stateKey).errors.length > 0) return [];
 
   const { tokens } = tokenize(stateKey);
@@ -671,6 +673,7 @@ export function getStateNegationEdits(stateKey: string): StringEdit[] {
       (token) => token.type === 'STATE' && token.value.startsWith(':not('),
     )
     .flatMap((token) => {
+      if (checkBracketBalance(token.value)) return [];
       const inner = token.value.slice(5, -1).trim();
       if (!inner) return [];
 
@@ -683,7 +686,12 @@ export function getStateNegationEdits(stateKey: string): StringEdit[] {
         inner.startsWith(':') &&
         parseStateKey(inner).errors.length === 0 &&
         !inner.startsWith(':not(') &&
-        !inner.startsWith(':where(');
+        // Keep forgiving selector-list wrappers, even for invalid branches.
+        !inner.startsWith(':is(') &&
+        !inner.startsWith(':where(') &&
+        // Promoting :has() to a state atom enables Tasty's trailing-combinator
+        // completion. Preserve the original raw CSS instead in that case.
+        !(inner.startsWith(':has(') && /[>+~]\s*\)$/.test(inner));
 
       return [
         {

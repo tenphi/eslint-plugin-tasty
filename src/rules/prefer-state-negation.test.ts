@@ -21,6 +21,7 @@ tester.run('prefer-state-negation', rule, {
       '@own(:not(:hover))',
       ':not()',
       ':not(:hover',
+      ':not(:hover))',
     ].map((key) => styles(`'${key}'`)),
     `const object = { fill: { ':not(:hover)': 'red' } };`,
     `import { tasty } from '@tenphi/tasty'; tasty({ styles: { content: ':not(:hover)' } });`,
@@ -46,7 +47,16 @@ tester.run('prefer-state-negation', rule, {
       [':not(Panel > Button)', '!:is(Panel > Button)'],
       [':not(:not(:hover))', '!:is(:not(:hover))'],
       [':not(:where(:hover))', '!:is(:where(:hover))'],
-      [':not(:is(Panel, Button))', '!:is(Panel, Button)'],
+      [':not(:is(Panel, Button))', '!:is(:is(Panel, Button))'],
+      [
+        ':not(:is(:hover, :unknown-pseudo))',
+        '!:is(:is(:hover, :unknown-pseudo))',
+      ],
+      [':not(:is(> Icon))', '!:is(:is(> Icon))'],
+      [':not(:is())', '!:is(:is())'],
+      [':not(:has(Icon >))', '!:is(:has(Icon >))'],
+      [':not(:has(~))', '!:is(:has(~))'],
+      [':not(:has(Icon + ))', '!:is(:has(Icon + ))'],
       [
         'hovered & (:not(:hover) | :not(:focus))',
         'hovered & (!:hover | !:focus)',
@@ -90,6 +100,21 @@ tester.run('prefer-state-negation', rule, {
         { messageId: 'preferStateNegation' },
         { messageId: 'preferStateNegation' },
       ],
+    },
+    {
+      code: styles("...baseStates, ':not(:hover)'"),
+      output: null,
+      errors: [{ messageId: 'preferStateNegation' }],
+    },
+    {
+      code: styles("[stateKey]: '#red', ':not(:hover)'"),
+      output: null,
+      errors: [{ messageId: 'preferStateNegation' }],
+    },
+    {
+      code: styles("['!:hover']: '#red', ':not(:hover)'"),
+      output: null,
+      errors: [{ messageId: 'preferStateNegation' }],
     },
     {
       code: `import { tastyStatic } from '@tenphi/tasty/static'; tastyStatic({ Icon: { fill: { '': '#white', ':not(:hover)': '#blue' } } });`,
