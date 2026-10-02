@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.5.1
+
+### Patch Changes
+
+- [#63](https://github.com/tenphi/eslint-plugin-tasty/pull/63) [`85b7ba3`](https://github.com/tenphi/eslint-plugin-tasty/commit/85b7ba3c2f43a97d966afb53eb608482d5c2239f) Thanks [@tenphi](https://github.com/tenphi)! - Improve `no-style-spread` to recommend `mergeStyles` when multiple spreads compose a style object, with one warning explaining the risk of losing sub-element properties and state-map entries.
+
 ## 1.5.0
 
 ### Minor Changes
