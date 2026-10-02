@@ -14,6 +14,7 @@ export const recommended: TSESLint.SharedConfig.RulesRecord = {
   'tasty/valid-directional-modifier': 'error',
   'tasty/valid-radius-shape': 'error',
   'tasty/no-nested-selector': 'error',
+  'tasty/no-state-in-selector': 'warn',
   'tasty/static-no-dynamic-values': 'error',
   'tasty/static-valid-selector': 'error',
   'tasty/valid-preset': 'error',
