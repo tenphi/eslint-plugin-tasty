@@ -178,7 +178,7 @@ for typing shared signatures.
 | `tasty/valid-styles-structure` | error | Invalid styles object structure, and the v2 at-rule key spellings (auto-fixable) |
 | `tasty/no-nested-state-map` | error | Nested state maps (not supported) |
 | `tasty/no-important` | error | `!important` usage (breaks tasty specificity) |
-| `tasty/valid-sub-element` | error | Sub-element values must be style objects |
+| `tasty/valid-sub-element` | error | Sub-element values must be style objects; `$` selectors must not target the root element ([details](docs/rules/valid-sub-element.md)) |
 | `tasty/valid-directional-modifier` | error | Directional modifiers on wrong properties, and more than one value in a group that names directions. Physical properties take `top`/`right`/`bottom`/`left`, logical ones `start`/`end`, and mixing the two is reported in either direction |
 | `tasty/valid-radius-shape` | error | Unknown radius shape keywords |
 | `tasty/valid-preset` | error | Unknown preset names |
@@ -214,6 +214,13 @@ for typing shared signatures.
 | `tasty/no-styles-prop` | warn | Direct `styles` prop usage |
 
 ### Structural selectors and state maps
+
+`tasty/valid-sub-element` reports selectors such as
+`Level1: { $: '&:is(h1)', preset: 'h1' }` as errors: `&:is(h1)` selects the
+component root. Use a root `preset` state map to style a root heading, or
+`$: 'h1'` to select descendant headings. Root pseudo-elements such as
+`&::before` remain supported. See the [sub-element rule guide](docs/rules/valid-sub-element.md)
+for both alternatives.
 
 Keep a sub-element's `$` selector focused on the element's identity and position.
 `tasty/no-state-in-selector` warns on conditions such as `img:not([width])`,
