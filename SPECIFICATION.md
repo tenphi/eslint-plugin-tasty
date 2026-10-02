@@ -1113,12 +1113,17 @@ tasty(Button, {
 **Complexity:** Low
 **Feasibility:** High — key name pattern matching
 
-Validates sub-element key format in style objects.
+Validates sub-element values and the scope of their `$` selector affixes.
 
 **Rules:**
 1. Sub-element keys must start with an uppercase letter: `Title`, `Content`, `Icon`.
 2. The value must be a style object (not a string or number).
 3. Nested sub-elements inside sub-elements are valid (e.g., `Title: { Icon: { ... } }`).
+4. A `$` affix such as `&:is(h1)` that selects the root element is an error.
+   Root conditions belong in property state maps; use `$: 'h1'` for descendant
+   headings. Root pseudo-elements such as `&::before` remain valid, including
+   their legacy spellings. The rule inspects selector-list branches separately
+   and provides no autofix because the intended target must be chosen.
 
 **Special non-sub-element keys that start with uppercase:**
 None — all uppercase-starting keys in a styles object are treated as sub-elements.
