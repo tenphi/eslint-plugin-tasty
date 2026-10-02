@@ -12,6 +12,7 @@ const ruleMap: Record<string, TSESLint.RuleModule<string, unknown[]>> = {
   'valid-styles-structure': rules.validStylesStructure,
   'no-nested-selector': rules.noNestedSelector,
   'no-state-in-selector': rules.noStateInSelector,
+  'prefer-element-selector': rules.preferElementSelector,
   'valid-custom-property': rules.validCustomProperty,
   'valid-preset': rules.validPreset,
   'valid-recipe': rules.validRecipe,

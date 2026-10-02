@@ -186,6 +186,7 @@ for typing shared signatures.
 | `tasty/valid-transition` | warn | Unknown transition property names |
 | `tasty/no-nested-selector` | warn | `&`-prefixed nested selectors (use sub-elements) |
 | `tasty/no-state-in-selector` | warn | Pseudo-class and attribute conditions in sub-element `$` selectors; put conditions in property state maps ([details](docs/rules/no-state-in-selector.md)) |
+| `tasty/prefer-element-selector` | warn | Prefer element names such as `Primary > Search` over exact `data-element` attributes in sub-element `$` selectors (safely autofixable; [details](docs/rules/prefer-element-selector.md)) |
 | `tasty/static-no-dynamic-values` | error | Dynamic values in `tastyStatic()` |
 | `tasty/static-valid-selector` | error | Invalid selector in `tastyStatic(selector, ...)` |
 | `tasty/require-default-state` | error | Missing default (`''`) or fallback floor (`_`) key in state mappings (skipped for extending calls) |
