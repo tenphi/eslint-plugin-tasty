@@ -180,6 +180,27 @@ for (const linter of linters) {
     );
     for (const [name, preset] of Object.entries({ recommended, strict })) {
       writeFileSync(join(dir, linter.configName), linter.config(preset));
+      const composition = `import { mergeStyles, type Styles } from '@tenphi/tasty';
+const finalStyles: Styles = { ...outerStyles, ...styles };
+const wrappedStyles = ({ ...outerStyles, ...styles } as Styles)!;
+const inlineStyles: CSSProperties = { ...outerStyles, ...styles };
+const mergedStyles: Styles = mergeStyles(outerStyles, styles);
+`;
+      writeFileSync(join(dir, 'composition.ts'), composition);
+      assert.deepEqual(
+        run('composition.ts'),
+        { status: 0, rules: ['no-style-spread', 'no-style-spread'] },
+        `${linter.name}: ${name} reports style composition once per object`,
+      );
+      assert.deepEqual(
+        run('composition.ts', [linter.fix]),
+        { status: 0, rules: ['no-style-spread', 'no-style-spread'] },
+        `${linter.name}: ${name} keeps composition guidance report-only`,
+      );
+      assert.equal(
+        readFileSync(join(dir, 'composition.ts'), 'utf8'),
+        composition,
+      );
       assert.deepEqual(
         run('presets-valid.ts'),
         { status: 0, rules: [] },

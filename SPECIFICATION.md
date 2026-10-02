@@ -1361,6 +1361,16 @@ tasty({
 
 **Severity:** warning (recommended)
 
+Two or more spreads at a root style object produce one `mergeStyles(...)`
+recommendation at the first spread. This includes typed/shared objects such as
+`const finalStyles: Styles = { ...outerStyles, ...styles };`, call-site styles,
+variants, JSX/Storybook styles and configured helpers. Shallow composition can
+discard sub-element properties and state-map entries. No autofix is provided
+because `mergeStyles` changes override behavior: state maps without a default
+extend inherited entries, while maps with `''` replace them. Single spreads and
+nested object/array spreads retain their ordinary warnings; state maps are not
+treated as complete `Styles` objects.
+
 Reports object and array spreads anywhere inside a runtime Tasty style object,
 including state maps and sub-elements. Spreads can hide properties and override
 behavior. An intentional spread should use a single-line suppression with a

@@ -196,7 +196,7 @@ for typing shared signatures.
 | `tasty/no-raw-color-values` | warn | Raw hex/rgb/`okhsl`/`okhst`/`oklch`/named colors instead of `#color` tokens |
 | `tasty/no-raw-transition-duration` | warn | Hardcoded `transition` duration (`fill 0.2s`) in Tasty styles or a local `tasty()` component's `transition` prop. Suggests a configured duration token or the implicit per-name timing; zero and delays are left alone |
 | `tasty/no-runtime-styles-mutation` | warn | JavaScript variables, calls, conditionals, computed keys, or interpolated templates in Tasty style values; use states and tokens instead |
-| `tasty/no-style-spread` | warn | Object or array spreads inside runtime Tasty styles; suppress an intentional spread on its line with an ESLint comment and a reason |
+| `tasty/no-style-spread` | warn | Object or array spreads inside runtime Tasty styles; recommends `mergeStyles` for multiple root spreads; intentional spreads need a per-line suppression and reason |
 | `tasty/consistent-token-usage` | warn | Raw px values when custom units or tokens exist |
 | `tasty/prefer-auto-calc` | warn | `calc(...)` instead of Tasty auto-calc `(...)` |
 | `tasty/prefer-state-negation` | warn | Top-level `:not(...)` in state keys instead of the `!` prefix (autofixable; nested CSS selectors stay intact) |
@@ -258,6 +258,27 @@ const Card = tasty({
   },
 });
 ```
+
+When a root style object contains two or more spreads, the rule reports one
+composition warning at the first spread and recommends `mergeStyles`:
+
+```ts
+import { mergeStyles, type Styles } from '@tenphi/tasty';
+
+// Warning: shallow composition can discard sub-element properties and states.
+const finalStyles: Styles = { ...outerStyles, ...styles };
+
+// Use Tasty's merge semantics, in the same override order.
+const mergedStyles: Styles = mergeStyles(outerStyles, styles);
+```
+
+For example, spreading `Label: { fill: '#accent' }` over
+`Label: { padding: '2x', fill: '#surface' }` loses `padding`; `mergeStyles`
+preserves it. State maps without a default key extend inherited entries, while
+maps with a `''` default deliberately replace them. This is a behavioral choice,
+so the rule provides no automatic rewrite. If shallow replacement is intentional,
+suppress the warning at the first spread with a reason. Single spreads and spreads
+inside state maps, sub-elements or arrays retain the ordinary spread warning.
 
 `tastyStatic()` still rejects spreads and dynamic expressions as errors because
 its build-time extractor cannot evaluate them. An ESLint suppression does not
