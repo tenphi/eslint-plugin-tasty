@@ -331,6 +331,24 @@ tasty({
 
 ---
 
+#### `tasty/prefer-element-selector`
+
+**Severity:** warning (recommended and strict)
+**Autofix:** Yes, when the generated selector is preserved
+
+Prefer Tasty element names in literal sub-element `$` selectors:
+`Search: { $: '[data-element="Primary"] > [data-element="Search"]' }`
+becomes `Search: { $: 'Primary > Search' }`.
+
+Only exact, unnamespaced equality selectors with supported uppercase names are
+eligible. Preserve attributes inside compounds and different trailing names
+that would otherwise inject the owning sub-element. Skip pseudo branches,
+comments, CSS escapes and unsupported syntax; JavaScript escapes prevent an
+automatic source edit. Global selector arguments and root `$` values are outside
+the rule's scope. See [the rule guide](docs/rules/prefer-element-selector.md).
+
+---
+
 #### `tasty/prefer-shorthand-property`
 
 **Severity:** warning (default)
@@ -1452,6 +1470,7 @@ The plugin should export preset configurations:
   'tasty/valid-directional-modifier': 'error',
   'tasty/valid-radius-shape': 'error',
   'tasty/no-nested-selector': 'warn',
+  'tasty/prefer-element-selector': 'warn',
   'tasty/static-no-dynamic-values': 'error',
   'tasty/static-valid-selector': 'error',
   'tasty/no-runtime-styles-mutation': 'warn',
