@@ -1,5 +1,15 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.5.0
+
+### Minor Changes
+
+- [#62](https://github.com/tenphi/eslint-plugin-tasty/pull/62) [`aacb8e7`](https://github.com/tenphi/eslint-plugin-tasty/commit/aacb8e730f302974973216ccd71b05b8e1fe320c) Thanks [@tenphi](https://github.com/tenphi)! - Add the recommended `prefer-element-selector` warning with safe autofixes from explicit `data-element` attributes to Tasty element names in sub-element selectors.
+
+### Patch Changes
+
+- [#60](https://github.com/tenphi/eslint-plugin-tasty/pull/60) [`7bfd8d1`](https://github.com/tenphi/eslint-plugin-tasty/commit/7bfd8d10ce78188f1ac272bb09e44757f098b7b0) Thanks [@tenphi](https://github.com/tenphi)! - Report sub-element `$` selectors such as `&:is(h1)` that style the containing element as `valid-sub-element` errors. Root pseudo-elements remain valid; use property state maps in the containing scope or descendant selectors for heading presets.
+
 ## 1.4.0
 
 ### Minor Changes
