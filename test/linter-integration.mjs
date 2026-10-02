@@ -190,6 +190,56 @@ for (const linter of linters) {
         { status: 0, rules: ['known-property'] },
         `${linter.name}: ${name} still validates wrapped sub-elements`,
       );
+      const selectors =
+        imports +
+        `
+component('Content', { styles: {
+  ResponsiveWidth: {
+    $: 'img:not([width]), :where(picture), video:not([width]), canvas:not([width]), svg:not([width]), iframe:not([width])',
+    inlineSize: 'max 100%',
+  },
+  ResponsiveHeight: {
+    $: 'img:not([height]), :where(picture), video:not([height]), canvas:not([height]), svg:not([height])',
+    blockSize: 'auto',
+  },
+} });
+`;
+      writeFileSync(join(dir, 'selector-states.ts'), selectors);
+      assert.deepEqual(
+        run('selector-states.ts'),
+        { status: 0, rules: ['no-state-in-selector', 'no-state-in-selector'] },
+        `${linter.name}: ${name} reports stateful selectors as warnings`,
+      );
+      assert.deepEqual(
+        run('selector-states.ts', [linter.fix]),
+        { status: 0, rules: ['no-state-in-selector', 'no-state-in-selector'] },
+        `${linter.name}: ${name} keeps stateful selectors report-only`,
+      );
+      assert.equal(
+        readFileSync(join(dir, 'selector-states.ts'), 'utf8'),
+        selectors,
+      );
+      assert.equal(
+        run('selector-states.ts', ['--max-warnings', '0']).status,
+        1,
+        `${linter.name}: ${name} can fail CI on selector warnings`,
+      );
+      writeFileSync(
+        join(dir, 'structural-selectors.ts'),
+        imports +
+          `
+component('Content', { styles: {
+  Media: { $: ':is(img, :where(picture))', inlineSize: 'max 100%' },
+  Link: { $: 'a', color: { '': '#white', '@own(:hover)': '#black' } },
+  Before: { $: '&::before', content: '""' },
+} });
+`,
+      );
+      assert.deepEqual(
+        run('structural-selectors.ts'),
+        { status: 0, rules: [] },
+        `${linter.name}: ${name} accepts structural groups, pseudo-elements, and own states`,
+      );
     }
     console.log(
       `${linter.name}: custom calls, import boundaries, diagnostics, fixes, and full presets passed`,

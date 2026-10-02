@@ -185,6 +185,7 @@ for typing shared signatures.
 | `tasty/valid-recipe` | error | Unknown recipe names |
 | `tasty/valid-transition` | warn | Unknown transition property names |
 | `tasty/no-nested-selector` | warn | `&`-prefixed nested selectors (use sub-elements) |
+| `tasty/no-state-in-selector` | warn | Pseudo-class and attribute conditions in sub-element `$` selectors; put conditions in property state maps ([details](docs/rules/no-state-in-selector.md)) |
 | `tasty/static-no-dynamic-values` | error | Dynamic values in `tastyStatic()` |
 | `tasty/static-valid-selector` | error | Invalid selector in `tastyStatic(selector, ...)` |
 | `tasty/require-default-state` | error | Missing default (`''`) or fallback floor (`_`) key in state mappings (skipped for extending calls) |
@@ -211,6 +212,22 @@ for typing shared signatures.
 | `tasty/valid-state-definition` | warn | Invalid state definition values in `configure()` or `tasty.config` |
 | `tasty/no-unknown-state-alias` | warn | Unknown `@name` state aliases |
 | `tasty/no-styles-prop` | warn | Direct `styles` prop usage |
+
+### Structural selectors and state maps
+
+Keep a sub-element's `$` selector focused on the element's identity and position.
+`tasty/no-state-in-selector` warns on conditions such as `img:not([width])`,
+`button[disabled]`, and `>@:hover`. Express those conditions in property state
+maps, using `@own(...)` for the sub-element's own state. Root states stay outside
+`@own(...)`.
+
+Tags, combinators, classes, IDs, exact `[data-element="Name"]` identities, and
+pseudo-elements remain valid structural selectors. `:is()` and `:where()` may
+group structural selectors, but conditions inside them still produce a warning:
+`:where(picture)` is accepted, while `:where(img:not([width]))` is reported.
+The rule does not autofix because moving a condition can change its scope and
+the behavior of other properties. See the [rule guide](docs/rules/no-state-in-selector.md)
+for examples and migration advice.
 
 ### Static values and intentional spreads
 

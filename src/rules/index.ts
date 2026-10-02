@@ -5,6 +5,7 @@ export { default as validCustomUnit } from './valid-custom-unit.js';
 export { default as validStateKey } from './valid-state-key.js';
 export { default as validStylesStructure } from './valid-styles-structure.js';
 export { default as noNestedSelector } from './no-nested-selector.js';
+export { default as noStateInSelector } from './no-state-in-selector.js';
 export { default as validCustomProperty } from './valid-custom-property.js';
 export { default as validPreset } from './valid-preset.js';
 export { default as validRecipe } from './valid-recipe.js';
