@@ -1,5 +1,15 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.4.0
+
+### Minor Changes
+
+- [#58](https://github.com/tenphi/eslint-plugin-tasty/pull/58) [`5dd5999`](https://github.com/tenphi/eslint-plugin-tasty/commit/5dd59990b1cab021d8ab26c13a586b426993877b) Thanks [@tenphi](https://github.com/tenphi)! - Add the `no-state-in-selector` warning to recommended and strict presets. It
+  reports pseudo-class and attribute conditions in sub-element `$` selectors so
+  authors can move those conditions into property state maps. Structural grouping,
+  pseudo-elements, and exact `data-element` identities remain supported. The rule
+  is report-only to avoid changing selector scope or defaults automatically.
+
 ## 1.3.0
 
 ### Minor Changes
