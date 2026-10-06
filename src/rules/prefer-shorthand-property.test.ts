@@ -14,6 +14,8 @@ const tester = new RuleTester({
 const OWNED_SOURCES_FIXTURE = 'test/fixtures/owned-sources/component.tsx';
 const FONT_OVERRIDE_HINT =
   " Replacing 'font' can reset its other values. For independent overrides, expose the part you need to change as a token with a default in the original 'font', keep its other values, and set it via the 'tokens' prop.";
+const PRESET_OVERRIDE_HINT =
+  " Replacing 'preset' can reset its other values. For independent typography overrides, use the CSS value tokens referenced by a named preset in the original styles, keep its other values, and set it via the 'tokens' prop. Keep preset names and modifiers static.";
 const PADDING_OVERRIDE_HINT =
   " For independent overrides, expose the part you need to change as a token with a default in the base component's 'padding', keep its other values, and set it via the 'tokens' prop.";
 
@@ -115,7 +117,7 @@ tester.run('prefer-shorthand-property', rule, {
           data: {
             native: 'fontFamily',
             alternative: "preset: 'inherit'",
-            overrideHint: FONT_OVERRIDE_HINT,
+            overrideHint: PRESET_OVERRIDE_HINT,
           },
         },
       ],
@@ -131,7 +133,7 @@ tester.run('prefer-shorthand-property', rule, {
           data: {
             native: 'fontFamily',
             alternative: "preset: 'unset'",
-            overrideHint: FONT_OVERRIDE_HINT,
+            overrideHint: PRESET_OVERRIDE_HINT,
           },
         },
       ],
@@ -254,7 +256,7 @@ tester.run('prefer-shorthand-property', rule, {
             alternative: "radius: '...'",
             property: 'radius',
             overrideHint:
-              " For independent overrides, expose the part you need to change as a token with a default in the base component's 'radius', keep its other values, and set it via the 'tokens' prop.",
+              " For independent overrides, expose the part you need to change as a token with a default in the base component's 'radius', keep its other values, and set it via the 'tokens' prop. Declare the default on the component root so this sub-element inherits the token.",
           },
         },
       ],
@@ -272,7 +274,7 @@ tester.run('prefer-shorthand-property', rule, {
             alternative: "margin: '... left'",
             property: 'margin',
             overrideHint:
-              " For independent overrides, expose the part you need to change as a token with a default in the base component's 'margin', keep its other values, and set it via the 'tokens' prop.",
+              " For independent overrides, expose the part you need to change as a token with a default in the base style definition's 'margin', keep its other values, and set its CSS custom property on the target element.",
           },
         },
       ],

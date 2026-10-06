@@ -1,6 +1,7 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
+import type { StyleContext } from '../context.js';
 import { getKeyName, getStringValue } from '../utils.js';
 import { SHORTHAND_MAPPING } from '../constants.js';
 
@@ -24,37 +25,64 @@ const CSS_WIDE_KEYWORDS = new Set([
  * whole typography group, so `preset: 'inherit'` yields a real
  * `font-family: inherit`. Point at that instead of `font`.
  */
-function shorthandHint(key: string, prop: TSESTree.Property): string | null {
+function shorthandMapping(key: string, prop: TSESTree.Property) {
   const mapping = SHORTHAND_MAPPING[key];
   if (!mapping) return null;
-  if (key !== 'fontFamily') return mapping.hint;
+  if (key !== 'fontFamily') return mapping;
 
   const value = getStringValue(prop.value)?.trim().toLowerCase();
   return value && CSS_WIDE_KEYWORDS.has(value)
-    ? `preset: '${value}'`
-    : mapping.hint;
+    ? { ...mapping, property: 'preset', hint: `preset: '${value}'` }
+    : mapping;
 }
 
 function tokenOverrideHint(
   key: string,
   property: string,
-  isExtending: boolean,
+  styleCtx: StyleContext,
+  isSubElement: boolean,
 ): string {
-  const original = isExtending ? `base component's` : 'original';
-  const warning = isExtending
+  const usesTokensProp = styleCtx.type === 'tasty';
+  const original = styleCtx.isExtending
+    ? usesTokensProp
+      ? `base component's`
+      : `base style definition's`
+    : 'original';
+  const warning = styleCtx.isExtending
     ? ''
     : ` Replacing '${property}' can reset its other values.`;
+  const defaultHint =
+    usesTokensProp && isSubElement
+      ? ' Declare the default on the component root so this sub-element inherits the token.'
+      : '';
   const dimension = /^(min|max)(Width|Height|BlockSize|InlineSize)$/.exec(key);
 
   if (dimension) {
     const token = `$${key.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`)}`;
     const values =
-      dimension[1] === 'min' ? `${token} auto 100%` : `0 auto ${token}`;
+      dimension[1] === 'min'
+        ? `${token} auto initial`
+        : `initial auto ${token}`;
+    const override = usesTokensProp
+      ? `set tokens={{ '${token}': '20x' }}`
+      : `set the '${token.replace('$', '--')}' CSS custom property on the target element to a CSS value (e.g. '160px')`;
 
-    return `${warning} To override only '${key}', expose a token with a default in the ${original} '${property}' (e.g. ${property}: '${values}'), keep its other values, and set tokens={{ '${token}': '20x' }}.`;
+    return `${warning} To override only '${key}', expose a token with a default in the ${original} '${property}' (e.g. ${property}: '${values}'), keep its other values, and ${override}.${defaultHint}`;
   }
 
-  return `${warning} For independent overrides, expose the part you need to change as a token with a default in the ${original} '${property}', keep its other values, and set it via the 'tokens' prop.`;
+  const override = usesTokensProp
+    ? `set it via the 'tokens' prop`
+    : 'set its CSS custom property on the target element';
+
+  if (property === 'preset') {
+    return `${warning} For independent typography overrides, use the CSS value tokens referenced by a named preset in the ${original} styles, keep its other values, and ${override}. Keep preset names and modifiers static.${defaultHint}`;
+  }
+
+  if (key === 'scrollbarWidth' || key === 'scrollbarGutter') {
+    return `${warning} For independent overrides, expose the value as a token with a default in the ${original} '${key}' longhand, keep its other values, and ${override}. '${property}' width and gutter modifiers are static.${defaultHint}`;
+  }
+
+  return `${warning} For independent overrides, expose the part you need to change as a token with a default in the ${original} '${property}', keep its other values, and ${override}.${defaultHint}`;
 }
 
 export default createRule<[], MessageIds>({
@@ -68,9 +96,9 @@ export default createRule<[], MessageIds>({
     },
     messages: {
       preferShorthand:
-        "Prefer tasty shorthand '{{alternative}}' instead of '{{native}}'.{{overrideHint}}",
+        "When defining the complete style, prefer tasty shorthand '{{alternative}}' instead of '{{native}}'.{{overrideHint}}",
       preferShorthandExtending:
-        "'{{native}}' patches the base component's '{{property}}' from an extension layer. '{{alternative}}' would replace the whole '{{property}}'.{{overrideHint}}",
+        "'{{native}}' changes one part of the base styles. '{{alternative}}' would replace the whole '{{property}}'.{{overrideHint}}",
     },
     schema: [],
   },
@@ -81,6 +109,7 @@ export default createRule<[], MessageIds>({
     function handleStyleObject(node: TSESTree.ObjectExpression) {
       const styleCtx = ctx.getStyleContext(node);
       if (!styleCtx) return;
+      const isSubElement = ctx.isInsideSubElement(node);
 
       for (const prop of node.properties) {
         if (prop.type !== 'Property' || prop.computed) continue;
@@ -88,9 +117,9 @@ export default createRule<[], MessageIds>({
         const key = getKeyName(prop.key);
         if (key === null) continue;
 
-        const mapping = SHORTHAND_MAPPING[key];
-        const hint = shorthandHint(key, prop);
-        if (mapping && hint) {
+        const mapping = shorthandMapping(key, prop);
+        if (mapping) {
+          const hint = mapping.hint;
           // An extension layer merges per key, so renaming the key replaces the
           // base component's whole `mapping.property` instead of patching the
           // one part written here — `paddingTop: '2x'` -> `padding: '2x top'`
@@ -114,7 +143,12 @@ export default createRule<[], MessageIds>({
                 native: key,
                 alternative: hint,
                 property: mapping.property,
-                overrideHint: tokenOverrideHint(key, mapping.property, true),
+                overrideHint: tokenOverrideHint(
+                  key,
+                  mapping.property,
+                  styleCtx,
+                  isSubElement,
+                ),
               },
             });
 
@@ -129,7 +163,12 @@ export default createRule<[], MessageIds>({
               alternative: hint,
               overrideHint: mapping.safeFix
                 ? ''
-                : tokenOverrideHint(key, mapping.property, false),
+                : tokenOverrideHint(
+                    key,
+                    mapping.property,
+                    styleCtx,
+                    isSubElement,
+                  ),
             },
             fix(fixer) {
               // Only auto-fix the carry-over subset where the value passes
