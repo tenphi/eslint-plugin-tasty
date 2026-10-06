@@ -192,7 +192,7 @@ for typing shared signatures.
 | `tasty/require-default-state` | error | Missing default (`''`) or fallback floor (`_`) key in state mappings (skipped for extending calls) |
 | `tasty/no-own-at-root` | warn | `@own()` used at root level where it is redundant |
 | `tasty/valid-default-state-order` | warn | Misplaced default (`''`) or redundant `''` when only `_` is present |
-| `tasty/prefer-shorthand-property` | warn | Use Tasty shorthand instead of native CSS properties (`backgroundColor` → `fill`, `paddingBlock` → `blockPadding`, etc.). In an extension layer the rewrite is report-only and points at a token in the base component, and over a base you cannot edit it is skipped (see `ownedSources`) |
+| `tasty/prefer-shorthand-property` | warn | Use Tasty shorthand instead of native CSS properties (`backgroundColor` → `fill`, `paddingBlock` → `blockPadding`, etc.). Report-only warnings explain how to override one part through a token, with concrete min/max dimension examples. Extension warnings point at the base component and are skipped over bases you cannot edit (see `ownedSources`; [details](docs/rules/prefer-shorthand-property.md)) |
 | `tasty/no-raw-color-values` | warn | Raw hex/rgb/`okhsl`/`okhst`/`oklch`/named colors instead of `#color` tokens |
 | `tasty/no-raw-transition-duration` | warn | Hardcoded `transition` duration (`fill 0.2s`) in Tasty styles or a local `tasty()` component's `transition` prop. Suggests a configured duration token or the implicit per-name timing; zero and delays are left alone |
 | `tasty/no-runtime-styles-mutation` | warn | JavaScript variables, calls, conditionals, computed keys, or interpolated templates in Tasty style values; use states and tokens instead |
