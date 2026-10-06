@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.5.2
+
+### Patch Changes
+
+- [#65](https://github.com/tenphi/eslint-plugin-tasty/pull/65) [`1073163`](https://github.com/tenphi/eslint-plugin-tasty/commit/107316338e804ab3d561aa4d2ff122b5c65ffb44) Thanks [@tenphi](https://github.com/tenphi)! - Explain independent token overrides in shorthand-property warnings, with concrete min/max dimension examples that preserve otherwise unconstrained dimensions. Tailor guidance to component, sub-element, hook, and static contexts, including the limits of static preset and scrollbar syntax. Keep behavior-changing rewrites report-only.
+
 ## 1.5.1
 
 ### Patch Changes
