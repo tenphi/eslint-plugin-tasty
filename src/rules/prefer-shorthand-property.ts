@@ -35,6 +35,28 @@ function shorthandHint(key: string, prop: TSESTree.Property): string | null {
     : mapping.hint;
 }
 
+function tokenOverrideHint(
+  key: string,
+  property: string,
+  isExtending: boolean,
+): string {
+  const original = isExtending ? `base component's` : 'original';
+  const warning = isExtending
+    ? ''
+    : ` Replacing '${property}' can reset its other values.`;
+  const dimension = /^(min|max)(Width|Height|BlockSize|InlineSize)$/.exec(key);
+
+  if (dimension) {
+    const token = `$${key.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`)}`;
+    const values =
+      dimension[1] === 'min' ? `${token} auto 100%` : `0 auto ${token}`;
+
+    return `${warning} To override only '${key}', expose a token with a default in the ${original} '${property}' (e.g. ${property}: '${values}'), keep its other values, and set tokens={{ '${token}': '20x' }}.`;
+  }
+
+  return `${warning} For independent overrides, expose the part you need to change as a token with a default in the ${original} '${property}', keep its other values, and set it via the 'tokens' prop.`;
+}
+
 export default createRule<[], MessageIds>({
   name: 'prefer-shorthand-property',
   meta: {
@@ -46,9 +68,9 @@ export default createRule<[], MessageIds>({
     },
     messages: {
       preferShorthand:
-        "Prefer tasty shorthand '{{alternative}}' instead of '{{native}}'.",
+        "Prefer tasty shorthand '{{alternative}}' instead of '{{native}}'.{{overrideHint}}",
       preferShorthandExtending:
-        "'{{native}}' patches the base component's '{{property}}' from an extension layer. Expose a token in the base's '{{property}}' — e.g. padding: '$v-padding $h-padding' — and set it from here; '{{alternative}}' would replace the whole '{{property}}'.",
+        "'{{native}}' patches the base component's '{{property}}' from an extension layer. '{{alternative}}' would replace the whole '{{property}}'.{{overrideHint}}",
     },
     schema: [],
   },
@@ -92,6 +114,7 @@ export default createRule<[], MessageIds>({
                 native: key,
                 alternative: hint,
                 property: mapping.property,
+                overrideHint: tokenOverrideHint(key, mapping.property, true),
               },
             });
 
@@ -101,7 +124,13 @@ export default createRule<[], MessageIds>({
           context.report({
             node: prop.key,
             messageId: 'preferShorthand',
-            data: { native: key, alternative: hint },
+            data: {
+              native: key,
+              alternative: hint,
+              overrideHint: mapping.safeFix
+                ? ''
+                : tokenOverrideHint(key, mapping.property, false),
+            },
             fix(fixer) {
               // Only auto-fix the carry-over subset where the value passes
               // through unchanged (e.g. backgroundColor → fill, borderRadius →

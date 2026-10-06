@@ -12,6 +12,10 @@ const tester = new RuleTester({
 // A path inside a directory carrying `ownedSources` in its tasty.config.json.
 // The file itself need not exist — only the config the loader walks up to does.
 const OWNED_SOURCES_FIXTURE = 'test/fixtures/owned-sources/component.tsx';
+const FONT_OVERRIDE_HINT =
+  " Replacing 'font' can reset its other values. For independent overrides, expose the part you need to change as a token with a default in the original 'font', keep its other values, and set it via the 'tokens' prop.";
+const PADDING_OVERRIDE_HINT =
+  " For independent overrides, expose the part you need to change as a token with a default in the base component's 'padding', keep its other values, and set it via the 'tokens' prop.";
 
 tester.run('prefer-shorthand-property', rule, {
   valid: [
@@ -108,7 +112,11 @@ tester.run('prefer-shorthand-property', rule, {
       errors: [
         {
           messageId: 'preferShorthand',
-          data: { native: 'fontFamily', alternative: "preset: 'inherit'" },
+          data: {
+            native: 'fontFamily',
+            alternative: "preset: 'inherit'",
+            overrideHint: FONT_OVERRIDE_HINT,
+          },
         },
       ],
     },
@@ -120,7 +128,11 @@ tester.run('prefer-shorthand-property', rule, {
       errors: [
         {
           messageId: 'preferShorthand',
-          data: { native: 'fontFamily', alternative: "preset: 'unset'" },
+          data: {
+            native: 'fontFamily',
+            alternative: "preset: 'unset'",
+            overrideHint: FONT_OVERRIDE_HINT,
+          },
         },
       ],
     },
@@ -133,7 +145,11 @@ tester.run('prefer-shorthand-property', rule, {
       errors: [
         {
           messageId: 'preferShorthand',
-          data: { native: 'fontFamily', alternative: "font: '...'" },
+          data: {
+            native: 'fontFamily',
+            alternative: "font: '...'",
+            overrideHint: FONT_OVERRIDE_HINT,
+          },
         },
       ],
     },
@@ -199,6 +215,7 @@ tester.run('prefer-shorthand-property', rule, {
             native: 'paddingTop',
             alternative: "padding: '... top'",
             property: 'padding',
+            overrideHint: PADDING_OVERRIDE_HINT,
           },
         },
       ],
@@ -217,6 +234,8 @@ tester.run('prefer-shorthand-property', rule, {
             native: 'backgroundColor',
             alternative: "fill: '...'",
             property: 'fill',
+            overrideHint:
+              " For independent overrides, expose the part you need to change as a token with a default in the base component's 'fill', keep its other values, and set it via the 'tokens' prop.",
           },
         },
       ],
@@ -234,6 +253,8 @@ tester.run('prefer-shorthand-property', rule, {
             native: 'borderRadius',
             alternative: "radius: '...'",
             property: 'radius',
+            overrideHint:
+              " For independent overrides, expose the part you need to change as a token with a default in the base component's 'radius', keep its other values, and set it via the 'tokens' prop.",
           },
         },
       ],
@@ -250,6 +271,8 @@ tester.run('prefer-shorthand-property', rule, {
             native: 'marginLeft',
             alternative: "margin: '... left'",
             property: 'margin',
+            overrideHint:
+              " For independent overrides, expose the part you need to change as a token with a default in the base component's 'margin', keep its other values, and set it via the 'tokens' prop.",
           },
         },
       ],
@@ -280,6 +303,7 @@ tester.run('prefer-shorthand-property', rule, {
             native: 'paddingTop',
             alternative: "padding: '... top'",
             property: 'padding',
+            overrideHint: PADDING_OVERRIDE_HINT,
           },
         },
       ],
@@ -300,6 +324,7 @@ tester.run('prefer-shorthand-property', rule, {
             native: 'paddingTop',
             alternative: "padding: '... top'",
             property: 'padding',
+            overrideHint: PADDING_OVERRIDE_HINT,
           },
         },
       ],
@@ -319,6 +344,7 @@ tester.run('prefer-shorthand-property', rule, {
             native: 'paddingTop',
             alternative: "padding: '... top'",
             property: 'padding',
+            overrideHint: PADDING_OVERRIDE_HINT,
           },
         },
       ],
@@ -351,6 +377,7 @@ tester.run('prefer-shorthand-property', rule, {
             native: 'paddingTop',
             alternative: "padding: '... top'",
             property: 'padding',
+            overrideHint: PADDING_OVERRIDE_HINT,
           },
         },
       ],
