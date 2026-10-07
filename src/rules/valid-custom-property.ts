@@ -66,16 +66,9 @@ export default createRule<[], MessageIds>({
       }
     }
 
-    return {
-      ...stringStyleValueListeners(
-        ctx,
-        (value, node) => {
-          checkValue(value, node);
-        },
-        { onStyleObject: collectLocalProperties },
-      ),
-
-      'Program:exit'() {
+    return stringStyleValueListeners(ctx, checkValue, {
+      onStyleObject: collectLocalProperties,
+      onProgramExit() {
         if (
           !Array.isArray(ctx.config.tokens) ||
           ctx.config.tokens.length === 0
@@ -94,6 +87,6 @@ export default createRule<[], MessageIds>({
           });
         }
       },
-    };
+    });
   },
 });

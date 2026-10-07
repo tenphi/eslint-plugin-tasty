@@ -8,6 +8,8 @@ interface ValueListenerOptions {
   onStyleObject?: (node: TSESTree.ObjectExpression) => void;
   /** Rewrites that depend on Tasty semantics need evidence beyond the prop name. */
   requireTastyJSX?: boolean;
+  /** Deferred checks run after all declarations have been collected. */
+  onProgramExit?: () => void;
 }
 
 /** Visit visible values without evaluating bindings, calls, or interpolations. */
@@ -16,19 +18,24 @@ export function styleValueListeners(
   check: (property: string, node: TSESTree.Node) => void,
   options: ValueListenerOptions = {},
 ) {
-  function visit(property: string, node: TSESTree.Node): void {
+  function visit(
+    property: string,
+    node: TSESTree.Node,
+    attribute?: TSESTree.JSXAttribute,
+  ): void {
     node = unwrapExpression(node);
     if (node.type === 'ObjectExpression') {
       // A property value object is a state map, never a sub-element here.
       for (const prop of node.properties) {
         if (prop.type === 'Property' && !prop.computed) {
           const value = unwrapExpression(prop.value);
-          if (value.type !== 'ObjectExpression') visit(property, value);
+          if (value.type !== 'ObjectExpression')
+            visit(property, value, attribute);
         }
       }
     } else if (node.type === 'ConditionalExpression') {
-      visit(property, node.consequent);
-      visit(property, node.alternate);
+      visit(property, node.consequent, attribute);
+      visit(property, node.alternate, attribute);
     } else if (node.type === 'LogicalExpression') {
       const left = unwrapExpression(node.left);
       const str = getStringValue(left);
@@ -36,7 +43,7 @@ export function styleValueListeners(
       const value = left.type === 'Literal' ? left.value : str;
       if (node.operator === '&&') {
         // The left operand can only be the result when it is falsy.
-        if (!known || value) visit(property, node.right);
+        if (!known || value) visit(property, node.right, attribute);
       } else if (known) {
         visit(
           property,
@@ -47,17 +54,29 @@ export function styleValueListeners(
             : value
               ? left
               : node.right,
+          attribute,
         );
       } else {
-        visit(property, node.left);
-        visit(property, node.right);
+        visit(property, node.left, attribute);
+        visit(property, node.right, attribute);
       }
     } else {
+      const visible =
+        node.type === 'Literal' ||
+        node.type === 'JSXAttribute' ||
+        getStringValue(node) !== null ||
+        (node.type === 'UnaryExpression' && node.argument.type === 'Literal');
+      // Opaque values cannot produce a value diagnostic; avoid a compiler pass.
+      if (attribute && visible && ctx.isComponentJSXProp(attribute)) return;
       check(property, node);
     }
   }
 
   return {
+    'Program:exit'() {
+      ctx.finishJSXAnalysis();
+      options.onProgramExit?.();
+    },
     ImportDeclaration(node: TSESTree.ImportDeclaration) {
       ctx.trackImport(node);
     },
@@ -94,8 +113,8 @@ export function styleValueListeners(
         node.value?.type === 'JSXExpressionContainer'
           ? node.value.expression
           : node.value;
-      if (value) visit(key, value);
-      else check(key, node); // A bare JSX attribute means boolean true.
+      if (value) visit(key, value, node);
+      else visit(key, node, node); // A bare JSX attribute means boolean true.
     },
   };
 }

@@ -388,8 +388,79 @@ Individual props are detected by name: a known Tasty or CSS property, or an entr
 in `config.styles`, on an uppercase component or member tag (`<UI.Box>`). This is
 a heuristic, so an unrelated component with a matching non-style prop can need a
 rule suppression. Native HTML/SVG attributes and React's singular `style` prop
-are excluded. Bindings, calls, spreads, and interpolated templates are not evaluated;
-these checks do not require or use TypeScript type services.
+are excluded. Bindings, calls, spreads, and interpolated templates are not evaluated.
+By default, these checks do not require TypeScript type services.
+
+### Experimental type-aware JSX props
+
+Opt into type analysis to distinguish semantic component props from style props.
+Install TypeScript 5.6–5.9 as a dev dependency, then add the same setting to either
+ESLint or Oxlint:
+
+```js
+settings: {
+  tasty: {
+    typeAwareJSX: true,
+    // Or: typeAwareJSX: { project: './tsconfig.json' },
+  },
+},
+```
+
+`true` finds the nearest `tsconfig.json` above the linted file. An explicit
+`project` path resolves relative to the linter's working directory. Use the
+project that includes your source files, rather than a solution config that
+only references other projects. The setting belongs in the **linter config**,
+not `tasty.config.*`. Set it to `false` or omit it to keep the existing behavior.
+
+The resolver uses JSX's contextual prop type and follows property declarations:
+
+- Props inherited or picked from Tasty's `Styles` remain validated, including
+  indexed aliases such as `Styles['gap']` and explicit `StyleValue` types.
+- Declared component props such as `position: 'before' | 'after'` or
+  `prefix: ReactNode` are excluded from JSX value checks.
+- Missing components, unresolved types, `any`, generics, index signatures,
+  excluded files, and broad primitive types retain the existing name heuristic.
+  If a union combines a style declaration and a semantic declaration, the style
+  check takes precedence.
+
+For example, `<TabDropIndicator position="after" />` no longer needs an ignore
+when its prop is declared as `'before' | 'after'`. `<Box position="after" />`
+still reports an error when `Box` inherits Tasty's positioning props. Style
+objects continue to be checked regardless of this setting.
+
+This is declaration-based classification, not a proof of what a component does
+at runtime. A manually narrowed style prop must retain its Tasty type origin,
+for example `position?: Styles['position']`, to avoid being treated as semantic.
+Custom style wrappers that erase that origin need further work. Unresolved Tasty
+types leave all checks on; the project must load Tasty's declarations through
+its imports. Invalid project configuration or missing TypeScript produces an
+error when a candidate JSX prop has a visible value to check.
+
+The resolver creates its **own TypeScript program** inside the JS plugin. It
+works with Oxlint without `--type-aware` and does not access Oxlint's Go checker
+or ESLint parser services. TypeScript loads only when enabled. Value rules share
+the program and per-file classification; at most three projects are retained
+per process. Current lint-buffer text is used, and changes to loaded source
+files or compiler configs invalidate the cache. Newly linted files are discovered;
+restart the linter after dependency installation or changes to otherwise
+unreferenced files. Other unsaved editor buffers are read from disk.
+
+Expect compiler startup time and memory costs, especially on a large project.
+The implementation checks loaded file timestamps once per lint traversal.
+Changing the active unsaved buffer rebuilds the program while reusing unchanged
+parsed files. Opaque values such as bindings and calls do not trigger analysis.
+This mode is experimental and disabled in both presets.
+
+Local validation against UI Kit's `TabButton.tsx` and `Item.stories.tsx` removed
+the two ordering-prop and eight content-prop collisions. Oxlint reported their
+ten ignore directives as unused while retaining the same eighteen other style
+diagnostics. A fresh process checking these two files with three value rules
+took about 0.82 seconds without analysis and 6.55 seconds with it on the test
+machine (TypeScript 5.9.3, Oxlint 1.83.0). Reusing parsed files reduced switching
+changed lint buffers from about 4.0 seconds to 0.35 seconds in a separate local
+test retaining the full 1,386-file compiler graph. Cold CLI startup still creates
+and binds that graph. These are local measurements, not a whole-project benchmark
+or a performance guarantee.
 
 Automatic `var()` / `calc()` rewrites and Tasty semantic transition advice need
 additional component evidence: a local `const` created by an imported `tasty()` or

@@ -86,6 +86,7 @@ const plugin = {
 export default plugin;
 
 export { recommended, strict } from './configs.js';
+export type { TypeAwareJSXOptions } from './type-aware-jsx.js';
 export type {
   TastyValidationConfig,
   ResolvedConfig,

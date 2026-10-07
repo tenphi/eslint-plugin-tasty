@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -85,9 +91,10 @@ const linters = [
     configName: 'eslint.config.mjs',
     config: (
       rules,
+      settings = {},
     ) => `import tasty from ${JSON.stringify(pathToFileURL(pluginPath).href)};
 import parser from ${JSON.stringify(pathToFileURL(require.resolve('@typescript-eslint/parser')).href)};
-export default [{ files: ['**/*.{ts,tsx}'], languageOptions: { parser, parserOptions: { ecmaFeatures: { jsx: true } } }, plugins: { tasty }, rules: ${JSON.stringify(rules)} }];`,
+export default [{ files: ['**/*.{ts,tsx}'], languageOptions: { parser, parserOptions: { ecmaFeatures: { jsx: true } } }, plugins: { tasty }, settings: ${JSON.stringify(settings)}, rules: ${JSON.stringify(rules)} }];`,
     diagnostics: (result) =>
       result.flatMap((file) =>
         file.messages.map((message) => message.ruleId?.replace('tasty/', '')),
@@ -98,11 +105,12 @@ export default [{ files: ['**/*.{ts,tsx}'], languageOptions: { parser, parserOpt
     name: 'oxlint',
     bin: join(dirname(require.resolve('oxlint/package.json')), 'bin/oxlint'),
     configName: '.oxlintrc.json',
-    config: (rules) =>
+    config: (rules, settings = {}) =>
       JSON.stringify({
         categories: { correctness: 'off' },
         jsPlugins: [{ name: 'tasty', specifier: pluginPath }],
         rules,
+        settings,
       }),
     diagnostics: (result) =>
       result.diagnostics.map((diagnostic) =>
@@ -428,6 +436,75 @@ const adapted = (
       assert.equal(
         readFileSync(join(dir, 'prop-exceptions.tsx'), 'utf8'),
         propExceptions,
+      );
+    }
+    cpSync(new URL('./fixtures/type-aware/', import.meta.url), dir, {
+      recursive: true,
+    });
+    const typedRules = {
+      'tasty/valid-value': 'error',
+      'tasty/consistent-token-usage': 'error',
+      'tasty/no-raw-color-values': 'error',
+    };
+    writeFileSync(
+      join(dir, 'typed.tsx'),
+      `import { TabDropIndicator, Box, Item, RetypedBox } from './components';
+import * as UI from './components';
+<TabDropIndicator position="after" prefix="17px" />;
+<Item prefix="17px" gap="17px" />;
+<UI.TabDropIndicator position="before" />;
+<Box position="after" fill="red" />;
+<RetypedBox gap="17px" />;
+<Unknown position="after" />;
+const styles: Styles = { position: 'after' };
+`,
+    );
+    writeFileSync(join(dir, linter.configName), linter.config(typedRules));
+    assert.deepEqual(
+      run('typed.tsx'),
+      {
+        status: 1,
+        rules: [
+          ...Array(6).fill('valid-value'),
+          ...Array(4).fill('consistent-token-usage'),
+          'no-raw-color-values',
+        ].sort(),
+      },
+      `${linter.name}: type analysis is disabled by default`,
+    );
+    for (const typeAwareJSX of [true, { project: './tsconfig.json' }]) {
+      writeFileSync(
+        join(dir, linter.configName),
+        linter.config(typedRules, { tasty: { typeAwareJSX } }),
+      );
+      assert.deepEqual(
+        run('typed.tsx'),
+        {
+          status: 1,
+          rules: [
+            ...Array(4).fill('valid-value'),
+            ...Array(2).fill('consistent-token-usage'),
+            'no-raw-color-values',
+          ].sort(),
+        },
+        `${linter.name}: own TypeScript program excludes collisions and keeps style errors`,
+      );
+      writeFileSync(
+        join(dir, 'typed-second.tsx'),
+        `import { TabDropIndicator, Box } from './components';
+<TabDropIndicator position="before" />; <Box gap="17px" />;`,
+      );
+      assert.deepEqual(
+        run('typed.tsx', ['typed-second.tsx']),
+        {
+          status: 1,
+          rules: [
+            ...Array(4).fill('valid-value'),
+            ...Array(3).fill('consistent-token-usage'),
+            'no-raw-color-values',
+          ].sort(),
+        },
+        `${linter.name}: multiple files share the project without sharing attribute offsets`,
       );
     }
     console.log(
