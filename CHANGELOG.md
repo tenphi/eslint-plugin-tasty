@@ -1,5 +1,29 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.6.0
+
+### Minor Changes
+
+- [#67](https://github.com/tenphi/eslint-plugin-tasty/pull/67) [`e18e618`](https://github.com/tenphi/eslint-plugin-tasty/commit/e18e618572e9acc0d2d2152d71b8a63f9c050be9) Thanks [@tenphi](https://github.com/tenphi)! - Warn about `style`, `className`, and `styles` props on recognized Tasty components
+  in both presets. New `no-style-prop` and `no-classname-prop` rules recommend tokens
+  and sub-element `data-element` identities; `no-styles-prop` now also checks dynamic
+  values and recommends tokens, mods, exposed props/variants, or a styled wrapper.
+  All three cover explicit props and inline object spreads, with import-aware,
+  shadow-aware detection and report-only migration guidance.
+
+  Clarify intentional exceptions in prop and related advisory warnings, including
+  third-party styling integration and edge-case instance overrides. Recommend
+  explicit local ESLint ignores with reasons and document their scope.
+
+### Patch Changes
+
+- [#67](https://github.com/tenphi/eslint-plugin-tasty/pull/67) [`e18e618`](https://github.com/tenphi/eslint-plugin-tasty/commit/e18e618572e9acc0d2d2152d71b8a63f9c050be9) Thanks [@tenphi](https://github.com/tenphi)! - Apply style-value checks to consumer JSX props, state maps, visible expression
+  branches, and nested shared/JSX styles. Report arbitrary nonzero pixel lengths
+  (including numeric inputs to enhanced length handlers), retaining suggestions for
+  known unit equivalents. Fix token/function detection and unit checks inside
+  expressions, and protect quoted CSS text, URLs, escaped strings, and JSX entities
+  from false reports or unsafe rewrites.
+
 ## 1.5.2
 
 ### Patch Changes
