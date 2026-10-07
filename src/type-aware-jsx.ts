@@ -291,6 +291,15 @@ function makeClassifier(
   ): boolean {
     if (visited.has(node)) return false;
     visited.add(node);
+    if (
+      T.isPropertySignature(node) ||
+      T.isPropertyDeclaration(node) ||
+      T.isParameter(node) ||
+      T.isTypeAliasDeclaration(node) ||
+      T.isMappedTypeNode(node) ||
+      T.isParenthesizedTypeNode(node)
+    )
+      return node.type ? referencesStyles(node.type, visited) : false;
     if (T.isIndexedAccessTypeNode(node)) {
       const object = checker.getTypeFromTypeNode(node.objectType);
       const index = checker.getTypeFromTypeNode(node.indexType);
@@ -309,8 +318,9 @@ function makeClassifier(
         })
       );
     }
-    if (T.isTypeReferenceNode(node)) {
-      let reference = checker.getSymbolAtLocation(node.typeName);
+    if (T.isTypeReferenceNode(node) || T.isImportTypeNode(node)) {
+      const name = T.isTypeReferenceNode(node) ? node.typeName : node.qualifier;
+      let reference = name && checker.getSymbolAtLocation(name);
       if (reference && reference.flags & T.SymbolFlags.Alias) {
         reference = checker.getAliasedSymbol(reference);
       }
@@ -325,11 +335,11 @@ function makeClassifier(
       )
         return true;
     }
+    // Nested fields, function arguments and conditional constraints are content,
+    // not evidence that the prop's value itself originates in a style type.
     return (
-      T.forEachChild(
-        node,
-        (child) => referencesStyles(child, visited) || undefined,
-      ) ?? false
+      (T.isUnionTypeNode(node) || T.isIntersectionTypeNode(node)) &&
+      node.types.some((part) => referencesStyles(part, visited))
     );
   }
 
@@ -339,10 +349,20 @@ function makeClassifier(
       (T.TypeFlags.Any |
         T.TypeFlags.Unknown |
         T.TypeFlags.TypeParameter |
+        T.TypeFlags.Conditional |
+        T.TypeFlags.IndexedAccess |
         T.TypeFlags.Never)
     )
       return true;
     return type.isUnionOrIntersection() && type.types.some(unresolved);
+  }
+
+  function hasPrimitiveFlag(type: ts.Type, flags: number): boolean {
+    return (
+      Boolean(type.flags & flags) ||
+      (type.isIntersection() &&
+        type.types.some((part) => hasPrimitiveFlag(part, flags)))
+    );
   }
 
   const results = new Map<number, PropKind>();
@@ -363,7 +383,12 @@ function makeClassifier(
           declarations.some((d) => isStyleDeclaration(d) || referencesStyles(d))
         ) {
           kind = 'style';
-        } else if (!unresolved(type)) {
+        } else if (
+          !unresolved(type) &&
+          !declarations.some((declaration) =>
+            unresolved(checker.getTypeAtLocation(declaration)),
+          )
+        ) {
           // Broad primitives may be hand-written style props. Preserve checks.
           const nonNullable = checker.getNonNullableType(type);
           const parts = nonNullable.isUnion()
@@ -375,13 +400,16 @@ function makeClassifier(
             T.TypeFlags.BooleanLike |
             T.TypeFlags.BigIntLike;
           const broad =
-            T.TypeFlags.String | T.TypeFlags.Number | T.TypeFlags.Boolean;
+            T.TypeFlags.String |
+            T.TypeFlags.Number |
+            T.TypeFlags.Boolean |
+            T.TypeFlags.BigInt;
           const broadPrimitive =
-            parts.every((part) => Boolean(part.flags & primitive)) &&
+            parts.every((part) => hasPrimitiveFlag(part, primitive)) &&
             (Boolean(nonNullable.flags & broad) ||
-              parts.some((part) => Boolean(part.flags & broad)) ||
+              parts.some((part) => hasPrimitiveFlag(part, broad)) ||
               parts.every((part) =>
-                Boolean(part.flags & T.TypeFlags.BooleanLike),
+                hasPrimitiveFlag(part, T.TypeFlags.BooleanLike),
               ));
           if (!broadPrimitive) kind = 'component';
         }

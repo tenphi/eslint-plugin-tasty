@@ -172,6 +172,63 @@ it('falls back for unresolved, untyped, primitive and ambiguous style props', ()
   ]);
 });
 
+it('preserves style checks when generic props are inferred as literal types', () => {
+  const components = join(dir, 'components.tsx');
+  writeFileSync(
+    components,
+    readFileSync(components, 'utf8') +
+      `
+    export const GenericGap = <T extends Styles['gap'],>(props: { gap: T }) => null;
+    export const UnconstrainedGap = <T,>(props: { gap: T }) => null;
+    export const GenericWidth = <T,>(props: { width: T | 'auto' }) => null;`,
+  );
+  expect(
+    rules(`import { GenericGap, UnconstrainedGap, GenericWidth } from './components';
+    <GenericGap gap="17px" />; <UnconstrainedGap gap="17px" />;
+    <GenericWidth width={17} />;`),
+  ).toEqual(Array(3).fill('tasty/consistent-token-usage'));
+});
+
+it('keeps pixel checks on broad primitive intersections and literal unions', () => {
+  const components = join(dir, 'components.tsx');
+  writeFileSync(
+    components,
+    readFileSync(components, 'utf8') +
+      `
+    export const IntersectionGap = (props: { gap?: string & {} }) => null;
+    export const IntersectionWidth = (props: { width?: number & {} }) => null;
+    export const LiteralUnionGap = (props: { gap?: 'auto' | (string & {}) }) => null;`,
+  );
+  expect(
+    rules(`import { IntersectionGap, IntersectionWidth, LiteralUnionGap } from './components';
+    <IntersectionGap gap="17px" />; <IntersectionWidth width={17} />;
+    <LiteralUnionGap gap="17px" />;`),
+  ).toEqual(Array(3).fill('tasty/consistent-token-usage'));
+});
+
+it('excludes semantic aliases containing nested style types and conditional constraints', () => {
+  const components = join(dir, 'components.tsx');
+  writeFileSync(
+    components,
+    readFileSync(components, 'utf8') +
+      `
+    type SemanticEnvelope = { text: string; decoration?: Styles };
+    export const SemanticNested = (props: { prefix?: SemanticEnvelope }) => null;
+    type ConditionalPosition = Styles extends object ? 'before' | 'after' : never;
+    export const ConditionalComponent = (props: { position?: ConditionalPosition }) => null;
+    type GenericPayload<T> = string | number | { contents: T };
+    export const GenericSemantic = (props: { prefix?: GenericPayload<Styles> }) => null;
+    type DefaultPayload<T = Styles> = string | { contents: T };
+    export const DefaultSemantic = (props: { prefix?: DefaultPayload }) => null;`,
+  );
+  expect(
+    rules(`import { SemanticNested, ConditionalComponent, GenericSemantic, DefaultSemantic } from './components';
+    <SemanticNested prefix={{ text: '17px' }} />;
+    <ConditionalComponent position="after" />;
+    <GenericSemantic prefix="17px" />; <DefaultSemantic prefix="17px" />;`),
+  ).toEqual([]);
+});
+
 it('keeps style-object checks while excluding semantic JSX props', () => {
   expect(
     rules(`import { TabDropIndicator } from './components';
