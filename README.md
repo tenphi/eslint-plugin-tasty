@@ -197,6 +197,9 @@ for typing shared signatures.
 | `tasty/no-raw-transition-duration` | warn | Hardcoded `transition` duration (`fill 0.2s`) in Tasty styles or a local `tasty()` component's `transition` prop. Suggests a configured duration token or the implicit per-name timing; zero and delays are left alone |
 | `tasty/no-runtime-styles-mutation` | warn | JavaScript variables, calls, conditionals, computed keys, or interpolated templates in Tasty style values; use states and tokens instead |
 | `tasty/no-style-spread` | warn | Object or array spreads inside runtime Tasty styles; recommends `mergeStyles` for multiple root spreads; intentional spreads need a per-line suppression and reason |
+| `tasty/no-style-prop` | warn | `style` on recognized Tasty components; use token references and the `tokens` prop ([details](docs/rules/no-style-prop.md)) |
+| `tasty/no-classname-prop` | warn | `className` on recognized Tasty components; keep styling in Tasty or use `data-element` for sub-elements ([details](docs/rules/no-classname-prop.md)) |
+| `tasty/no-styles-prop` | warn | Instance `styles` on recognized Tasty components; use `tokens`, `mods`, exposed props/variants, or `tasty(Component, { styles })` ([details](docs/rules/no-styles-prop.md)) |
 | `tasty/consistent-token-usage` | warn | Nonzero raw pixel lengths, including compounds, expressions and numeric inputs to enhanced length handlers |
 | `tasty/prefer-auto-calc` | warn | `calc(...)` instead of Tasty auto-calc `(...)` |
 | `tasty/prefer-state-negation` | warn | Top-level `:not(...)` in state keys instead of the `!` prefix (autofixable; nested CSS selectors stay intact) |
@@ -212,7 +215,6 @@ for typing shared signatures.
 | `tasty/valid-custom-property` | warn | Unknown `$name` custom properties |
 | `tasty/valid-state-definition` | warn | Invalid state definition values in `configure()` or `tasty.config` |
 | `tasty/no-unknown-state-alias` | warn | Unknown `@name` state aliases |
-| `tasty/no-styles-prop` | warn | Direct `styles` prop usage |
 
 ### Structural selectors and state maps
 
@@ -320,6 +322,26 @@ one part of an existing effect in a state or component extension.
 Replacing one with a shorthand can reset the other parts of the effect, including
 an animation's timeline and range. The duration rules above still encourage
 tokens wherever a duration is written.
+
+## Component prop guidance
+
+Both presets warn about three escape-hatch props on recognized Tasty components:
+
+- `style`: define token references in the component's styles and provide dynamic values through `tokens`.
+- `className`: keep styling in Tasty. For sub-element targeting, use `data-element="Name"` and the matching capitalized key in the parent's styles.
+- `styles`: use `tokens` for dynamic values, `mods` for state changes, exposed style props or variants for supported customization, or a reusable `tasty(Component, { styles })` wrapper for structural overrides.
+
+Warnings cover every explicit value shape, including variables, calls, conditional
+expressions and null, plus visible keys in inline JSX object spreads. Replacing
+these props requires choosing the component's token/state/extension contract, so
+these rules provide guidance without automatic fixes.
+
+Recognition uses local `const` Tasty/configured-options factory results, their
+`const` aliases/sub-elements, and components imported from `importSources`. Add
+your design-system module to `importSources` to enable checks on imported
+components. Native elements, unrelated components, shadowed bindings, and mutable
+aliases are excluded. Opaque spread bindings are not evaluated. Intentional
+third-party integration can use a rule-specific ESLint suppression with a reason.
 
 ## Value validation in JSX
 

@@ -311,41 +311,61 @@ export class TastyContext {
     return undefined;
   }
 
-  /** Local factory results and components from configured Tasty sources. */
+  /** Local factory results, const aliases, and configured component imports. */
   isTastyJSXComponent(node: TSESTree.Node, name: string): boolean {
-    let scope = this.context.sourceCode.getScope(node);
-    while (scope) {
-      const variable = scope.set.get(name);
-      if (variable) {
-        return variable.defs.some((def) => {
-          if (def.type === 'ImportBinding') {
+    const visited = new Set<TSESTree.VariableDeclarator>();
+    const resolve = (reference: TSESTree.Node, localName: string): boolean => {
+      let scope = this.context.sourceCode.getScope(reference);
+      while (scope) {
+        const variable = scope.set.get(localName);
+        if (variable) {
+          return variable.defs.some((def) => {
+            if (def.type === 'ImportBinding') {
+              return (
+                def.parent.type === 'ImportDeclaration' &&
+                def.parent.importKind !== 'type' &&
+                this.importSources.has(def.parent.source.value) &&
+                (def.node.type !== 'ImportSpecifier' ||
+                  def.node.importKind !== 'type')
+              );
+            }
+            if (def.type !== 'Variable') return false;
+            const declaration = def.node;
+            if (
+              declaration.id.type !== 'Identifier' ||
+              declaration.parent.kind !== 'const' ||
+              !declaration.init ||
+              visited.has(declaration)
+            )
+              return false;
+            visited.add(declaration);
+            const init = unwrapExpression(declaration.init);
+            if (init.type === 'Identifier') return resolve(init, init.name);
+            if (init.type === 'MemberExpression' && !init.computed) {
+              let member: TSESTree.Node = init;
+              while (member.type === 'MemberExpression') {
+                if (member.computed) return false;
+                member = unwrapExpression(member.object);
+              }
+              const root = baseComponentName(init);
+              return root !== null && resolve(init, root);
+            }
+            if (init.type !== 'CallExpression') return false;
+            const imp = this.isTastyCall(init);
             return (
-              def.parent.type === 'ImportDeclaration' &&
-              def.parent.importKind !== 'type' &&
-              this.importSources.has(def.parent.source.value) &&
-              (def.node.type !== 'ImportSpecifier' ||
-                def.node.importKind !== 'type')
+              imp?.importedName === 'tasty' ||
+              (imp !== undefined &&
+                this.config.styleFunctions?.[imp.importedName]?.kind ===
+                  'options')
             );
-          }
-          if (def.type !== 'Variable') return false;
-          const declaration = def.node;
-          if (declaration.parent.kind !== 'const' || !declaration.init)
-            return false;
-          const init = unwrapExpression(declaration.init);
-          if (init.type !== 'CallExpression') return false;
-          const imp = this.isTastyCall(init);
-          return (
-            imp?.importedName === 'tasty' ||
-            (imp !== undefined &&
-              this.config.styleFunctions?.[imp.importedName]?.kind ===
-                'options')
-          );
-        });
+          });
+        }
+        if (!scope.upper) break;
+        scope = scope.upper;
       }
-      if (!scope.upper) break;
-      scope = scope.upper;
-    }
-    return false;
+      return false;
+    };
+    return resolve(node, name);
   }
 
   /**

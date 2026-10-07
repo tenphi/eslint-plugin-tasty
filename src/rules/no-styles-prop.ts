@@ -1,5 +1,6 @@
-import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
+import { TastyContext } from '../context.js';
+import { tastyComponentPropListeners } from './tasty-component-props.js';
 
 type MessageIds = 'noStylesProp';
 
@@ -8,30 +9,21 @@ export default createRule<[], MessageIds>({
   meta: {
     type: 'suggestion',
     docs: {
-      description: 'Discourage using the styles prop directly on components',
+      description:
+        'Prefer tokens, mods, and styled wrappers over instance styles on Tasty components',
     },
     messages: {
       noStylesProp:
-        "Avoid using 'styles' prop directly. Create a styled wrapper with tasty(Component, { styles: ... }) instead.",
+        "Avoid the 'styles' prop on Tasty components. Use 'tokens' for dynamic values, 'mods' for state changes, exposed style props or variants, or a wrapper with tasty(Component, { styles: ... }).",
     },
     schema: [],
   },
   defaultOptions: [],
   create(context) {
-    return {
-      JSXAttribute(node: TSESTree.JSXAttribute) {
-        if (
-          node.name.type === 'JSXIdentifier' &&
-          node.name.name === 'styles' &&
-          node.value?.type === 'JSXExpressionContainer' &&
-          node.value.expression.type === 'ObjectExpression'
-        ) {
-          context.report({
-            node,
-            messageId: 'noStylesProp',
-          });
-        }
-      },
-    };
+    const ctx = new TastyContext(context);
+    return tastyComponentPropListeners(ctx, (name, node) => {
+      if (name === 'styles')
+        context.report({ node, messageId: 'noStylesProp' });
+    });
   },
 });

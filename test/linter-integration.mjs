@@ -344,8 +344,51 @@ import { Box } from '@my/ds';
         .replace('#surface !important', '#surface'),
       `${linter.name}: JSX rewrites preserve syntax and quoted content`,
     );
+    const propUsage = `import { tasty } from '@tenphi/tasty';
+import { Box } from '@my/ds';
+const Local = tasty({ styles: { fill: '#surface' } });
+const Alias = Local;
+<Local style={inlineStyle} className="external" styles={overrides} />;
+<Alias {...({ style: inlineStyle, className: 'external', styles: overrides } as Props)} />;
+<Box tokens={{ $size: size }} mods={{ compact }} data-element="Body" />;
+<div style={inlineStyle} className="external" />;
+`;
+    for (const [name, preset] of Object.entries({ recommended, strict })) {
+      writeFileSync(join(dir, linter.configName), linter.config(preset));
+      writeFileSync(join(dir, 'prop-usage.tsx'), propUsage);
+      const expectedProps = {
+        status: 0,
+        rules: [
+          'no-style-prop',
+          'no-style-prop',
+          'no-classname-prop',
+          'no-classname-prop',
+          'no-styles-prop',
+          'no-styles-prop',
+        ].sort(),
+      };
+      assert.deepEqual(
+        run('prop-usage.tsx'),
+        expectedProps,
+        `${linter.name}: ${name} warns about all three props and inline spreads`,
+      );
+      assert.deepEqual(
+        run('prop-usage.tsx', [linter.fix]),
+        expectedProps,
+        `${linter.name}: ${name} keeps prop migrations report-only`,
+      );
+      assert.equal(
+        readFileSync(join(dir, 'prop-usage.tsx'), 'utf8'),
+        propUsage,
+      );
+      assert.equal(
+        run('prop-usage.tsx', ['--max-warnings', '0']).status,
+        1,
+        `${linter.name}: ${name} can enforce prop warnings in CI`,
+      );
+    }
     console.log(
-      `${linter.name}: custom calls, import boundaries, diagnostics, fixes, full presets, and JSX value policies passed`,
+      `${linter.name}: custom calls, import boundaries, diagnostics, fixes, full presets, JSX value policies, and component prop guidance passed`,
     );
   } finally {
     rmSync(dir, { recursive: true, force: true });

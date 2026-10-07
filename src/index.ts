@@ -32,6 +32,8 @@ const ruleMap: Record<string, TSESLint.RuleModule<string, unknown[]>> = {
   'no-raw-transition-duration': rules.noRawTransitionDuration,
   'no-raw-motion-duration': rules.noRawMotionDuration,
   'no-styles-prop': rules.noStylesProp,
+  'no-style-prop': rules.noStyleProp,
+  'no-classname-prop': rules.noClassNameProp,
   'consistent-token-usage': rules.consistentTokenUsage,
   'no-runtime-styles-mutation': rules.noRuntimeStylesMutation,
   'no-style-spread': rules.noStyleSpread,

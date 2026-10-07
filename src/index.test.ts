@@ -46,4 +46,16 @@ describe('plugin surface', () => {
       expect(rule.meta.docs?.url, id).toContain(id);
     }
   });
+
+  it('recommends all three Tasty prop escape-hatch warnings', () => {
+    for (const name of [
+      'no-style-prop',
+      'no-classname-prop',
+      'no-styles-prop',
+    ]) {
+      expect(plugin.rules[name]).toBeDefined();
+      expect(recommended[`tasty/${name}`]).toBe('warn');
+      expect(strict[`tasty/${name}`]).toBe('warn');
+    }
+  });
 });

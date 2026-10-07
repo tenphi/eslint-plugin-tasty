@@ -1272,23 +1272,30 @@ fill: {
 
 ### Best Practices
 
-#### `tasty/no-styles-prop`
+#### Tasty component prop warnings
 
-**Severity:** warning (default), off by default
-**Complexity:** Low
-**Feasibility:** High — detect `styles` JSX attribute with object literal value
+`tasty/no-style-prop`, `tasty/no-classname-prop`, and `tasty/no-styles-prop` are
+warnings in both the recommended and strict presets. Each applies to recognized
+Tasty components: local `const` factory results, configured options factories,
+`const` aliases/sub-elements, or imports from Tasty `importSources`. Native tags,
+unrelated components, type-only imports, shadowed bindings, and mutable aliases
+are excluded.
 
-Discourages using the `styles` prop directly on components. The tasty best practice is to create a styled wrapper via `tasty(Component, { styles })` instead.
+Checks report explicit attributes regardless of value shape and visible property
+keys in inline JSX object spreads, including TypeScript wrappers and nested
+inline spreads. Dynamic spread bindings and computed identifiers are not evaluated.
+Warnings have no automatic fixes because migration requires the author's choice
+of tokens, modifiers, or extension contract.
 
-**Examples:**
-```jsx
-// ⚠️ Warning: Avoid using `styles` prop directly. Create a styled wrapper instead.
-<Button styles={{ fill: '#red' }}>Delete</Button>
+| Rule | Replacement guidance |
+|---|---|
+| `tasty/no-style-prop` | Declare token references in component styles and pass dynamic values through `tokens`. |
+| `tasty/no-classname-prop` | Keep styling in Tasty; for sub-element targeting use `data-element="Name"` and the matching capitalized parent style key. |
+| `tasty/no-styles-prop` | Use `tokens` for dynamic values, `mods` for states, exposed style props/variants, or `tasty(Component, { styles })` for structural overrides. |
 
-// ✅ Preferred
-const DangerButton = tasty(Button, { styles: { fill: '#red' } });
-<DangerButton>Delete</DangerButton>
-```
+See the [style](docs/rules/no-style-prop.md),
+[className](docs/rules/no-classname-prop.md), and
+[styles](docs/rules/no-styles-prop.md) rule guides for migration examples.
 
 ---
 
@@ -1500,6 +1507,9 @@ The plugin should export preset configurations:
   'tasty/static-valid-selector': 'error',
   'tasty/no-runtime-styles-mutation': 'warn',
   'tasty/no-style-spread': 'warn',
+  'tasty/no-style-prop': 'warn',
+  'tasty/no-classname-prop': 'warn',
+  'tasty/no-styles-prop': 'warn',
 }
 
 // Strict — recommended + best practices
@@ -1512,7 +1522,6 @@ The plugin should export preset configurations:
   'tasty/valid-custom-property': 'warn',
   'tasty/no-unknown-state-alias': 'warn',
   'tasty/no-duplicate-state': 'warn',
-  'tasty/no-styles-prop': 'warn',
   'tasty/no-raw-color-values': 'warn',
   'tasty/no-raw-transition-duration': 'warn',
   'tasty/consistent-token-usage': 'warn',
@@ -1573,6 +1582,8 @@ Use the TypeScript type checker to resolve types. Any object expression whose ty
 | `no-nested-state-map` | Medium | P1 |
 | `valid-styles-structure` | Medium | P0 |
 | `no-duplicate-state` | Low | P2 |
+| `no-style-prop` | Low | P3 |
+| `no-classname-prop` | Low | P3 |
 | `no-styles-prop` | Low | P3 |
 | `no-important` | Low | P1 |
 | `consistent-token-usage` | Medium | P3 |
