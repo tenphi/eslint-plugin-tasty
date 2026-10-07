@@ -77,10 +77,7 @@ tester.run('valid-directional-modifier (detection)', rule, {
       errors: [{ messageId: 'tooManyValues' }],
     },
     {
-      // The violation sits at the top level because this rule does not traverse
-      // sub-elements out of a variable-declared object — a separate, pre-existing
-      // limitation. What is under test here is only that the annotation walk finds
-      // `Styles` nested inside a wrapper type.
+      // The annotation walk finds `Styles` nested inside a wrapper type.
       name: 'Styles annotation opts in through a wrapper type',
       code: `const stuff: Record<string, Styles> = { ${BAD} };`,
       errors: [{ messageId: 'tooManyValues' }],

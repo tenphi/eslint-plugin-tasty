@@ -197,7 +197,7 @@ for typing shared signatures.
 | `tasty/no-raw-transition-duration` | warn | Hardcoded `transition` duration (`fill 0.2s`) in Tasty styles or a local `tasty()` component's `transition` prop. Suggests a configured duration token or the implicit per-name timing; zero and delays are left alone |
 | `tasty/no-runtime-styles-mutation` | warn | JavaScript variables, calls, conditionals, computed keys, or interpolated templates in Tasty style values; use states and tokens instead |
 | `tasty/no-style-spread` | warn | Object or array spreads inside runtime Tasty styles; recommends `mergeStyles` for multiple root spreads; intentional spreads need a per-line suppression and reason |
-| `tasty/consistent-token-usage` | warn | Raw px values when custom units or tokens exist |
+| `tasty/consistent-token-usage` | warn | Nonzero raw pixel lengths, including compounds, expressions and numeric inputs to enhanced length handlers |
 | `tasty/prefer-auto-calc` | warn | `calc(...)` instead of Tasty auto-calc `(...)` |
 | `tasty/prefer-state-negation` | warn | Top-level `:not(...)` in state keys instead of the `!` prefix (autofixable; nested CSS selectors stay intact) |
 | `tasty/prefer-custom-property-syntax` | warn | `var(--prop)` / `$x-color` / `transparent` / `currentColor` instead of `$prop` / `#color` / `#clear` / `#current` |
@@ -300,7 +300,7 @@ export default [
 ```
 
 It checks `animation`, `animationDuration`, and `transitionDuration` in Tasty
-style objects. It suggests configured `$…duration` tokens when
+style objects and JSX style props. It suggests configured `$…duration` tokens when
 available. It never suggests removing a duration, since these properties do not
 inherit Tasty's implicit transition timing. Zero, delays, and values based on
 tokens are left alone. Lengths and widths remain covered by the separate
@@ -320,6 +320,39 @@ one part of an existing effect in a state or component extension.
 Replacing one with a shorthand can reset the other parts of the effect, including
 an animation's timeline and range. The duration rules above still encourage
 tokens wherever a duration is written.
+
+## Value validation in JSX
+
+Value rules also check consumer style props such as `<Box fill="red" gap="17px" />`.
+This covers color and custom-property tokens, units, value syntax, booleans,
+directional modifiers, radius shapes, presets, recipes, and motion durations.
+Checks read string attributes, expression literals, static templates, state maps,
+and visible branches of conditionals and logical expressions. They also traverse
+nested sub-elements in shared styles and JSX `styles` / `*Styles` props, including
+TypeScript `as`, `satisfies`, and non-null wrappers.
+
+Individual props are detected by name: a known Tasty or CSS property, or an entry
+in `config.styles`, on an uppercase component or member tag (`<UI.Box>`). This is
+a heuristic, so an unrelated component with a matching non-style prop can need a
+rule suppression. Native HTML/SVG attributes and React's singular `style` prop
+are excluded. Bindings, calls, spreads, and interpolated templates are not evaluated;
+these checks do not require or use TypeScript type services.
+
+Automatic `var()` / `calc()` rewrites and Tasty semantic transition advice need
+additional component evidence: a local `const` created by an imported `tasty()` or
+configured options factory, or a component imported from a Tasty `importSources`
+module. Shadowed bindings do not carry that evidence.
+
+`consistent-token-usage` reports every nonzero pixel length, including `17px`,
+`padding="8px 17px"`, `width="calc(100% - 17px)"`, and `gap={17}`. Numeric values
+are checked only for enhanced handlers that convert them to pixels; unitless
+properties such as `opacity` and `zIndex` are unaffected. Known equivalents still
+have suggestions (`8px` → `1x`, radius `6px` → `1r`, border `1px` → `1bw`). These
+assume the conventional scale defaults; review them against your design system.
+Other pixels are report-only. Zero, token definitions, quoted CSS text, and URLs
+are allowed. Quotes and URLs are also excluded from token and raw-color checks.
+Range-based fixes are withheld when JavaScript escapes or JSX entities make
+source offsets differ from the decoded value.
 
 ## Logical styles
 

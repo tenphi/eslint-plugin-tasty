@@ -1,9 +1,9 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
-import { TastyContext, styleObjectListeners } from '../context.js';
+import { TastyContext } from '../context.js';
+import { stringStyleValueListeners } from '../style-values.js';
 import { replaceInStringValue } from '../fix-utils.js';
 import { scanTokens, type ScannedToken } from '../parsers/utils.js';
-import { getKeyName, getStringValue } from '../utils.js';
 import {
   getDurationTokens,
   hasRawTimeInExpression,
@@ -128,35 +128,8 @@ export default createRule<[], MessageIds>({
       checkGroup(group, property, node);
     }
 
-    function handleStyleObject(node: TSESTree.ObjectExpression): void {
-      if (!ctx.isStyleObject(node)) return;
-
-      for (const prop of node.properties) {
-        if (prop.type !== 'Property' || prop.computed) continue;
-        const key = getKeyName(prop.key);
-        if (!key || !PROPERTIES.has(key)) continue;
-
-        const value = getStringValue(prop.value);
-        if (value) {
-          checkValue(value, key, prop.value);
-        } else if (
-          prop.value.type === 'ObjectExpression' &&
-          ctx.isStateMap(prop.value, prop)
-        ) {
-          for (const stateProp of prop.value.properties) {
-            if (stateProp.type !== 'Property') continue;
-            const stateValue = getStringValue(stateProp.value);
-            if (stateValue) checkValue(stateValue, key, stateProp.value);
-          }
-        }
-      }
-    }
-
-    return {
-      ImportDeclaration(node) {
-        ctx.trackImport(node);
-      },
-      ...styleObjectListeners(handleStyleObject),
-    };
+    return stringStyleValueListeners(ctx, (value, node, property) => {
+      if (PROPERTIES.has(property)) checkValue(value, property, node);
+    });
   },
 });

@@ -1,8 +1,10 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
-import { TastyContext, styleObjectListeners } from '../context.js';
+import { TastyContext } from '../context.js';
+import { stringStyleValueListeners } from '../style-values.js';
 import { getStringValue } from '../utils.js';
-import { replaceStringValue } from '../fix-utils.js';
+import { replaceInStringValue } from '../fix-utils.js';
+import { maskValueLiterals } from '../value-words.js';
 
 type MessageIds = 'noImportant';
 
@@ -26,47 +28,24 @@ export default createRule<[], MessageIds>({
 
     function checkNode(node: TSESTree.Node): void {
       const str = getStringValue(node);
-      if (str && str.includes('!important')) {
-        const stripped = str.replace(/\s*!important\s*/g, '').trim();
-        context.report({
-          node,
-          messageId: 'noImportant',
-          fix(fixer) {
-            return replaceStringValue(fixer, node, stripped);
-          },
-        });
-      }
+      if (!str) return;
+      const masked = maskValueLiterals(str);
+      const edits = [...masked.matchAll(/!important\b(?!-)/gi)].map((match) => {
+        let start = match.index;
+        while (start > 0 && /\s/.test(str[start - 1])) start--;
+        return { start, end: match.index + match[0].length, replacement: '' };
+      });
+      if (!edits.length) return;
+      context.report({
+        node,
+        messageId: 'noImportant',
+        fix: (fixer) =>
+          replaceInStringValue(fixer, node, edits, context.sourceCode),
+      });
     }
 
-    function handleStyleObject(node: TSESTree.ObjectExpression) {
-      if (!ctx.isStyleObject(node)) return;
-
-      for (const prop of node.properties) {
-        if (prop.type !== 'Property') continue;
-
-        checkNode(prop.value);
-
-        // Only recurse into genuine state maps. Sub-element objects
-        // (`Icon: { … }`) are style objects in their own right and are visited
-        // separately by the listener, so recursing here reports them twice.
-        if (
-          prop.value.type === 'ObjectExpression' &&
-          ctx.isStateMap(prop.value, prop)
-        ) {
-          for (const stateProp of prop.value.properties) {
-            if (stateProp.type === 'Property') {
-              checkNode(stateProp.value);
-            }
-          }
-        }
-      }
-    }
-
-    return {
-      ImportDeclaration(node) {
-        ctx.trackImport(node);
-      },
-      ...styleObjectListeners(handleStyleObject),
-    };
+    return stringStyleValueListeners(ctx, (_value, node) => {
+      checkNode(node);
+    });
   },
 });

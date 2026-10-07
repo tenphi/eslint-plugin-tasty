@@ -76,8 +76,22 @@ The plugin should validate style values in these JSX attribute positions:
 
 For individual style props, the plugin can validate the value syntax (color tokens, units, etc.) but needs to know which props are actually tasty style props. Two detection modes:
 
-1. **Heuristic (no type info)** — validate any JSX attribute whose name matches a known tasty style property name (from the built-in list + `config.styles`). May produce false positives on components that have non-tasty props with the same name (e.g., native `color` on `<font>`).
-2. **Type-aware (recommended)** — use the TypeScript type checker to see if the prop type originates from tasty's `Styles` interface. This also enables detecting arbitrary `Styles`-typed variables and expressions, not just call-site arguments.
+1. **Heuristic (implemented, no type info)** — validate JSX attributes on uppercase component/member tags whose names match a known Tasty/CSS style property or `config.styles`. Native HTML/SVG tags and singular React `style` props are excluded. Matching non-style props on unrelated components can still need a rule suppression.
+2. **Type-aware (future enhancement)** — use the TypeScript type checker to see if the prop type originates from tasty's `Styles` interface. This also enables detecting arbitrary `Styles`-typed variables and expressions, not just call-site arguments.
+
+Implemented value checks share discovery across static literals, templates,
+TypeScript wrappers, state maps, conditional/logical branches, and nested
+sub-elements in shared styles and JSX `styles`/`*Styles` props. Dynamic bindings,
+calls, spreads, and interpolated templates are not evaluated. Token existence
+checks keep the existing configured/file-local declaration rules. Quoted strings
+and URLs are opaque to raw-color, token, and unit scanning. Function names such as
+`$$double(...)` / `##tint(...)` are excluded from token existence checks while
+their arguments are checked.
+
+Automatic `var()`/`calc()` rewrites and semantic transition advice use a narrower
+JSX gate: a local `const` factory result (`tasty` or a configured options factory)
+or a component imported from a Tasty `importSources` module. Shadowed bindings
+are excluded.
 
 ### Type-aware detection
 
@@ -1300,17 +1314,18 @@ fill: '#red !important'
 **Complexity:** Medium
 **Feasibility:** Medium — requires parsing values and comparing against known token equivalents
 
-Suggests using design tokens and custom units instead of raw CSS values when a matching token exists.
+Reports every nonzero pixel length in recognized style objects and JSX style
+props, including compound values, comma-separated groups, expression/function
+arguments, and numeric inputs to enhanced handlers that convert them to pixels.
+Unitless numeric properties are excluded. Token definitions, zero, quoted CSS
+strings, and URLs are allowed.
 
-**Checks:**
-1. `8px` → suggest `1x` (when gap = 8px)
-2. `16px` → suggest `2x`
-3. `6px` (in radius context) → suggest `1r`
-4. `1px` (in border context) → suggest `1bw`
-5. Raw color values when a matching token exists.
-
-**Configuration:**
-Requires knowing the resolved token values, which may come from the tasty config or be specified directly in the ESLint rule options.
+Known conventional equivalents have suggestions: `8px` → `1x`, `16px` → `2x`,
+radius `6px` → `1r`, border `1px` → `1bw`. These suggestions assume the conventional
+scale defaults and must be reviewed against the consumer's design system. Other
+pixels (such as `17px`) are report-only; the rule does not invent a token or assume
+its value. Suggestions preserve surrounding syntax and other values, and are
+withheld for source/decoded-value differences caused by escapes or JSX entities.
 
 ---
 

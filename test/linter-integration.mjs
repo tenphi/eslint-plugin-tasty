@@ -87,7 +87,7 @@ const linters = [
       rules,
     ) => `import tasty from ${JSON.stringify(pathToFileURL(pluginPath).href)};
 import parser from ${JSON.stringify(pathToFileURL(require.resolve('@typescript-eslint/parser')).href)};
-export default [{ files: ['**/*.ts'], languageOptions: { parser }, plugins: { tasty }, rules: ${JSON.stringify(rules)} }];`,
+export default [{ files: ['**/*.{ts,tsx}'], languageOptions: { parser, parserOptions: { ecmaFeatures: { jsx: true } } }, plugins: { tasty }, rules: ${JSON.stringify(rules)} }];`,
     diagnostics: (result) =>
       result.flatMap((file) =>
         file.messages.map((message) => message.ruleId?.replace('tasty/', '')),
@@ -262,8 +262,90 @@ component('Content', { styles: {
         `${linter.name}: ${name} accepts structural groups, pseudo-elements, and own states`,
       );
     }
+    // Consumer values must have the same diagnostics through both AST adapters.
+    writeFileSync(
+      join(dir, 'tasty.config.json'),
+      readFileSync(
+        new URL('./fixtures/style-values/tasty.config.json', import.meta.url),
+        'utf8',
+      ),
+    );
+    const valueRules = Object.fromEntries(
+      [
+        'no-raw-color-values',
+        'valid-color-token',
+        'valid-custom-property',
+        'valid-custom-unit',
+        'consistent-token-usage',
+        'no-raw-motion-duration',
+      ].map((name) => [`tasty/${name}`, 'error']),
+    );
+    writeFileSync(join(dir, linter.configName), linter.config(valueRules));
+    writeFileSync(
+      join(dir, 'values-valid.tsx'),
+      `
+import { Box } from '@my/ds';
+<Box fill="#surface" gap="1x" animationDuration="$duration" />;
+<svg fill="red" gap="17px" />;
+<Box content={'"17px #missing $missing red"'} />;
+`,
+    );
+    writeFileSync(
+      join(dir, 'values-invalid.tsx'),
+      `
+import { Box } from '@my/ds';
+<Box fill="red" gap="17px" />;
+<Box fill="#missing" gap="$missing" />;
+<Box padding="min(2unknownunit, 1x)" />;
+<Box gap={17} animationDuration="200ms" />;
+<Box styles={{ Deep: { Deeper: { fill: 'red', padding: '17px' } } }} />;
+`,
+    );
+    assert.deepEqual(run('values-valid.tsx'), { status: 0, rules: [] });
+    assert.deepEqual(
+      run('values-invalid.tsx'),
+      {
+        status: 1,
+        rules: [
+          'no-raw-color-values',
+          'no-raw-color-values',
+          'consistent-token-usage',
+          'consistent-token-usage',
+          'consistent-token-usage',
+          'valid-color-token',
+          'valid-custom-property',
+          'valid-custom-unit',
+          'no-raw-motion-duration',
+        ].sort(),
+      },
+      `${linter.name}: JSX literals, numeric pixels, expressions and nested styles`,
+    );
+
+    const rewriteRules = Object.fromEntries(
+      ['no-important', 'prefer-auto-calc', 'prefer-custom-property-syntax'].map(
+        (name) => [`tasty/${name}`, 'error'],
+      ),
+    );
+    writeFileSync(join(dir, linter.configName), linter.config(rewriteRules));
+    const rewrites = `import { Box } from '@my/ds';
+<Box gap={'var(--gap)'} width={'calc(100% - 1x)'} fill="#surface !important" />;
+<Box content={'"var(--gap) !important transparent"'} />;
+`;
+    writeFileSync(join(dir, 'rewrites.tsx'), rewrites);
+    assert.deepEqual(run('rewrites.tsx', [linter.fix]), {
+      status: 0,
+      rules: [],
+    });
+    assert.equal(
+      readFileSync(join(dir, 'rewrites.tsx'), 'utf8'),
+      rewrites
+        .replace("{'var(--gap)'}", "{'$gap'}")
+        .replace("{'calc(100% - 1x)'}", "{'(100% - 1x)'}")
+        .replace('#surface !important', '#surface'),
+      `${linter.name}: JSX rewrites preserve syntax and quoted content`,
+    );
     console.log(
-      `${linter.name}: custom calls, import boundaries, diagnostics, fixes, and full presets passed`,
+      `${linter.name}: custom calls, import boundaries, diagnostics, fixes, full presets, and JSX value policies passed`,
     );
   } finally {
     rmSync(dir, { recursive: true, force: true });

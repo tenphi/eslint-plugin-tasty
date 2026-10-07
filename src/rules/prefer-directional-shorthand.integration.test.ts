@@ -39,6 +39,8 @@ describe('prefer-directional-shorthand auto-fix output', () => {
     const { output, messages } = lintFixed(input);
 
     expect(output).toContain(expected);
-    expect(messages).toEqual([]);
+    expect(messages.map((message) => message.ruleId)).toEqual(
+      input.includes('4px') ? ['tasty/consistent-token-usage'] : [],
+    );
   });
 });

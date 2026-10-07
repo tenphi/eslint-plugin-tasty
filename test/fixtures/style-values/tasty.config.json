@@ -1,0 +1,9 @@
+{
+  "tokens": ["#surface", "$gap", "$duration"],
+  "units": ["cols"],
+  "presets": ["body"],
+  "recipes": ["card"],
+  "styles": ["glaze"],
+  "importSources": ["@my/ds"],
+  "styleFunctions": { "component": { "argument": 0, "kind": "options" } }
+}

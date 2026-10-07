@@ -1,7 +1,7 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
-import { TastyContext, styleObjectListeners } from '../context.js';
-import { getKeyName, getStringValue } from '../utils.js';
+import { TastyContext } from '../context.js';
+import { stringStyleValueListeners } from '../style-values.js';
 import {
   SEMANTIC_TRANSITIONS,
   KNOWN_CSS_PROPERTIES,
@@ -121,38 +121,12 @@ export default createRule<[], MessageIds>({
       }
     }
 
-    function handleStyleObject(node: TSESTree.ObjectExpression) {
-      if (!ctx.isStyleObject(node)) return;
-
-      for (const prop of node.properties) {
-        if (prop.type !== 'Property' || prop.computed) continue;
-
-        const key = getKeyName(prop.key);
-        if (key !== 'transition') continue;
-
-        const str = getStringValue(prop.value);
-        if (str) {
-          checkTransitionValue(str, prop.value);
-          continue;
-        }
-
-        if (prop.value.type === 'ObjectExpression') {
-          for (const stateProp of prop.value.properties) {
-            if (stateProp.type !== 'Property') continue;
-            const stateStr = getStringValue(stateProp.value);
-            if (stateStr) {
-              checkTransitionValue(stateStr, stateProp.value);
-            }
-          }
-        }
-      }
-    }
-
-    return {
-      ImportDeclaration(node) {
-        ctx.trackImport(node);
+    return stringStyleValueListeners(
+      ctx,
+      (value, node, property) => {
+        if (property === 'transition') checkTransitionValue(value, node);
       },
-      ...styleObjectListeners(handleStyleObject),
-    };
+      { requireTastyJSX: true },
+    );
   },
 });

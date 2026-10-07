@@ -1,7 +1,7 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
-import { TastyContext, styleObjectListeners } from '../context.js';
-import { getKeyName, getStringValue } from '../utils.js';
+import { TastyContext } from '../context.js';
+import { stringStyleValueListeners } from '../style-values.js';
 import { replaceInStringValue } from '../fix-utils.js';
 import { scanTokens, type ScannedToken } from '../parsers/utils.js';
 import {
@@ -154,88 +154,12 @@ export default createRule<[], MessageIds>({
       checkGroup(group, node);
     }
 
-    function isLocalTastyComponent(node: TSESTree.Node, name: string): boolean {
-      let scope: ReturnType<typeof context.sourceCode.getScope> | null =
-        context.sourceCode.getScope(node);
-      while (scope) {
-        const variable = scope.set.get(name);
-        if (variable) {
-          return variable.defs.some((definition) => {
-            if (definition.type !== 'Variable') return false;
-            const declaration = definition.node;
-            return (
-              declaration.id.type === 'Identifier' &&
-              declaration.parent.type === 'VariableDeclaration' &&
-              declaration.parent.kind === 'const' &&
-              declaration.init?.type === 'CallExpression' &&
-              ctx.isTastyCall(declaration.init)?.importedName === 'tasty'
-            );
-          });
-        }
-        scope = scope.upper;
-      }
-      return false;
-    }
-
-    function handleStyleObject(node: TSESTree.ObjectExpression) {
-      if (!ctx.isStyleObject(node)) return;
-
-      for (const prop of node.properties) {
-        if (prop.type !== 'Property' || prop.computed) continue;
-
-        const key = getKeyName(prop.key);
-        if (key !== 'transition') continue;
-
-        const str = getStringValue(prop.value);
-        if (str) {
-          checkTransitionValue(str, prop.value);
-          continue;
-        }
-
-        if (
-          prop.value.type === 'ObjectExpression' &&
-          ctx.isStateMap(prop.value, prop)
-        ) {
-          for (const stateProp of prop.value.properties) {
-            if (stateProp.type !== 'Property') continue;
-            const stateStr = getStringValue(stateProp.value);
-            if (stateStr) {
-              checkTransitionValue(stateStr, stateProp.value);
-            }
-          }
-        }
-      }
-    }
-
-    return {
-      ImportDeclaration(node) {
-        ctx.trackImport(node);
+    return stringStyleValueListeners(
+      ctx,
+      (value, node, property) => {
+        if (property === 'transition') checkTransitionValue(value, node);
       },
-      JSXAttribute(node) {
-        if (
-          node.name.type !== 'JSXIdentifier' ||
-          node.name.name !== 'transition'
-        ) {
-          return;
-        }
-        const opening = node.parent;
-        if (
-          opening?.type !== 'JSXOpeningElement' ||
-          opening.name.type !== 'JSXIdentifier' ||
-          !isLocalTastyComponent(node, opening.name.name)
-        ) {
-          return;
-        }
-
-        const valueNode =
-          node.value?.type === 'JSXExpressionContainer'
-            ? node.value.expression
-            : node.value;
-        if (!valueNode) return;
-        const value = getStringValue(valueNode);
-        if (value) checkTransitionValue(value, valueNode);
-      },
-      ...styleObjectListeners(handleStyleObject),
-    };
+      { requireTastyJSX: true },
+    );
   },
 });
