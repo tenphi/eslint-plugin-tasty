@@ -1,5 +1,18 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.7.0
+
+### Minor Changes
+
+- [#69](https://github.com/tenphi/eslint-plugin-tasty/pull/69) [`4da790d`](https://github.com/tenphi/eslint-plugin-tasty/commit/4da790d5641220a8306255ef78911e278c8c09da) Thanks [@tenphi](https://github.com/tenphi)! - Add experimental, opt-in `settings.tasty.typeAwareJSX` to distinguish declared
+  component props from Tasty style props in both ESLint and Oxlint. Resolve JSX prop
+  declarations with a lazily loaded, cached TypeScript program while preserving
+  existing value checks for style declarations and unresolved types.
+
+  Reuse unchanged parsed sources when lint buffers change, refresh reused ESLint
+  source objects after dependency/config edits, and keep primitive-union style
+  checks. TypeScript is optional; presets and existing consumers remain opt-in.
+
 ## 1.6.0
 
 ### Minor Changes
