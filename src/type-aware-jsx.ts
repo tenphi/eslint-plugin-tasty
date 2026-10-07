@@ -353,15 +353,23 @@ function makeClassifier(
       }
       if (T.isConditionalTypeNode(node)) {
         // Extract/Exclude-style filters preserve an input value or return never.
-        const forwardsValue = (branch: ts.TypeNode) => {
-          if (branch.kind === T.SyntaxKind.NeverKeyword) return true;
-          if (!T.isTypeReferenceNode(branch)) return false;
+        const parameter = (branch: ts.TypeNode) => {
+          if (!T.isTypeReferenceNode(branch)) return undefined;
           const symbol = checker.getSymbolAtLocation(branch.typeName);
-          return Boolean(symbol && symbol.flags & T.SymbolFlags.TypeParameter);
+          return symbol && symbol.flags & T.SymbolFlags.TypeParameter
+            ? symbol
+            : undefined;
         };
+        const trueParameter = parameter(node.trueType);
+        const falseParameter = parameter(node.falseType);
+        const preservesValue =
+          (trueParameter &&
+            node.falseType.kind === T.SyntaxKind.NeverKeyword) ||
+          (falseParameter &&
+            node.trueType.kind === T.SyntaxKind.NeverKeyword) ||
+          (trueParameter && trueParameter === falseParameter);
         return (
-          forwardsValue(node.trueType) &&
-          forwardsValue(node.falseType) &&
+          Boolean(preservesValue) &&
           (referencesStyles(node.trueType, visited, bindings) ||
             referencesStyles(node.falseType, visited, bindings))
         );

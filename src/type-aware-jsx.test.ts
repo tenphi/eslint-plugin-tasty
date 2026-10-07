@@ -225,6 +225,24 @@ it('preserves value-preserving utility style origins and resolves concrete gener
   ]);
 });
 
+it('does not trace unused branches of conditional semantic props', () => {
+  const components = join(dir, 'components.tsx');
+  writeFileSync(
+    components,
+    readFileSync(components, 'utf8') +
+      `
+    type Conditional<T, U, Flag> = Flag extends true ? T : U;
+    export const ConditionalItem = (props: { prefix?: Conditional<StyleValue<'17px' | '1x'>, Content, false> }) => null;
+    export const ExtractBox = (props: { gap?: Extract<StyleValue<'17px' | '1x'>, string> }) => null;`,
+  );
+  const code = `import { ConditionalItem, ExtractBox } from './components';
+    <ConditionalItem prefix="17px" />;
+    <ExtractBox gap="17px" />;`;
+  expect(lint(code).map(({ ruleId, line }) => ({ ruleId, line }))).toEqual([
+    { ruleId: 'tasty/consistent-token-usage', line: 3 },
+  ]);
+});
+
 it('retains utility style origins with the real Tasty declarations', () => {
   const config = JSON.parse(readFileSync(join(dir, 'tsconfig.json'), 'utf8'));
   delete config.compilerOptions.paths;
