@@ -30,7 +30,7 @@ interface Project {
       source: ts.SourceFile;
     }
   >;
-  excludedFiles: Set<string>;
+  excludedFiles: Map<string, string>;
 }
 
 const require = createRequire(import.meta.url);
@@ -78,8 +78,11 @@ function changed(versions: Map<string, string>): boolean {
   return false;
 }
 
-function readProject(T: TypeScript, configPath: string): Project {
-  const configVersions = new Map<string, string>();
+function readConfig(
+  T: TypeScript,
+  configPath: string,
+  configVersions: Map<string, string>,
+): ts.ParsedCommandLine {
   const config = T.getParsedCommandLineOfConfigFile(
     configPath,
     {},
@@ -103,12 +106,17 @@ function readProject(T: TypeScript, configPath: string): Project {
         .join('\n')}`,
     );
   }
+  return config;
+}
+
+function readProject(T: TypeScript, configPath: string): Project {
+  const configVersions = new Map<string, string>();
   return {
-    config,
+    config: readConfig(T, configPath, configVersions),
     configVersions,
     versions: new Map(),
     sourceFiles: new Map(),
-    excludedFiles: new Set(),
+    excludedFiles: new Map(),
   };
 }
 
@@ -125,7 +133,7 @@ function getProgram(
   } else if (
     project.program &&
     !project.program.getSourceFile(filename) &&
-    !project.excludedFiles.has(filename)
+    project.excludedFiles.get(filename) !== version(filename)
   ) {
     const refreshed = readProject(T, configPath);
     const previousFiles = project.config.fileNames;
@@ -136,16 +144,20 @@ function getProgram(
       );
     if (rootsChanged) project.config = refreshed.config;
     if (!project.config.fileNames.includes(filename))
-      project.excludedFiles.add(filename);
+      project.excludedFiles.set(filename, version(filename));
+    else project.excludedFiles.delete(filename);
   }
   // Bound retained compiler graphs in long-lived editor processes.
   projects.delete(configPath);
   projects.set(configPath, project);
   if (projects.size > 3) projects.delete(projects.keys().next().value!);
 
+  const sourcesChanged = changed(project.versions);
   const overlay =
     project.excludedFiles.has(filename) &&
-    !project.program?.getSourceFile(filename)
+    !project.program?.getSourceFile(filename) &&
+    !rootsChanged &&
+    !sourcesChanged
       ? undefined
       : T.sys.readFile(filename) === text
         ? undefined
@@ -153,13 +165,10 @@ function getProgram(
   const overlayChanged =
     project.overlay?.filename !== overlay?.filename ||
     project.overlay?.text !== overlay?.text;
-  if (
-    !project.program ||
-    rootsChanged ||
-    overlayChanged ||
-    changed(project.versions)
-  ) {
+  if (!project.program || rootsChanged || overlayChanged || sourcesChanged) {
     const host = T.createCompilerHost(project.config.options, true);
+    host.getParsedCommandLine = (path) =>
+      readConfig(T, path, project.configVersions);
     const readFile = host.readFile;
     host.readFile = (path) =>
       resolve(path) === overlay?.filename ? overlay.text : readFile(path);
@@ -201,7 +210,11 @@ function getProgram(
       host,
       oldProgram: project.program,
     });
-    project.overlay = overlay;
+    project.overlay = project.program.getSourceFile(filename)
+      ? overlay
+      : undefined;
+    if (!project.program.getSourceFile(filename))
+      project.excludedFiles.set(filename, version(filename));
     project.versions = new Map(
       project.program
         .getSourceFiles()
@@ -280,13 +293,21 @@ function makeClassifier(
     visited.add(node);
     if (T.isIndexedAccessTypeNode(node)) {
       const object = checker.getTypeFromTypeNode(node.objectType);
-      if (
+      const index = checker.getTypeFromTypeNode(node.indexType);
+      const keys = index.isUnion() ? index.types : [index];
+      // Trace the selected property, not unrelated style props on the object.
+      return (
         object === styles ||
-        object
-          .getProperties()
-          .some((p) => p.declarations?.some(isStyleDeclaration))
-      )
-        return true;
+        keys.some((key) => {
+          if (!key.isStringLiteral() && !key.isNumberLiteral()) return false;
+          const property = checker.getPropertyOfType(object, String(key.value));
+          return property?.declarations?.some(
+            (declaration) =>
+              isStyleDeclaration(declaration) ||
+              referencesStyles(declaration, visited),
+          );
+        })
+      );
     }
     if (T.isTypeReferenceNode(node)) {
       let reference = checker.getSymbolAtLocation(node.typeName);

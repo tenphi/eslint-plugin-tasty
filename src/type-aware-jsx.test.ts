@@ -95,6 +95,68 @@ it('follows aliases, reexports, member tags, mapped props and indexed style alia
   ]);
 });
 
+it('classifies the selected property of an indexed mixed-prop type', () => {
+  const components = join(dir, 'components.tsx');
+  writeFileSync(
+    components,
+    readFileSync(components, 'utf8') +
+      `
+    type MixedProps = BaseStyleProps & { prefix?: Content };
+    type CopiedContent = MixedProps['prefix'];
+    export const ProxyItem = (props: { prefix?: CopiedContent }) => null;
+    export const DirectItem = (props: { prefix?: MixedProps['prefix'] }) => null;
+    export const ProxyBox = (props: { gap?: MixedProps['gap'] }) => null;`,
+  );
+  expect(
+    rules(`import { ProxyItem, DirectItem, ProxyBox } from './components';
+    <ProxyItem prefix="17px" />; <DirectItem prefix="17px" />;
+    <ProxyBox gap="17px" />;`),
+  ).toEqual(['tasty/consistent-token-usage']);
+});
+
+it.each(['tsconfig.json', 'tsconfig.base.json'])(
+  'refreshes referenced project declarations after changing %s',
+  (changedConfig) => {
+    for (const path of ['child/src', 'child/d1', 'child/d2'])
+      mkdirSync(join(dir, path), { recursive: true });
+    const config = JSON.parse(readFileSync(join(dir, 'tsconfig.json'), 'utf8'));
+    config.references = [{ path: './child' }];
+    writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify(config));
+    const child = {
+      compilerOptions: {
+        composite: true,
+        declaration: true,
+        rootDir: './src',
+        outDir: './d1',
+        module: 'ESNext',
+      },
+      include: ['src/*.tsx'],
+    };
+    writeFileSync(join(dir, 'child/tsconfig.base.json'), JSON.stringify(child));
+    writeFileSync(
+      join(dir, 'child/tsconfig.json'),
+      JSON.stringify({ extends: './tsconfig.base.json' }),
+    );
+    writeFileSync(
+      join(dir, 'child/src/component.tsx'),
+      `export const Indicator = (props: { position: 'before' | 'after' }) => null;`,
+    );
+    writeFileSync(
+      join(dir, 'child/d1/component.d.ts'),
+      `export declare const Indicator: (props: { position: 'before' | 'after' }) => null;`,
+    );
+    writeFileSync(
+      join(dir, 'child/d2/component.d.ts'),
+      `import type { Styles } from '../../tasty'; export declare const Indicator: (props: { position: Styles['position'] }) => null;`,
+    );
+    const code = `import { Indicator } from './child/src/component'; <Indicator position="after" />;`;
+    expect(rules(code)).toEqual([]);
+    child.compilerOptions.outDir = './d2';
+    writeFileSync(join(dir, 'child', changedConfig), JSON.stringify(child));
+    expect(rules(code)).toEqual(['tasty/valid-value']);
+  },
+);
+
 it('falls back for unresolved, untyped, primitive and ambiguous style props', () => {
   const code = `import { PrimitiveBox, UnknownBox, BrokenBox, MixedBox } from './components';
     <PrimitiveBox position="after" gap={17} />;
@@ -187,6 +249,40 @@ it('discovers new files included by the existing project', () => {
   filename = join(dir, 'new-consumer.tsx');
   writeFileSync(filename, code);
   expect(rules(code)).toEqual([]);
+});
+
+it('discovers a first-linted unsaved file after its first save', () => {
+  const code = `import { TabDropIndicator } from './components'; <TabDropIndicator position="after" />;`;
+  expect(rules(code)).toEqual([]);
+  filename = join(dir, 'unsaved.tsx');
+  expect(rules(code)).toEqual(['tasty/valid-value']);
+  writeFileSync(
+    filename,
+    `import { Box } from './components'; <Box position="after" />;`,
+  );
+  // Saving discovers the root; the current editor buffer still wins over disk.
+  expect(rules(code)).toEqual([]);
+  expect(rules(readFileSync(filename, 'utf8'))).toEqual(['tasty/valid-value']);
+});
+
+it('uses the current buffer when an excluded file becomes an imported dependency', () => {
+  const config = JSON.parse(readFileSync(join(dir, 'tsconfig.json'), 'utf8'));
+  config.include = ['components.tsx'];
+  writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify(config));
+  writeFileSync(
+    filename,
+    `import { Box } from './components'; <Box position="after" />;`,
+  );
+  const code = `import { TabDropIndicator } from './components'; <TabDropIndicator position="after" />;`;
+  expect(rules(code)).toEqual(['tasty/valid-value']);
+  expect(rules(code)).toEqual(['tasty/valid-value']);
+  const components = join(dir, 'components.tsx');
+  writeFileSync(
+    components,
+    readFileSync(components, 'utf8') + "\nimport './consumer';",
+  );
+  expect(rules(code)).toEqual([]);
+  expect(rules(readFileSync(filename, 'utf8'))).toEqual(['tasty/valid-value']);
 });
 
 it('preserves style checks when a dependency uses a separate Tasty copy', () => {
