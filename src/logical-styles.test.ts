@@ -292,10 +292,14 @@ tester.run('consistent-token-usage (logical styles)', consistentTokenUsage, {
     wrap(`blockBorder: '1bw solid #accent'`),
     wrap(`inlineBorder: true`),
 
-    // No logical radius exists, so the `6px` -> `1r` case has no counterpart.
-    wrap(`blockPadding: '1px'`),
+    wrap(`blockPadding: '1x'`),
   ],
   invalid: [
+    {
+      // Arbitrary pixels are reported without inventing a category equivalent.
+      code: wrap(`blockPadding: '1px'`),
+      errors: [{ messageId: 'rawPixelValue' }],
+    },
     {
       // A border width is `1bw` whichever axis vocabulary the author used.
       code: wrap(`blockBorder: '1px solid #accent'`),

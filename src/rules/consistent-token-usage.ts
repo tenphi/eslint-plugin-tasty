@@ -1,11 +1,13 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
-import { TastyContext, styleObjectListeners } from '../context.js';
-import { getKeyName, getStringValue } from '../utils.js';
-import { LOGICAL_BORDER_STYLES } from '../constants.js';
-import { replaceStringValue, replaceInStringValue } from '../fix-utils.js';
+import { TastyContext } from '../context.js';
+import { styleValueListeners } from '../style-values.js';
+import { LOGICAL_BORDER_STYLES, LOGICAL_STYLES } from '../constants.js';
+import { getStringValue } from '../utils.js';
+import { replaceInStringValue } from '../fix-utils.js';
+import { scanValueWords } from '../value-words.js';
 
-type MessageIds = 'preferToken' | 'replaceWithToken';
+type MessageIds = 'preferToken' | 'rawPixelValue' | 'replaceWithToken';
 
 /**
  * Properties whose value carries a border width, so a `1px` in one is the
@@ -19,6 +21,50 @@ type MessageIds = 'preferToken' | 'replaceWithToken';
 const BORDER_WIDTH_PROPERTIES = new Set<string>([
   'border',
   ...LOGICAL_BORDER_STYLES,
+]);
+
+/** Enhanced handlers that convert numeric inputs to pixels. Unitless CSS stays out. */
+const NUMERIC_PIXEL_PROPERTIES = new Set<string>([
+  ...LOGICAL_STYLES,
+  'gap',
+  'radius',
+  'outlineOffset',
+  'width',
+  'minWidth',
+  'maxWidth',
+  'height',
+  'minHeight',
+  'maxHeight',
+  'padding',
+  'paddingTop',
+  'paddingRight',
+  'paddingBottom',
+  'paddingLeft',
+  'margin',
+  'marginTop',
+  'marginRight',
+  'marginBottom',
+  'marginLeft',
+  'inset',
+  'top',
+  'right',
+  'bottom',
+  'left',
+  'border',
+  'borderTop',
+  'borderRight',
+  'borderBottom',
+  'borderLeft',
+  'scrollPadding',
+  'scrollPaddingTop',
+  'scrollPaddingRight',
+  'scrollPaddingBottom',
+  'scrollPaddingLeft',
+  'scrollMargin',
+  'scrollMarginTop',
+  'scrollMarginRight',
+  'scrollMarginBottom',
+  'scrollMarginLeft',
 ]);
 
 const PX_TO_UNIT: Record<string, string> = {
@@ -42,7 +88,10 @@ export default createRule<[], MessageIds>({
         'Suggest using design tokens and custom units instead of raw CSS values',
     },
     messages: {
-      preferToken: "Consider using '{{suggestion}}' instead of '{{raw}}'.",
+      rawPixelValue:
+        "Use a design token or custom unit instead of raw pixel value '{{raw}}'. For an intentional pixel value, explicitly disable tasty/consistent-token-usage on this line with a reason.",
+      preferToken:
+        "Consider using '{{suggestion}}' instead of '{{raw}}'. For an intentional pixel value, explicitly disable tasty/consistent-token-usage on this line with a reason.",
       replaceWithToken: "Replace '{{raw}}' with '{{suggestion}}'",
     },
     schema: [],
@@ -56,121 +105,80 @@ export default createRule<[], MessageIds>({
       value: string,
       node: TSESTree.Node,
     ): void {
-      const trimmed = value.trim();
-
-      // Check pixel values that map to gap multiples
-      if (trimmed in PX_TO_UNIT) {
-        const suggestion = PX_TO_UNIT[trimmed];
-        context.report({
-          node,
-          messageId: 'preferToken',
-          data: { suggestion, raw: trimmed },
-          suggest: [
-            {
-              messageId: 'replaceWithToken',
-              data: { raw: trimmed, suggestion },
-              fix(fixer) {
-                return replaceStringValue(fixer, node, suggestion);
-              },
-            },
-          ],
+      // Definitions establish the scale itself; quoted text and URLs are opaque.
+      if (/^[#$]/.test(property)) return;
+      const pixels = new Map<
+        string,
+        { start: number; end: number; replacement: string }[]
+      >();
+      for (const word of scanValueWords(value)) {
+        if (!/^[+-]?(?:\d*\.\d+|\d+\.?\d*)(?:e[+-]?\d+)?px$/i.test(word.value))
+          continue;
+        const amount = Number(word.value.slice(0, -2));
+        if (amount === 0) continue;
+        const raw = word.value;
+        const canonical = `${amount}px`;
+        const suggestion =
+          property === 'radius' && amount === 6
+            ? '1r'
+            : BORDER_WIDTH_PROPERTIES.has(property) && amount === 1
+              ? '1bw'
+              : PX_TO_UNIT[canonical];
+        const edits = pixels.get(raw) ?? [];
+        edits.push({
+          start: word.offset,
+          end: word.offset + raw.length,
+          replacement: suggestion ?? '',
         });
-        return;
+        pixels.set(raw, edits);
       }
-
-      // Check 6px in radius context
-      if (property === 'radius' && trimmed === '6px') {
-        context.report({
-          node,
-          messageId: 'preferToken',
-          data: { suggestion: '1r', raw: '6px' },
-          suggest: [
-            {
-              messageId: 'replaceWithToken',
-              data: { raw: '6px', suggestion: '1r' },
-              fix(fixer) {
-                return replaceStringValue(fixer, node, '1r');
-              },
-            },
-          ],
-        });
-        return;
-      }
-
-      // Check 1px in border context
-      if (BORDER_WIDTH_PROPERTIES.has(property) && trimmed.includes('1px')) {
-        const edits: { start: number; end: number; replacement: string }[] = [];
-        const re = /\b1px\b/g;
-        let match: RegExpExecArray | null;
-        while ((match = re.exec(value)) !== null) {
-          edits.push({
-            start: match.index,
-            end: match.index + match[0].length,
-            replacement: '1bw',
-          });
-        }
-        if (edits.length === 0) return;
-        context.report({
-          node,
-          messageId: 'preferToken',
-          data: { suggestion: '1bw', raw: '1px' },
-          suggest: [
-            {
-              messageId: 'replaceWithToken',
-              data: { raw: '1px', suggestion: '1bw' },
-              fix(fixer) {
-                return replaceInStringValue(
-                  fixer,
-                  node,
-                  edits,
-                  context.sourceCode,
-                );
-              },
-            },
-          ],
-        });
-      }
-    }
-
-    function handleStyleObject(node: TSESTree.ObjectExpression) {
-      if (!ctx.isStyleObject(node)) return;
-
-      for (const prop of node.properties) {
-        if (prop.type !== 'Property' || prop.computed) continue;
-
-        const key = getKeyName(prop.key);
-        if (key === null) continue;
-
-        const str = getStringValue(prop.value);
-        if (str) {
-          checkValue(key, str, prop.value);
+      for (const [raw, edits] of pixels) {
+        const suggestion = edits[0].replacement;
+        if (!suggestion) {
+          context.report({ node, messageId: 'rawPixelValue', data: { raw } });
           continue;
         }
-
-        // Only recurse into genuine state maps. Sub-element objects
-        // (`Icon: { … }`) are style objects in their own right and are visited
-        // separately by the listener, so treating them as state maps here both
-        // double-reports and attributes the value to the wrong property.
-        if (
-          prop.value.type === 'ObjectExpression' &&
-          ctx.isStateMap(prop.value, prop)
-        ) {
-          for (const stateProp of prop.value.properties) {
-            if (stateProp.type !== 'Property') continue;
-            const stateStr = getStringValue(stateProp.value);
-            if (stateStr) {
-              checkValue(key, stateStr, stateProp.value);
-            }
-          }
-        }
+        context.report({
+          node,
+          messageId: 'preferToken',
+          data: { suggestion, raw },
+          suggest: [
+            {
+              messageId: 'replaceWithToken',
+              data: { raw, suggestion },
+              fix: (fixer) =>
+                getStringValue(node) === null
+                  ? fixer.replaceText(node, `'${suggestion}'`)
+                  : replaceInStringValue(
+                      fixer,
+                      node,
+                      edits,
+                      context.sourceCode,
+                    ),
+            },
+          ],
+        });
       }
     }
 
-    return {
-      ImportDeclaration(node) {
-        ctx.trackImport(node);
-      },
-      ...styleObjectListeners(handleStyleObject),
-    };
+    return styleValueListeners(ctx, (property, node) => {
+      const value = getStringValue(node);
+      if (value !== null) {
+        checkValue(property, value, node);
+      } else if (NUMERIC_PIXEL_PROPERTIES.has(property)) {
+        if (node.type === 'Literal' && typeof node.value === 'number') {
+          checkValue(property, `${node.value}px`, node);
+        } else if (
+          node.type === 'UnaryExpression' &&
+          (node.operator === '-' || node.operator === '+') &&
+          node.argument.type === 'Literal' &&
+          typeof node.argument.value === 'number'
+        ) {
+          const amount =
+            node.operator === '-' ? -node.argument.value : node.argument.value;
+          checkValue(property, `${amount}px`, node);
+        }
+      }
+    });
   },
 });

@@ -1,7 +1,7 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
-import { TastyContext, styleObjectListeners } from '../context.js';
-import { getKeyName, getStringValue } from '../utils.js';
+import { TastyContext } from '../context.js';
+import { stringStyleValueListeners } from '../style-values.js';
 import { parseValue } from '../parsers/value-parser.js';
 import type { ValueParserOptions } from '../parsers/value-parser.js';
 import { getExpectation } from '../property-expectations.js';
@@ -198,46 +198,9 @@ export default createRule<[], MessageIds>({
       }
     }
 
-    function processProperty(prop: TSESTree.Property): void {
-      const key = !prop.computed ? getKeyName(prop.key) : null;
-
-      if (key && (/^[A-Z]/.test(key) || key.startsWith('@'))) return;
-      if (key && (key.startsWith('$') || key.startsWith('#'))) return;
-      if (key && key.startsWith('&')) return;
-
-      const str = getStringValue(prop.value);
-      if (str) {
-        checkValue(str, key, prop.value);
-        return;
-      }
-
-      // State map
-      if (prop.value.type === 'ObjectExpression') {
-        for (const stateProp of prop.value.properties) {
-          if (stateProp.type !== 'Property') continue;
-          const stateStr = getStringValue(stateProp.value);
-          if (stateStr) {
-            checkValue(stateStr, key, stateProp.value);
-          }
-        }
-      }
-    }
-
-    function handleStyleObject(node: TSESTree.ObjectExpression) {
-      if (!ctx.isStyleObject(node)) return;
-
-      for (const prop of node.properties) {
-        if (prop.type !== 'Property') continue;
-        processProperty(prop);
-      }
-    }
-
-    return {
-      ImportDeclaration(node) {
-        ctx.trackImport(node);
-      },
-      ...styleObjectListeners(handleStyleObject),
-    };
+    return stringStyleValueListeners(ctx, (value, node, property) => {
+      if (!/^[#$]/.test(property)) checkValue(value, property, node);
+    });
   },
 });
 

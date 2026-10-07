@@ -87,7 +87,7 @@ const linters = [
       rules,
     ) => `import tasty from ${JSON.stringify(pathToFileURL(pluginPath).href)};
 import parser from ${JSON.stringify(pathToFileURL(require.resolve('@typescript-eslint/parser')).href)};
-export default [{ files: ['**/*.ts'], languageOptions: { parser }, plugins: { tasty }, rules: ${JSON.stringify(rules)} }];`,
+export default [{ files: ['**/*.{ts,tsx}'], languageOptions: { parser, parserOptions: { ecmaFeatures: { jsx: true } } }, plugins: { tasty }, rules: ${JSON.stringify(rules)} }];`,
     diagnostics: (result) =>
       result.flatMap((file) =>
         file.messages.map((message) => message.ruleId?.replace('tasty/', '')),
@@ -262,8 +262,176 @@ component('Content', { styles: {
         `${linter.name}: ${name} accepts structural groups, pseudo-elements, and own states`,
       );
     }
+    // Consumer values must have the same diagnostics through both AST adapters.
+    writeFileSync(
+      join(dir, 'tasty.config.json'),
+      readFileSync(
+        new URL('./fixtures/style-values/tasty.config.json', import.meta.url),
+        'utf8',
+      ),
+    );
+    const valueRules = Object.fromEntries(
+      [
+        'no-raw-color-values',
+        'valid-color-token',
+        'valid-custom-property',
+        'valid-custom-unit',
+        'consistent-token-usage',
+        'no-raw-motion-duration',
+      ].map((name) => [`tasty/${name}`, 'error']),
+    );
+    writeFileSync(join(dir, linter.configName), linter.config(valueRules));
+    writeFileSync(
+      join(dir, 'values-valid.tsx'),
+      `
+import { Box } from '@my/ds';
+<Box fill="#surface" gap="1x" animationDuration="$duration" />;
+<svg fill="red" gap="17px" />;
+<Box content={'"17px #missing $missing red"'} />;
+`,
+    );
+    writeFileSync(
+      join(dir, 'values-invalid.tsx'),
+      `
+import { Box } from '@my/ds';
+<Box fill="red" gap="17px" />;
+<Box fill="#missing" gap="$missing" />;
+<Box padding="min(2unknownunit, 1x)" />;
+<Box gap={17} animationDuration="200ms" />;
+<Box styles={{ Deep: { Deeper: { fill: 'red', padding: '17px' } } }} />;
+`,
+    );
+    assert.deepEqual(run('values-valid.tsx'), { status: 0, rules: [] });
+    assert.deepEqual(
+      run('values-invalid.tsx'),
+      {
+        status: 1,
+        rules: [
+          'no-raw-color-values',
+          'no-raw-color-values',
+          'consistent-token-usage',
+          'consistent-token-usage',
+          'consistent-token-usage',
+          'valid-color-token',
+          'valid-custom-property',
+          'valid-custom-unit',
+          'no-raw-motion-duration',
+        ].sort(),
+      },
+      `${linter.name}: JSX literals, numeric pixels, expressions and nested styles`,
+    );
+
+    const rewriteRules = Object.fromEntries(
+      ['no-important', 'prefer-auto-calc', 'prefer-custom-property-syntax'].map(
+        (name) => [`tasty/${name}`, 'error'],
+      ),
+    );
+    writeFileSync(join(dir, linter.configName), linter.config(rewriteRules));
+    const rewrites = `import { Box } from '@my/ds';
+<Box gap={'var(--gap)'} width={'calc(100% - 1x)'} fill="#surface !important" />;
+<Box content={'"var(--gap) !important transparent"'} />;
+`;
+    writeFileSync(join(dir, 'rewrites.tsx'), rewrites);
+    assert.deepEqual(run('rewrites.tsx', [linter.fix]), {
+      status: 0,
+      rules: [],
+    });
+    assert.equal(
+      readFileSync(join(dir, 'rewrites.tsx'), 'utf8'),
+      rewrites
+        .replace("{'var(--gap)'}", "{'$gap'}")
+        .replace("{'calc(100% - 1x)'}", "{'(100% - 1x)'}")
+        .replace('#surface !important', '#surface'),
+      `${linter.name}: JSX rewrites preserve syntax and quoted content`,
+    );
+    const propUsage = `import { tasty } from '@tenphi/tasty';
+import { Box } from '@my/ds';
+const Local = tasty({ styles: { fill: '#surface' } });
+const Alias = Local;
+<Local style={inlineStyle} className="external" styles={overrides} />;
+<Alias {...({ style: inlineStyle, className: 'external', styles: overrides } as Props)} />;
+<Box tokens={{ $size: size }} mods={{ compact }} data-element="Body" />;
+<div style={inlineStyle} className="external" />;
+`;
+    for (const [name, preset] of Object.entries({ recommended, strict })) {
+      writeFileSync(join(dir, linter.configName), linter.config(preset));
+      writeFileSync(join(dir, 'prop-usage.tsx'), propUsage);
+      const expectedProps = {
+        status: 0,
+        rules: [
+          'no-style-prop',
+          'no-style-prop',
+          'no-classname-prop',
+          'no-classname-prop',
+          'no-styles-prop',
+          'no-styles-prop',
+        ].sort(),
+      };
+      assert.deepEqual(
+        run('prop-usage.tsx'),
+        expectedProps,
+        `${linter.name}: ${name} warns about all three props and inline spreads`,
+      );
+      assert.deepEqual(
+        run('prop-usage.tsx', [linter.fix]),
+        expectedProps,
+        `${linter.name}: ${name} keeps prop migrations report-only`,
+      );
+      assert.equal(
+        readFileSync(join(dir, 'prop-usage.tsx'), 'utf8'),
+        propUsage,
+      );
+      assert.equal(
+        run('prop-usage.tsx', ['--max-warnings', '0']).status,
+        1,
+        `${linter.name}: ${name} can enforce prop warnings in CI`,
+      );
+      const propExceptions = `import { tasty } from '@tenphi/tasty';
+const Local = tasty({});
+const positioned = (
+  // eslint-disable-next-line tasty/no-style-prop -- positioning library owns inline styles
+  <Local style={positioningStyles} />
+);
+const libraryElement = <>
+  {/* eslint-disable-next-line tasty/no-classname-prop -- library stylesheet requires this class */}
+  <Local className={libraryClassName} />
+</>;
+const adapted = (
+  // eslint-disable-next-line tasty/no-styles-prop -- adapter needs instance overrides
+  <Local styles={adapterOverrides} />
+);
+<Local {...{
+  // eslint-disable-next-line tasty/no-style-prop -- library styles in a spread
+  style: positioningStyles,
+  // eslint-disable-next-line tasty/no-classname-prop -- library classes in a spread
+  className: libraryClassName,
+  // eslint-disable-next-line tasty/no-styles-prop -- adapter overrides in a spread
+  styles: adapterOverrides,
+}} />;
+<Local style={inlineStyle} className="external" styles={overrides} />;
+`;
+      writeFileSync(join(dir, 'prop-exceptions.tsx'), propExceptions);
+      const expectedExceptions = {
+        status: 0,
+        rules: ['no-style-prop', 'no-classname-prop', 'no-styles-prop'].sort(),
+      };
+      assert.deepEqual(
+        run('prop-exceptions.tsx'),
+        expectedExceptions,
+        `${linter.name}: ${name} local exceptions leave subsequent warnings visible`,
+      );
+      assert.deepEqual(
+        run('prop-exceptions.tsx', [linter.fix]),
+        expectedExceptions,
+        `${linter.name}: ${name} keeps acknowledged exceptions intact`,
+      );
+      assert.equal(
+        readFileSync(join(dir, 'prop-exceptions.tsx'), 'utf8'),
+        propExceptions,
+      );
+    }
     console.log(
-      `${linter.name}: custom calls, import boundaries, diagnostics, fixes, and full presets passed`,
+      `${linter.name}: custom calls, import boundaries, diagnostics, fixes, full presets, JSX value policies, and component prop guidance passed`,
     );
   } finally {
     rmSync(dir, { recursive: true, force: true });

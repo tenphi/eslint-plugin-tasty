@@ -1,12 +1,13 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
-import { TastyContext, styleObjectListeners } from '../context.js';
+import { TastyContext } from '../context.js';
+import { stringStyleValueListeners } from '../style-values.js';
 import {
   PROPERTIES_WITHOUT_COLOR_TOKEN_EXPANSION,
   PROPERTIES_WITHOUT_CUSTOM_PROPERTY_EXPANSION,
 } from '../constants.js';
-import { getKeyName, getStringValue } from '../utils.js';
 import { replaceInStringValue } from '../fix-utils.js';
+import { maskValueLiterals } from '../value-words.js';
 
 type MessageIds =
   | 'preferCustomPropertySyntax'
@@ -26,7 +27,7 @@ const VAR_REGEX = /var\(\s*--([a-zA-Z0-9_-]+)\s*(?:,\s*([^)]+))?\s*\)/g;
 // at computed-value time with no error anywhere.
 const COLOR_PROP_REGEX =
   /(?<![$#])\$([a-zA-Z][a-zA-Z0-9_-]*)-color(?![a-zA-Z0-9_-])(\.[0-9]+|\.\$[a-zA-Z][a-zA-Z0-9_-]*)?/g;
-const KEYWORD_REGEX = /\b(transparent|currentColor)\b/gi;
+const KEYWORD_REGEX = /(?<![\w$#-])(transparent|currentColor)(?![\w-])/gi;
 
 function normalizeFallback(fallback: string): string {
   const trimmed = fallback.trim();
@@ -123,13 +124,16 @@ export default createRule<[], MessageIds>({
       node: TSESTree.Node,
       property: string,
     ): void {
+      const masked = maskValueLiterals(value);
       // Pass 1: var(--x) / var(--x, fallback) → $x / (#x, fallback).
       // Records spans so standalone keywords inside var() aren't double-reported.
       const varSpans: Span[] = [];
       VAR_REGEX.lastIndex = 0;
       let match: RegExpExecArray | null;
-      while ((match = VAR_REGEX.exec(value)) !== null) {
+      while ((match = VAR_REGEX.exec(masked)) !== null) {
         const raw = match[0];
+        if (raw !== value.slice(match.index, match.index + raw.length))
+          continue;
         const name = match[1];
         const fallback = match[2];
         const suggestion = suggestVarSyntax(name, fallback);
@@ -162,7 +166,7 @@ export default createRule<[], MessageIds>({
 
       // Pass 2: $x-color → #x.
       COLOR_PROP_REGEX.lastIndex = 0;
-      while ((match = COLOR_PROP_REGEX.exec(value)) !== null) {
+      while ((match = COLOR_PROP_REGEX.exec(masked)) !== null) {
         const raw = match[0];
         const name = match[1];
         const opacity = match[2] ?? '';
@@ -189,7 +193,7 @@ export default createRule<[], MessageIds>({
 
       // Pass 3: standalone transparent / currentColor (skip inside var()).
       KEYWORD_REGEX.lastIndex = 0;
-      while ((match = KEYWORD_REGEX.exec(value)) !== null) {
+      while ((match = KEYWORD_REGEX.exec(masked)) !== null) {
         const start = match.index;
         const end = start + match[0].length;
         if (isInsideSpans(start, end, varSpans)) continue;
@@ -215,40 +219,12 @@ export default createRule<[], MessageIds>({
       }
     }
 
-    function handleStyleObject(node: TSESTree.ObjectExpression) {
-      if (!ctx.isStyleObject(node)) return;
-
-      for (const prop of node.properties) {
-        if (prop.type !== 'Property' || prop.computed) continue;
-
-        const key = getKeyName(prop.key);
-        if (key === null) continue;
-        if (/^[A-Z@&$#]/.test(key)) continue;
-
-        const str = getStringValue(prop.value);
-        if (str) {
-          checkValue(str, prop.value, key);
-          continue;
-        }
-
-        if (prop.value.type === 'ObjectExpression') {
-          for (const stateProp of prop.value.properties) {
-            if (stateProp.type !== 'Property') continue;
-            const stateStr = getStringValue(stateProp.value);
-            if (stateStr) {
-              // State maps keep the outer property's expansion rules.
-              checkValue(stateStr, stateProp.value, key);
-            }
-          }
-        }
-      }
-    }
-
-    return {
-      ImportDeclaration(node) {
-        ctx.trackImport(node);
+    return stringStyleValueListeners(
+      ctx,
+      (value, node, property) => {
+        if (!/^[#$]/.test(property)) checkValue(value, node, property);
       },
-      ...styleObjectListeners(handleStyleObject),
-    };
+      { requireTastyJSX: true },
+    );
   },
 });

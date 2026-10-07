@@ -96,9 +96,9 @@ export default createRule<[], MessageIds>({
     },
     messages: {
       preferShorthand:
-        "When defining the complete style, prefer tasty shorthand '{{alternative}}' instead of '{{native}}'.{{overrideHint}}",
+        "When defining the complete style, prefer tasty shorthand '{{alternative}}' instead of '{{native}}'.{{overrideHint}} If this longhand is intentional, explicitly disable tasty/prefer-shorthand-property on this line with a reason.",
       preferShorthandExtending:
-        "'{{native}}' changes one part of the base styles. '{{alternative}}' would replace the whole '{{property}}'.{{overrideHint}}",
+        "'{{native}}' changes one part of the base styles. '{{alternative}}' would replace the whole '{{property}}'.{{overrideHint}} If this longhand is intentional, explicitly disable tasty/prefer-shorthand-property on this line with a reason.",
     },
     schema: [],
   },

@@ -197,7 +197,10 @@ for typing shared signatures.
 | `tasty/no-raw-transition-duration` | warn | Hardcoded `transition` duration (`fill 0.2s`) in Tasty styles or a local `tasty()` component's `transition` prop. Suggests a configured duration token or the implicit per-name timing; zero and delays are left alone |
 | `tasty/no-runtime-styles-mutation` | warn | JavaScript variables, calls, conditionals, computed keys, or interpolated templates in Tasty style values; use states and tokens instead |
 | `tasty/no-style-spread` | warn | Object or array spreads inside runtime Tasty styles; recommends `mergeStyles` for multiple root spreads; intentional spreads need a per-line suppression and reason |
-| `tasty/consistent-token-usage` | warn | Raw px values when custom units or tokens exist |
+| `tasty/no-style-prop` | warn | `style` on recognized Tasty components; use token references and the `tokens` prop ([details](docs/rules/no-style-prop.md)) |
+| `tasty/no-classname-prop` | warn | `className` on recognized Tasty components; keep styling in Tasty or use `data-element` for sub-elements ([details](docs/rules/no-classname-prop.md)) |
+| `tasty/no-styles-prop` | warn | Instance `styles` on recognized Tasty components; use `tokens`, `mods`, exposed props/variants, or `tasty(Component, { styles })` ([details](docs/rules/no-styles-prop.md)) |
+| `tasty/consistent-token-usage` | warn | Nonzero raw pixel lengths, including compounds, expressions and numeric inputs to enhanced length handlers |
 | `tasty/prefer-auto-calc` | warn | `calc(...)` instead of Tasty auto-calc `(...)` |
 | `tasty/prefer-state-negation` | warn | Top-level `:not(...)` in state keys instead of the `!` prefix (autofixable; nested CSS selectors stay intact) |
 | `tasty/prefer-custom-property-syntax` | warn | `var(--prop)` / `$x-color` / `transparent` / `currentColor` instead of `$prop` / `#color` / `#clear` / `#current` |
@@ -212,7 +215,6 @@ for typing shared signatures.
 | `tasty/valid-custom-property` | warn | Unknown `$name` custom properties |
 | `tasty/valid-state-definition` | warn | Invalid state definition values in `configure()` or `tasty.config` |
 | `tasty/no-unknown-state-alias` | warn | Unknown `@name` state aliases |
-| `tasty/no-styles-prop` | warn | Direct `styles` prop usage |
 
 ### Structural selectors and state maps
 
@@ -300,7 +302,7 @@ export default [
 ```
 
 It checks `animation`, `animationDuration`, and `transitionDuration` in Tasty
-style objects. It suggests configured `$…duration` tokens when
+style objects and JSX style props. It suggests configured `$…duration` tokens when
 available. It never suggests removing a duration, since these properties do not
 inherit Tasty's implicit transition timing. Zero, delays, and values based on
 tokens are left alone. Lengths and widths remain covered by the separate
@@ -320,6 +322,90 @@ one part of an existing effect in a state or component extension.
 Replacing one with a shorthand can reset the other parts of the effect, including
 an animation's timeline and range. The duration rules above still encourage
 tokens wherever a duration is written.
+
+## Intentional exceptions
+
+The advisory rules describe preferred Tasty patterns. Third-party integrations
+may require `style` or `className`, and edge cases may require instance `styles`.
+One-off colors, exact pixel alignment, custom motion timing, generated runtime
+styles, longhand overrides, and conditional selectors can also be intentional.
+Their warnings explain both the preferred alternative and the local ignore path.
+
+For an exception, use an explicit, rule-specific ESLint disable comment with a
+reason immediately before the reported line:
+
+```tsx
+const floating = (
+  // eslint-disable-next-line tasty/no-style-prop -- positioning library supplies these inline styles
+  <Box style={positioningStyles} />
+);
+```
+
+The comment acknowledges that usage; other rules on the same line and later
+usages still report. In multiline JSX, target the line containing the reported
+attribute or spread property. JSX child comments can use
+`{/* eslint-disable-next-line tasty/no-classname-prop -- library requires this class */}`
+immediately above the affected element when the attribute is on that next line.
+
+Suppression uses ESLint's normal directives. The plugin does not enforce comment
+reasons or infer exceptions automatically. A warning severity alone does not mean
+the value is valid: checks for unknown names, malformed syntax, state order, and
+static-extraction constraints still describe correctness issues. Verify those
+against the runtime, configuration, or extractor before suppressing them.
+
+## Component prop guidance
+
+Both presets warn about three escape-hatch props on recognized Tasty components:
+
+- `style`: define token references in the component's styles and provide dynamic values through `tokens`.
+- `className`: keep styling in Tasty. For sub-element targeting, use `data-element="Name"` and the matching capitalized key in the parent's styles.
+- `styles`: use `tokens` for dynamic values, `mods` for state changes, exposed style props or variants for supported customization, or a reusable `tasty(Component, { styles })` wrapper for structural overrides.
+
+Warnings cover every explicit value shape, including variables, calls, conditional
+expressions and null, plus visible keys in inline JSX object spreads. Replacing
+these props requires choosing the component's token/state/extension contract, so
+these rules provide guidance without automatic fixes.
+
+Recognition uses local `const` Tasty/configured-options factory results, their
+`const` aliases/sub-elements, and components imported from `importSources`. Add
+your design-system module to `importSources` to enable checks on imported
+components. Native elements, unrelated components, shadowed bindings, and mutable
+aliases are excluded. Opaque spread bindings are not evaluated. Third-party
+styling integrations and edge-case instance overrides need an explicit local
+ignore with a reason, as described above.
+
+## Value validation in JSX
+
+Value rules also check consumer style props such as `<Box fill="red" gap="17px" />`.
+This covers color and custom-property tokens, units, value syntax, booleans,
+directional modifiers, radius shapes, presets, recipes, and motion durations.
+Checks read string attributes, expression literals, static templates, state maps,
+and visible branches of conditionals and logical expressions. They also traverse
+nested sub-elements in shared styles and JSX `styles` / `*Styles` props, including
+TypeScript `as`, `satisfies`, and non-null wrappers.
+
+Individual props are detected by name: a known Tasty or CSS property, or an entry
+in `config.styles`, on an uppercase component or member tag (`<UI.Box>`). This is
+a heuristic, so an unrelated component with a matching non-style prop can need a
+rule suppression. Native HTML/SVG attributes and React's singular `style` prop
+are excluded. Bindings, calls, spreads, and interpolated templates are not evaluated;
+these checks do not require or use TypeScript type services.
+
+Automatic `var()` / `calc()` rewrites and Tasty semantic transition advice need
+additional component evidence: a local `const` created by an imported `tasty()` or
+configured options factory, or a component imported from a Tasty `importSources`
+module. Shadowed bindings do not carry that evidence.
+
+`consistent-token-usage` reports every nonzero pixel length, including `17px`,
+`padding="8px 17px"`, `width="calc(100% - 17px)"`, and `gap={17}`. Numeric values
+are checked only for enhanced handlers that convert them to pixels; unitless
+properties such as `opacity` and `zIndex` are unaffected. Known equivalents still
+have suggestions (`8px` → `1x`, radius `6px` → `1r`, border `1px` → `1bw`). These
+assume the conventional scale defaults; review them against your design system.
+Other pixels are report-only. Zero, token definitions, quoted CSS text, and URLs
+are allowed. Quotes and URLs are also excluded from token and raw-color checks.
+Range-based fixes are withheld when JavaScript escapes or JSX entities make
+source offsets differ from the decoded value.
 
 ## Logical styles
 

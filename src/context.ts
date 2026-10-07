@@ -11,54 +11,16 @@ import {
 import { getKeyName, unwrapExpression } from './utils.js';
 
 /**
- * AST selectors that match ObjectExpressions in all known tasty style contexts:
- * call sites, variable declarations, satisfies/as expressions.
+ * Every object is considered, then TastyContext gates it by its actual context.
+ * Narrow ancestry selectors miss nested shared styles and wrapped JSX values.
  */
-export const STYLE_OBJECT_SELECTORS = [
-  'CallExpression ObjectExpression',
-  'VariableDeclarator > ObjectExpression',
-  'VariableDeclarator > TSSatisfiesExpression > ObjectExpression',
-  'VariableDeclarator > TSAsExpression > ObjectExpression',
-  // `<Block styles={{…}} />`. Safe to match on the prop name alone: React's own
-  // prop is `style`, singular, so a plural `styles` JSX prop is a Tasty
-  // convention.
-  "JSXAttribute[name.name='styles'] > JSXExpressionContainer > ObjectExpression",
-  // A Storybook story's `args.styles`. Deliberately this specific rather than
-  // matching any `styles` key: plenty of unrelated libraries take a `styles`
-  // option object, and a bare key carries no evidence it is Tasty's. Story files
-  // are where a lot of style code is authored and neither the call-site nor the
-  // variable-name heuristic reaches them — the enclosing variable is named after
-  // the story, and there is no Tasty call.
-  // Superset of the `args.styles` shape; `isStylesPropertyValue` is the real
-  // gate, so both `styles` and `'styles'` key forms are covered.
-  'Property > ObjectExpression > Property > ObjectExpression',
-] as const;
+export const STYLE_OBJECT_SELECTORS = ['ObjectExpression'] as const;
 
-/**
- * Creates a record of ESLint listeners that all point to the same handler,
- * one entry per style-object AST selector.
- */
+/** One listener per object; context recognition remains the caller's gate. */
 export function styleObjectListeners(
   handler: (node: TSESTree.ObjectExpression) => void,
 ): Record<string, (node: TSESTree.ObjectExpression) => void> {
-  const listeners: Record<string, (node: TSESTree.ObjectExpression) => void> =
-    {};
-
-  // Selectors overlap — `tasty({ styles: {…} })` matches both
-  // `CallExpression ObjectExpression` and the `styles` key selector — so the
-  // handler must run at most once per object, or every rule double-reports.
-  const visited = new WeakSet<TSESTree.ObjectExpression>();
-  const once = (node: TSESTree.ObjectExpression) => {
-    if (visited.has(node)) return;
-    visited.add(node);
-    handler(node);
-  };
-
-  for (const selector of STYLE_OBJECT_SELECTORS) {
-    listeners[selector] = once;
-  }
-
-  return listeners;
+  return { ObjectExpression: handler };
 }
 
 export interface StyleContext {
@@ -176,7 +138,11 @@ function isNamedCssBlockMap(node: TSESTree.ObjectExpression): boolean {
  * name an import can be matched against.
  */
 function jsxStylesPropTarget(node: TSESTree.ObjectExpression): string | null {
-  const container = node.parent;
+  let wrapped: TSESTree.Node = node;
+  while (wrapped.parent && unwrapExpression(wrapped.parent) === node) {
+    wrapped = wrapped.parent;
+  }
+  const container = wrapped.parent;
   if (container?.type !== 'JSXExpressionContainer') return null;
 
   const attribute = container.parent;
@@ -343,6 +309,63 @@ export class TastyContext {
       scope = scope.upper;
     }
     return undefined;
+  }
+
+  /** Local factory results, const aliases, and configured component imports. */
+  isTastyJSXComponent(node: TSESTree.Node, name: string): boolean {
+    const visited = new Set<TSESTree.VariableDeclarator>();
+    const resolve = (reference: TSESTree.Node, localName: string): boolean => {
+      let scope = this.context.sourceCode.getScope(reference);
+      while (scope) {
+        const variable = scope.set.get(localName);
+        if (variable) {
+          return variable.defs.some((def) => {
+            if (def.type === 'ImportBinding') {
+              return (
+                def.parent.type === 'ImportDeclaration' &&
+                def.parent.importKind !== 'type' &&
+                this.importSources.has(def.parent.source.value) &&
+                (def.node.type !== 'ImportSpecifier' ||
+                  def.node.importKind !== 'type')
+              );
+            }
+            if (def.type !== 'Variable') return false;
+            const declaration = def.node;
+            if (
+              declaration.id.type !== 'Identifier' ||
+              declaration.parent.kind !== 'const' ||
+              !declaration.init ||
+              visited.has(declaration)
+            )
+              return false;
+            visited.add(declaration);
+            const init = unwrapExpression(declaration.init);
+            if (init.type === 'Identifier') return resolve(init, init.name);
+            if (init.type === 'MemberExpression' && !init.computed) {
+              let member: TSESTree.Node = init;
+              while (member.type === 'MemberExpression') {
+                if (member.computed) return false;
+                member = unwrapExpression(member.object);
+              }
+              const root = baseComponentName(init);
+              return root !== null && resolve(init, root);
+            }
+            if (init.type !== 'CallExpression') return false;
+            const imp = this.isTastyCall(init);
+            return (
+              imp?.importedName === 'tasty' ||
+              (imp !== undefined &&
+                this.config.styleFunctions?.[imp.importedName]?.kind ===
+                  'options')
+            );
+          });
+        }
+        if (!scope.upper) break;
+        scope = scope.upper;
+      }
+      return false;
+    };
+    return resolve(node, name);
   }
 
   /**
@@ -750,7 +773,11 @@ export class TastyContext {
    * see the selector list for why.
    */
   isStylesPropertyValue(node: TSESTree.ObjectExpression): boolean {
-    const parent = node.parent;
+    let wrapped: TSESTree.Node = node;
+    while (wrapped.parent && unwrapExpression(wrapped.parent) === node) {
+      wrapped = wrapped.parent;
+    }
+    const parent = wrapped.parent;
 
     if (parent?.type === 'Property' && !parent.computed) {
       if (getKeyName(parent.key) !== 'styles') return false;
@@ -773,7 +800,8 @@ export class TastyContext {
       return (
         attribute?.type === 'JSXAttribute' &&
         attribute.name.type === 'JSXIdentifier' &&
-        attribute.name.name === 'styles'
+        (attribute.name.name === 'styles' ||
+          attribute.name.name.endsWith('Styles'))
       );
     }
 

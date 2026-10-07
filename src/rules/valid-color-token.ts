@@ -1,12 +1,13 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
-import { TastyContext, styleObjectListeners } from '../context.js';
+import { TastyContext } from '../context.js';
+import { stringStyleValueListeners } from '../style-values.js';
 import {
   getKeyName,
-  getStringValue,
   validateColorTokenSyntax,
   isRawHexColor,
 } from '../utils.js';
+import { scanValueWords } from '../value-words.js';
 
 type MessageIds = 'invalidSyntax' | 'unknownToken';
 
@@ -47,14 +48,15 @@ export default createRule<[], MessageIds>({
     }
 
     function checkColorTokensInValue(value: string, node: TSESTree.Node): void {
-      // `(?!\()` keeps a `##name(...)` Tasty `@function` call from being read as a
-      // bare color reference, which would demand the token be declared.
-      const tokenRegex =
-        /##?[a-zA-Z][a-zA-Z0-9-]*(?:\.\$?[a-zA-Z0-9-]+)?(?!\()/g;
-      let match;
-
-      while ((match = tokenRegex.exec(value)) !== null) {
-        const token = match[0];
+      for (const word of scanValueWords(value)) {
+        const token = word.value;
+        if (!token.startsWith('#')) continue;
+        if (
+          token.startsWith('##') &&
+          word.isFunction &&
+          value[word.offset + token.length] === '('
+        )
+          continue;
 
         if (isRawHexColor(token)) continue;
 
@@ -80,38 +82,14 @@ export default createRule<[], MessageIds>({
       }
     }
 
-    function handleStyleObject(node: TSESTree.ObjectExpression) {
-      if (!ctx.isStyleObject(node)) return;
-      collectLocalTokens(node);
-
-      for (const prop of node.properties) {
-        if (prop.type !== 'Property') continue;
-
-        if (prop.value.type === 'Literal') {
-          const str = getStringValue(prop.value);
-          if (str && str.includes('#')) {
-            checkColorTokensInValue(str, prop.value);
-          }
-        }
-
-        if (prop.value.type === 'ObjectExpression') {
-          for (const stateProp of prop.value.properties) {
-            if (stateProp.type !== 'Property') continue;
-            const str = getStringValue(stateProp.value);
-            if (str && str.includes('#')) {
-              checkColorTokensInValue(str, stateProp.value);
-            }
-          }
-        }
-      }
-    }
-
     return {
-      ImportDeclaration(node) {
-        ctx.trackImport(node);
-      },
-
-      ...styleObjectListeners(handleStyleObject),
+      ...stringStyleValueListeners(
+        ctx,
+        (value, node) => {
+          checkColorTokensInValue(value, node);
+        },
+        { onStyleObject: collectLocalTokens },
+      ),
 
       'Program:exit'() {
         if (

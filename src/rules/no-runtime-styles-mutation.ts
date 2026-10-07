@@ -15,9 +15,9 @@ export default createRule<[], MessageIds>({
     },
     messages: {
       dynamicStyleValue:
-        "Style value for '{{property}}' should be static. Use states with mods, tokens, or styleProps for dynamic behavior.",
+        "Prefer a static style value for '{{property}}'. Use states with mods, tokens, or styleProps for dynamic behavior. For necessary JavaScript computation, explicitly disable tasty/no-runtime-styles-mutation on this line with a reason.",
       dynamicStyleKey:
-        "Style key for '{{property}}' should be static. Define states as literal keys instead of computing them in JavaScript.",
+        "Prefer a static style key for '{{property}}'. Define states as literal keys instead of computing them in JavaScript. For necessary generated keys, explicitly disable tasty/no-runtime-styles-mutation on this line with a reason.",
     },
     schema: [],
   },

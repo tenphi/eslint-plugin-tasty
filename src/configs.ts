@@ -29,6 +29,9 @@ export const recommended: TSESLint.SharedConfig.RulesRecord = {
   'tasty/no-raw-transition-duration': 'warn',
   'tasty/no-runtime-styles-mutation': 'warn',
   'tasty/no-style-spread': 'warn',
+  'tasty/no-style-prop': 'warn',
+  'tasty/no-classname-prop': 'warn',
+  'tasty/no-styles-prop': 'warn',
   'tasty/consistent-token-usage': 'warn',
   'tasty/prefer-auto-calc': 'warn',
   'tasty/prefer-state-negation': 'warn',
@@ -42,6 +45,5 @@ export const strict: TSESLint.SharedConfig.RulesRecord = {
   ...recommended,
   'tasty/valid-custom-property': 'warn',
   'tasty/no-unknown-state-alias': 'warn',
-  'tasty/no-styles-prop': 'warn',
   'tasty/valid-state-definition': 'warn',
 };

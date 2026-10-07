@@ -1,7 +1,9 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
-import { TastyContext, styleObjectListeners } from '../context.js';
-import { getStringValue, extractCustomUnit, isValidUnit } from '../utils.js';
+import { TastyContext } from '../context.js';
+import { stringStyleValueListeners } from '../style-values.js';
+import { isValidUnit } from '../utils.js';
+import { scanValueWords } from '../value-words.js';
 
 type MessageIds = 'unknownUnit';
 
@@ -25,69 +27,23 @@ export default createRule<[], MessageIds>({
     function checkUnitsInValue(value: string, node: TSESTree.Node): void {
       if (ctx.config.units === false) return;
 
-      // Split by spaces and check each token
-      const tokens = value.split(/\s+/);
-      for (const token of tokens) {
-        // Skip function calls, colors, modifiers, special values
-        if (
-          token.startsWith('#') ||
-          token.startsWith('$') ||
-          token.startsWith('@') ||
-          token.includes('(') ||
-          token.includes(')') ||
-          token === 'true' ||
-          token === 'false' ||
-          token === 'none' ||
-          token === 'auto' ||
-          token === 'inherit' ||
-          token === 'initial' ||
-          token === 'unset' ||
-          token === 'revert'
-        ) {
-          continue;
-        }
-
-        const unit = extractCustomUnit(token);
+      for (const word of scanValueWords(value)) {
+        const match = word.value.match(
+          /^[+-]?(?:\d*\.\d+|\d+\.?\d*)(?:e[+-]?\d+)?([a-z][a-z0-9]*)$/i,
+        );
+        const unit = match?.[1];
         if (unit && !isValidUnit(unit, ctx.config)) {
           context.report({
             node,
             messageId: 'unknownUnit',
-            data: { unit, value: token },
+            data: { unit, value: word.value },
           });
         }
       }
     }
 
-    function checkNode(node: TSESTree.Node): void {
-      const str = getStringValue(node);
-      if (str) {
-        checkUnitsInValue(str, node);
-      }
-    }
-
-    function handleStyleObject(node: TSESTree.ObjectExpression) {
-      if (!ctx.isStyleObject(node)) return;
-
-      for (const prop of node.properties) {
-        if (prop.type !== 'Property') continue;
-
-        checkNode(prop.value);
-
-        if (prop.value.type === 'ObjectExpression') {
-          for (const stateProp of prop.value.properties) {
-            if (stateProp.type === 'Property') {
-              checkNode(stateProp.value);
-            }
-          }
-        }
-      }
-    }
-
-    return {
-      ImportDeclaration(node) {
-        ctx.trackImport(node);
-      },
-      ...styleObjectListeners(handleStyleObject),
-    };
+    return stringStyleValueListeners(ctx, (value, node) => {
+      checkUnitsInValue(value, node);
+    });
   },
 });
