@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "preserve",
+    "strict": true,
+    "types": [],
+    "skipLibCheck": true,
+    "paths": { "@tenphi/tasty": ["./tasty.d.ts"] }
+  },
+  "include": ["*.ts", "*.tsx"]
+}

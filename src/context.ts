@@ -9,6 +9,7 @@ import {
   SPECIAL_STYLE_KEYS,
 } from './constants.js';
 import { getKeyName, unwrapExpression } from './utils.js';
+import { jsxPropKind } from './type-aware-jsx.js';
 
 /**
  * Every object is considered, then TastyContext gates it by its actual context.
@@ -260,6 +261,10 @@ export class TastyContext {
         }
       }
     }
+  }
+
+  isComponentJSXProp(node: TSESTree.JSXAttribute): boolean {
+    return jsxPropKind(this.context, node) === 'component';
   }
 
   getImport(localName: string): TastyImport | undefined {

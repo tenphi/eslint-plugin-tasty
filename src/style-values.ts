@@ -89,6 +89,7 @@ export function styleValueListeners(
       if (tag.type !== 'JSXIdentifier' || !/^[A-Z]/.test(tag.name)) return;
       if (options.requireTastyJSX && !ctx.isTastyJSXComponent(node, tag.name))
         return;
+      if (ctx.isComponentJSXProp(node)) return;
 
       const value =
         node.value?.type === 'JSXExpressionContainer'
