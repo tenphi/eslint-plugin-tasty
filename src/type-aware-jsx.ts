@@ -288,59 +288,93 @@ function makeClassifier(
   function referencesStyles(
     node: ts.Node,
     visited = new Set<ts.Node>(),
+    bindings = new Map<ts.Symbol, ts.TypeNode>(),
   ): boolean {
     if (visited.has(node)) return false;
     visited.add(node);
-    if (
-      T.isPropertySignature(node) ||
-      T.isPropertyDeclaration(node) ||
-      T.isParameter(node) ||
-      T.isTypeAliasDeclaration(node) ||
-      T.isMappedTypeNode(node) ||
-      T.isParenthesizedTypeNode(node)
-    )
-      return node.type ? referencesStyles(node.type, visited) : false;
-    if (T.isIndexedAccessTypeNode(node)) {
-      const object = checker.getTypeFromTypeNode(node.objectType);
-      const index = checker.getTypeFromTypeNode(node.indexType);
-      const keys = index.isUnion() ? index.types : [index];
-      // Trace the selected property, not unrelated style props on the object.
-      return (
-        object === styles ||
-        keys.some((key) => {
-          if (!key.isStringLiteral() && !key.isNumberLiteral()) return false;
-          const property = checker.getPropertyOfType(object, String(key.value));
-          return property?.declarations?.some(
-            (declaration) =>
-              isStyleDeclaration(declaration) ||
-              referencesStyles(declaration, visited),
-          );
-        })
-      );
-    }
-    if (T.isTypeReferenceNode(node) || T.isImportTypeNode(node)) {
-      const name = T.isTypeReferenceNode(node) ? node.typeName : node.qualifier;
-      let reference = name && checker.getSymbolAtLocation(name);
-      if (reference && reference.flags & T.SymbolFlags.Alias) {
-        reference = checker.getAliasedSymbol(reference);
-      }
-      if (reference && styleTypeSymbols.has(reference)) return true;
-      if (reference?.declarations?.some(isStyleDeclaration)) return true;
+    try {
       if (
-        reference?.declarations?.some(
-          (declaration) =>
-            T.isTypeAliasDeclaration(declaration) &&
-            referencesStyles(declaration.type, visited),
-        )
+        T.isPropertySignature(node) ||
+        T.isPropertyDeclaration(node) ||
+        T.isParameter(node) ||
+        T.isTypeAliasDeclaration(node) ||
+        T.isMappedTypeNode(node) ||
+        T.isParenthesizedTypeNode(node)
       )
-        return true;
+        return node.type
+          ? referencesStyles(node.type, visited, bindings)
+          : false;
+      if (T.isIndexedAccessTypeNode(node)) {
+        const object = checker.getTypeFromTypeNode(node.objectType);
+        const index = checker.getTypeFromTypeNode(node.indexType);
+        const keys = index.isUnion() ? index.types : [index];
+        // Trace the selected property, not unrelated style props on the object.
+        return (
+          object === styles ||
+          keys.some((key) => {
+            if (!key.isStringLiteral() && !key.isNumberLiteral()) return false;
+            const property = checker.getPropertyOfType(
+              object,
+              String(key.value),
+            );
+            return property?.declarations?.some(
+              (declaration) =>
+                isStyleDeclaration(declaration) ||
+                referencesStyles(declaration, visited, bindings),
+            );
+          })
+        );
+      }
+      if (T.isTypeReferenceNode(node) || T.isImportTypeNode(node)) {
+        const name = T.isTypeReferenceNode(node)
+          ? node.typeName
+          : node.qualifier;
+        let reference = name && checker.getSymbolAtLocation(name);
+        if (reference && reference.flags & T.SymbolFlags.Alias) {
+          reference = checker.getAliasedSymbol(reference);
+        }
+        if (reference && styleTypeSymbols.has(reference)) return true;
+        if (reference?.declarations?.some(isStyleDeclaration)) return true;
+        const bound = reference && bindings.get(reference);
+        if (bound) return referencesStyles(bound, visited, bindings);
+        if (
+          reference?.declarations?.some((declaration) => {
+            if (!T.isTypeAliasDeclaration(declaration)) return false;
+            const local = new Map(bindings);
+            declaration.typeParameters?.forEach((parameter, index) => {
+              const symbol = checker.getSymbolAtLocation(parameter.name);
+              const argument = node.typeArguments?.[index] ?? parameter.default;
+              if (symbol && argument) local.set(symbol, argument);
+            });
+            return referencesStyles(declaration.type, visited, local);
+          })
+        )
+          return true;
+      }
+      if (T.isConditionalTypeNode(node)) {
+        // Extract/Exclude-style filters preserve an input value or return never.
+        const forwardsValue = (branch: ts.TypeNode) => {
+          if (branch.kind === T.SyntaxKind.NeverKeyword) return true;
+          if (!T.isTypeReferenceNode(branch)) return false;
+          const symbol = checker.getSymbolAtLocation(branch.typeName);
+          return Boolean(symbol && symbol.flags & T.SymbolFlags.TypeParameter);
+        };
+        return (
+          forwardsValue(node.trueType) &&
+          forwardsValue(node.falseType) &&
+          (referencesStyles(node.trueType, visited, bindings) ||
+            referencesStyles(node.falseType, visited, bindings))
+        );
+      }
+      // Nested fields, function arguments and conditional constraints are content,
+      // not evidence that the prop's value itself originates in a style type.
+      return (
+        (T.isUnionTypeNode(node) || T.isIntersectionTypeNode(node)) &&
+        node.types.some((part) => referencesStyles(part, visited, bindings))
+      );
+    } finally {
+      visited.delete(node);
     }
-    // Nested fields, function arguments and conditional constraints are content,
-    // not evidence that the prop's value itself originates in a style type.
-    return (
-      (T.isUnionTypeNode(node) || T.isIntersectionTypeNode(node)) &&
-      node.types.some((part) => referencesStyles(part, visited))
-    );
   }
 
   function unresolved(type: ts.Type): boolean {
@@ -365,6 +399,26 @@ function makeClassifier(
     );
   }
 
+  function unresolvedComponentProp(
+    node: ts.JsxAttribute,
+    name: string,
+  ): boolean {
+    const tag = node.parent.parent.tagName;
+    const component = checker.getTypeAtLocation(tag);
+    return [
+      ...component.getCallSignatures(),
+      ...component.getConstructSignatures(),
+    ].some((signature) => {
+      const parameter = signature.parameters[0];
+      if (!parameter) return false;
+      const props = checker.getTypeOfSymbolAtLocation(parameter, tag);
+      const property = checker.getPropertyOfType(props, name);
+      return property
+        ? unresolved(checker.getTypeOfSymbolAtLocation(property, tag))
+        : false;
+    });
+  }
+
   const results = new Map<number, PropKind>();
   return (attribute) => {
     const start = attribute.range[0];
@@ -385,8 +439,10 @@ function makeClassifier(
           kind = 'style';
         } else if (
           !unresolved(type) &&
-          !declarations.some((declaration) =>
-            unresolved(checker.getTypeAtLocation(declaration)),
+          !(
+            declarations.some((declaration) =>
+              unresolved(checker.getTypeAtLocation(declaration)),
+            ) && unresolvedComponentProp(node, node.name.text)
           )
         ) {
           // Broad primitives may be hand-written style props. Preserve checks.

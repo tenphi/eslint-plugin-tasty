@@ -8,6 +8,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -198,6 +199,48 @@ it('preserves style checks when generic props are inferred as literal types', ()
     <GenericWidth width={17} />;`),
   ).toEqual(Array(3).fill('tasty/consistent-token-usage'));
 });
+
+it('preserves value-preserving utility style origins and resolves concrete generic props', () => {
+  const components = join(dir, 'components.tsx');
+  writeFileSync(
+    components,
+    readFileSync(components, 'utf8') +
+      `
+    export const UtilityBox = (props: { gap?: NonNullable<StyleValue<'17px' | '1x'>> }) => null;
+    export const ExtractBox = (props: { gap?: Extract<StyleValue<'17px' | '1x'>, string> }) => null;
+    type GenericProps<T> = { prefix?: T };
+    export const SemanticGeneric = (props: GenericProps<Content>) => null;
+    export const LiteralGeneric = (props: GenericProps<'before' | 'after'>) => null;
+    export const UnrelatedGeneric = <T,>(props: GenericProps<Content> & { id: T }) => null;`,
+  );
+  const code = `import { UtilityBox, ExtractBox, SemanticGeneric, LiteralGeneric, UnrelatedGeneric } from './components';
+    <UtilityBox gap="17px" />;
+    <ExtractBox gap="17px" />;
+    <SemanticGeneric prefix="17px" />;
+    <LiteralGeneric prefix="after" />;
+    <UnrelatedGeneric id={1} prefix="17px" />;`;
+  expect(lint(code).map(({ ruleId, line }) => ({ ruleId, line }))).toEqual([
+    { ruleId: 'tasty/consistent-token-usage', line: 2 },
+    { ruleId: 'tasty/consistent-token-usage', line: 3 },
+  ]);
+});
+
+it('retains utility style origins with the real Tasty declarations', () => {
+  const config = JSON.parse(readFileSync(join(dir, 'tsconfig.json'), 'utf8'));
+  delete config.compilerOptions.paths;
+  writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify(config));
+  symlinkSync(resolve('node_modules'), join(dir, 'node_modules'), 'dir');
+  writeFileSync(
+    join(dir, 'components.tsx'),
+    `import type { Styles, StyleValue } from '@tenphi/tasty';
+    export const NonNullableBox = (props: { gap?: NonNullable<Styles['gap']> }) => null;
+    export const ExtractBox = (props: { gap?: Extract<StyleValue<'17px' | '1x'>, string> }) => null;`,
+  );
+  expect(
+    rules(`import { NonNullableBox, ExtractBox } from './components';
+    <NonNullableBox gap="17px" />; <ExtractBox gap="17px" />;`),
+  ).toEqual(Array(2).fill('tasty/consistent-token-usage'));
+}, 15000);
 
 it('keeps pixel checks on broad primitive intersections and literal unions', () => {
   const components = join(dir, 'components.tsx');
