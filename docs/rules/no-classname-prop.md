@@ -30,8 +30,22 @@ for an arbitrary list of CSS classes.
 
 The rule checks every explicit attribute value and visible `className` keys in
 inline object spreads. It has no automatic fix because external classes can have
-multiple styling or behavior roles. Intentional library integration can use a
-rule-specific ESLint suppression with a reason.
+multiple styling or behavior roles.
+
+A third-party library may require a class for its stylesheet or behavior. Keep
+that integration and acknowledge the exception with an explicit local ignore and
+a reason:
+
+```tsx
+const libraryElement = (
+  // eslint-disable-next-line tasty/no-classname-prop -- library stylesheet requires this class
+  <Box className={libraryClassName} />
+);
+```
+
+Place the directive immediately before the reported attribute line. It suppresses
+only this rule for that line. The warning message includes this exception path;
+the plugin does not silently exempt library-provided values or enforce reasons.
 
 Recognition uses local `const` Tasty/configured-options factory results, their
 `const` aliases/sub-elements, and imports from `importSources`. Native elements,

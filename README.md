@@ -323,6 +323,36 @@ Replacing one with a shorthand can reset the other parts of the effect, includin
 an animation's timeline and range. The duration rules above still encourage
 tokens wherever a duration is written.
 
+## Intentional exceptions
+
+The advisory rules describe preferred Tasty patterns. Third-party integrations
+may require `style` or `className`, and edge cases may require instance `styles`.
+One-off colors, exact pixel alignment, custom motion timing, generated runtime
+styles, longhand overrides, and conditional selectors can also be intentional.
+Their warnings explain both the preferred alternative and the local ignore path.
+
+For an exception, use an explicit, rule-specific ESLint disable comment with a
+reason immediately before the reported line:
+
+```tsx
+const floating = (
+  // eslint-disable-next-line tasty/no-style-prop -- positioning library supplies these inline styles
+  <Box style={positioningStyles} />
+);
+```
+
+The comment acknowledges that usage; other rules on the same line and later
+usages still report. In multiline JSX, target the line containing the reported
+attribute or spread property. JSX child comments can use
+`{/* eslint-disable-next-line tasty/no-classname-prop -- library requires this class */}`
+immediately above the affected element when the attribute is on that next line.
+
+Suppression uses ESLint's normal directives. The plugin does not enforce comment
+reasons or infer exceptions automatically. A warning severity alone does not mean
+the value is valid: checks for unknown names, malformed syntax, state order, and
+static-extraction constraints still describe correctness issues. Verify those
+against the runtime, configuration, or extractor before suppressing them.
+
 ## Component prop guidance
 
 Both presets warn about three escape-hatch props on recognized Tasty components:
@@ -340,8 +370,9 @@ Recognition uses local `const` Tasty/configured-options factory results, their
 `const` aliases/sub-elements, and components imported from `importSources`. Add
 your design-system module to `importSources` to enable checks on imported
 components. Native elements, unrelated components, shadowed bindings, and mutable
-aliases are excluded. Opaque spread bindings are not evaluated. Intentional
-third-party integration can use a rule-specific ESLint suppression with a reason.
+aliases are excluded. Opaque spread bindings are not evaluated. Third-party
+styling integrations and edge-case instance overrides need an explicit local
+ignore with a reason, as described above.
 
 ## Value validation in JSX
 

@@ -89,8 +89,9 @@ export default createRule<[], MessageIds>({
     },
     messages: {
       rawPixelValue:
-        "Use a design token or custom unit instead of raw pixel value '{{raw}}'.",
-      preferToken: "Consider using '{{suggestion}}' instead of '{{raw}}'.",
+        "Use a design token or custom unit instead of raw pixel value '{{raw}}'. For an intentional pixel value, explicitly disable tasty/consistent-token-usage on this line with a reason.",
+      preferToken:
+        "Consider using '{{suggestion}}' instead of '{{raw}}'. For an intentional pixel value, explicitly disable tasty/consistent-token-usage on this line with a reason.",
       replaceWithToken: "Replace '{{raw}}' with '{{suggestion}}'",
     },
     schema: [],

@@ -26,8 +26,22 @@ const RoomyBox = tasty(Box, { styles: { padding: '2x' } });
 Variables, function results, conditional values, TypeScript wrappers, null, and
 visible `styles` keys in inline JSX object spreads are checked too. The rule is
 report-only: choosing a token, state, variant, or wrapper requires the component's
-contract. Intentional escape-hatch usage can use a rule-specific ESLint suppression
-with a reason.
+contract.
+
+An edge case may need an instance style object, for example an adapter that must
+pass through externally supplied overrides. Keep the override and acknowledge
+the exception with an explicit local ignore and a reason:
+
+```tsx
+const adapted = (
+  // eslint-disable-next-line tasty/no-styles-prop -- legacy adapter requires instance overrides
+  <Box styles={adapterOverrides} />
+);
+```
+
+Place the directive immediately before the reported attribute line. It suppresses
+only this rule for that line. The warning message includes this exception path;
+the plugin does not silently exempt edge cases or enforce comment reasons.
 
 Recognition uses local `const` Tasty/configured-options factory results, their
 `const` aliases/sub-elements, and imports from `importSources`. Native elements,

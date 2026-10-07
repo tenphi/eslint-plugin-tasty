@@ -8,18 +8,23 @@ const filename = resolve('test/fixtures/style-values/component.tsx');
 const imports = `import { tasty as component } from '@tenphi/tasty';\n`;
 const local = imports + `const Box = component({});\n`;
 const cases = [
-  ['no-style-prop', 'style', 'noStyleProp', ['tokens', 'token references']],
+  [
+    'no-style-prop',
+    'style',
+    'noStyleProp',
+    ['tokens', 'token references', 'third-party library'],
+  ],
   [
     'no-classname-prop',
     'className',
     'noClassNameProp',
-    ['data-element="Name"', "parent's styles"],
+    ['data-element="Name"', "parent's styles", 'third-party library'],
   ],
   [
     'no-styles-prop',
     'styles',
     'noStylesProp',
-    ['tokens', 'mods', 'tasty(Component, { styles: ... })'],
+    ['tokens', 'mods', 'tasty(Component, { styles: ... })', 'edge case'],
   ],
 ] as const;
 
@@ -63,6 +68,12 @@ for (const [rule, prop, messageId, guidance] of cases) {
         expect(messages[0].severity).toBe(1);
         for (const text of guidance)
           expect(messages[0].message).toContain(text);
+        expect(messages[0].message).toContain(
+          `explicitly disable tasty/${rule}`,
+        );
+        expect(messages[0].message).toContain(
+          'with an ESLint comment and a reason',
+        );
         expect(messages[0].fix).toBeUndefined();
         expect(messages[0].suggestions).toBeUndefined();
         expect(fixed.output).toBe(source);
@@ -135,8 +146,45 @@ for (const [rule, prop, messageId, guidance] of cases) {
       expect(recommended[`tasty/${rule}`]).toBe('warn');
       expect(strict[`tasty/${rule}`]).toBe('warn');
     });
+    for (const [name, snippet] of Object.entries({
+      'ordinary comment': `// eslint-disable-next-line tasty/${rule} -- required by the adapter\n<Box ${prop}={value} />;`,
+      'JSX child comment': `<>{/* eslint-disable-next-line tasty/${rule} -- required by the adapter */}\n<Box ${prop}={value} /></>;`,
+      'spread property comment': `<Box {...{\n// eslint-disable-next-line tasty/${rule} -- required by the adapter\n${prop}: value,\n}} />;`,
+    })) {
+      it(`honors a local ignore with a ${name} without hiding the next usage`, () => {
+        const source = local + snippet + `\n<Box ${prop}={value} />;`;
+        const { messages, fixed } = check(source, rule);
+        expect(messages.map((message) => message.messageId)).toEqual([
+          messageId,
+        ]);
+        expect(messages[0].line).toBe(source.split('\n').length);
+        expect(fixed.output).toBe(source);
+      });
+    }
   });
 }
+
+it('a prop-specific ignore leaves the other prop warnings visible', () => {
+  const messages = linter.verify(
+    local +
+      `// eslint-disable-next-line tasty/no-style-prop -- positioning library supplies inline styles\n<Box style={value} className="external" styles={overrides} />;`,
+    [
+      {
+        files: ['**/*.tsx'],
+        languageOptions: { parser },
+        plugins: { tasty: plugin },
+        rules: Object.fromEntries(
+          cases.map(([rule]) => [`tasty/${rule}`, 'warn']),
+        ),
+      },
+    ],
+    { filename },
+  );
+  expect(messages.map((message) => message.messageId)).toEqual([
+    'noClassNameProp',
+    'noStylesProp',
+  ]);
+});
 
 for (const [name, preset] of Object.entries({ recommended, strict })) {
   it(`${name} supports tokens, mods, data-element and factory styles`, () => {

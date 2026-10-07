@@ -21,8 +21,22 @@ const Progress = tasty({ styles: { width: '$progress' } });
 The warning covers literals, variables, calls, conditional expressions, null,
 and visible `style` keys in inline JSX object spreads. It does not rewrite the
 prop: choosing a token and declaring its reference requires the component's
-styling contract. Intentional library integration can use a rule-specific ESLint
-suppression with a reason.
+styling contract.
+
+A third-party positioning or animation library may require applying its inline
+styles through `style`. Keep that integration and acknowledge the exception with
+an explicit local ignore and a reason:
+
+```tsx
+const floating = (
+  // eslint-disable-next-line tasty/no-style-prop -- positioning library supplies these inline styles
+  <Progress style={positioningStyles} />
+);
+```
+
+Place the directive immediately before the reported attribute line. It suppresses
+only this rule for that line. The warning message includes this exception path;
+the plugin does not silently exempt library-provided values or enforce reasons.
 
 Recognition uses local `const` components created by imported `tasty()` or
 configured options factories, their `const` aliases/sub-elements, and components

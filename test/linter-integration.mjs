@@ -386,6 +386,49 @@ const Alias = Local;
         1,
         `${linter.name}: ${name} can enforce prop warnings in CI`,
       );
+      const propExceptions = `import { tasty } from '@tenphi/tasty';
+const Local = tasty({});
+const positioned = (
+  // eslint-disable-next-line tasty/no-style-prop -- positioning library owns inline styles
+  <Local style={positioningStyles} />
+);
+const libraryElement = <>
+  {/* eslint-disable-next-line tasty/no-classname-prop -- library stylesheet requires this class */}
+  <Local className={libraryClassName} />
+</>;
+const adapted = (
+  // eslint-disable-next-line tasty/no-styles-prop -- adapter needs instance overrides
+  <Local styles={adapterOverrides} />
+);
+<Local {...{
+  // eslint-disable-next-line tasty/no-style-prop -- library styles in a spread
+  style: positioningStyles,
+  // eslint-disable-next-line tasty/no-classname-prop -- library classes in a spread
+  className: libraryClassName,
+  // eslint-disable-next-line tasty/no-styles-prop -- adapter overrides in a spread
+  styles: adapterOverrides,
+}} />;
+<Local style={inlineStyle} className="external" styles={overrides} />;
+`;
+      writeFileSync(join(dir, 'prop-exceptions.tsx'), propExceptions);
+      const expectedExceptions = {
+        status: 0,
+        rules: ['no-style-prop', 'no-classname-prop', 'no-styles-prop'].sort(),
+      };
+      assert.deepEqual(
+        run('prop-exceptions.tsx'),
+        expectedExceptions,
+        `${linter.name}: ${name} local exceptions leave subsequent warnings visible`,
+      );
+      assert.deepEqual(
+        run('prop-exceptions.tsx', [linter.fix]),
+        expectedExceptions,
+        `${linter.name}: ${name} keeps acknowledged exceptions intact`,
+      );
+      assert.equal(
+        readFileSync(join(dir, 'prop-exceptions.tsx'), 'utf8'),
+        propExceptions,
+      );
     }
     console.log(
       `${linter.name}: custom calls, import boundaries, diagnostics, fixes, full presets, JSX value policies, and component prop guidance passed`,

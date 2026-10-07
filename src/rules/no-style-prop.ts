@@ -11,7 +11,7 @@ export default createRule<[], 'noStyleProp'>({
     },
     messages: {
       noStyleProp:
-        "Avoid the 'style' prop on Tasty components. Define styles with token references and pass dynamic values through 'tokens' (e.g. tokens={{ $size: value }}).",
+        "Avoid the 'style' prop on Tasty components. Define styles with token references and pass dynamic values through 'tokens' (e.g. tokens={{ $size: value }}). If a third-party library requires inline styles, explicitly disable tasty/no-style-prop for this usage with an ESLint comment and a reason.",
     },
     schema: [],
   },

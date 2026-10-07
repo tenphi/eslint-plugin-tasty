@@ -14,7 +14,7 @@ export default createRule<[], MessageIds>({
     },
     messages: {
       noStylesProp:
-        "Avoid the 'styles' prop on Tasty components. Use 'tokens' for dynamic values, 'mods' for state changes, exposed style props or variants, or a wrapper with tasty(Component, { styles: ... }).",
+        "Avoid the 'styles' prop on Tasty components. Use 'tokens' for dynamic values, 'mods' for state changes, exposed style props or variants, or a wrapper with tasty(Component, { styles: ... }). For an edge case that requires instance overrides, explicitly disable tasty/no-styles-prop for this usage with an ESLint comment and a reason.",
     },
     schema: [],
   },

@@ -75,7 +75,7 @@ export default createRule<[], 'stateInSelector'>({
     },
     messages: {
       stateInSelector:
-        "Move state condition '{{condition}}' out of the sub-element '$' selector and into property state maps. Use @own(...) for the sub-element's own state.",
+        "Move state condition '{{condition}}' out of the sub-element '$' selector and into property state maps. Use @own(...) for the sub-element's own state. If the condition must stay in this selector, explicitly disable tasty/no-state-in-selector on this line with a reason.",
     },
     schema: [],
   },

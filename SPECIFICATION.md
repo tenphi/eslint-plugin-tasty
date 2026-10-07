@@ -1287,6 +1287,16 @@ inline spreads. Dynamic spread bindings and computed identifiers are not evaluat
 Warnings have no automatic fixes because migration requires the author's choice
 of tokens, modifiers, or extension contract.
 
+Each message also acknowledges intentional exceptions: third-party libraries may
+require `style` or `className`, and edge cases may require instance `styles`.
+Such usages need an explicit, local ESLint ignore naming the rule and explaining
+the reason. The same guidance applies to advisory warnings about raw colors,
+pixel values, duration values, computed runtime styles, spreads, longhand
+properties, and state conditions in selectors. Reasons are a documented
+convention; the plugin does not enforce directive descriptions. Syntax,
+configuration, state-order, and static-extraction checks retain correctness
+guidance.
+
 | Rule | Replacement guidance |
 |---|---|
 | `tasty/no-style-prop` | Declare token references in component styles and pass dynamic values through `tokens`. |

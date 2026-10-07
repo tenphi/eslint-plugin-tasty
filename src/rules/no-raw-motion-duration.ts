@@ -32,7 +32,7 @@ export default createRule<[], MessageIds>({
     },
     messages: {
       rawMotionDuration:
-        "{{property}} duration '{{duration}}' is hardcoded. Use a duration token.",
+        "{{property}} duration '{{duration}}' is hardcoded. Use a duration token. For intentional custom timing, explicitly disable tasty/no-raw-motion-duration on this line with a reason.",
       useDurationToken: "Replace '{{duration}}' with '{{token}}'",
     },
     schema: [],

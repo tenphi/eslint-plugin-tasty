@@ -12,7 +12,7 @@ export default createRule<[], 'noClassNameProp'>({
     },
     messages: {
       noClassNameProp:
-        "Avoid the 'className' prop on Tasty components. Keep styling in Tasty; for sub-element styling, use data-element=\"Name\" and define the matching capitalized sub-element in the parent's styles.",
+        "Avoid the 'className' prop on Tasty components. Keep styling in Tasty; for sub-element styling, use data-element=\"Name\" and define the matching capitalized sub-element in the parent's styles. If a third-party library requires classes, explicitly disable tasty/no-classname-prop for this usage with an ESLint comment and a reason.",
     },
     schema: [],
   },

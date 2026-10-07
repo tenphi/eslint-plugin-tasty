@@ -35,9 +35,12 @@ export default createRule<[], MessageIds>({
         'Suggest using color tokens instead of raw hex/rgb/okhsl/named colors',
     },
     messages: {
-      rawHexColor: "Use a color token instead of raw hex color '{{value}}'.",
-      rawColorFunction: 'Use a color token instead of raw {{func}}() color.',
-      rawNamedColor: "Use a color token instead of raw named color '{{name}}'.",
+      rawHexColor:
+        "Use a color token instead of raw hex color '{{value}}'. For an intentional one-off color, explicitly disable tasty/no-raw-color-values on this line with a reason.",
+      rawColorFunction:
+        'Use a color token instead of raw {{func}}() color. For an intentional one-off color, explicitly disable tasty/no-raw-color-values on this line with a reason.',
+      rawNamedColor:
+        "Use a color token instead of raw named color '{{name}}'. For an intentional one-off color, explicitly disable tasty/no-raw-color-values on this line with a reason.",
     },
     schema: [],
   },

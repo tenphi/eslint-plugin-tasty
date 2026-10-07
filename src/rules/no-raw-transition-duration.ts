@@ -58,9 +58,9 @@ export default createRule<[], MessageIds>({
     },
     messages: {
       rawTransitionDuration:
-        "Transition duration '{{duration}}' is hardcoded. Use a duration token{{available}}, or omit it to inherit {{fallback}}.",
+        "Transition duration '{{duration}}' is hardcoded. Use a duration token{{available}}, or omit it to inherit {{fallback}}. For intentional custom timing, explicitly disable tasty/no-raw-transition-duration on this line with a reason.",
       rawTransitionDurationExpression:
-        "Transition duration '{{duration}}' contains a hardcoded time. Derive it from a duration token instead.",
+        "Transition duration '{{duration}}' contains a hardcoded time. Derive it from a duration token instead. For intentional custom timing, explicitly disable tasty/no-raw-transition-duration on this line with a reason.",
       useDurationToken: "Replace '{{duration}}' with '{{token}}'",
       useDefaultDuration:
         "Remove '{{duration}}' to inherit the default transition timing",

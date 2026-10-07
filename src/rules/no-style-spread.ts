@@ -15,9 +15,9 @@ export default createRule<[], MessageIds>({
     },
     messages: {
       styleSpread:
-        'List Tasty style properties explicitly instead of spreading. If this spread is intentional, suppress this warning on this line with an ESLint comment and a reason.',
+        'List Tasty style properties explicitly instead of spreading. If this spread is intentional, explicitly disable tasty/no-style-spread on this line with an ESLint comment and a reason.',
       preferMergeStyles:
-        'Use mergeStyles(...) to compose Tasty style objects. Object spread is shallow and can discard sub-element properties and state-map entries. If shallow replacement is intentional, suppress this warning on this line with a reason.',
+        'Use mergeStyles(...) to compose Tasty style objects. Object spread is shallow and can discard sub-element properties and state-map entries. If shallow replacement is intentional, explicitly disable tasty/no-style-spread on this line with an ESLint comment and a reason.',
     },
     schema: [],
   },
