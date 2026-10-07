@@ -77,6 +77,16 @@ it('removes semantic collisions and preserves style diagnostics with either sett
   expect(rules(code, false)).toHaveLength(7);
 });
 
+it('resolves relative Linter API filenames against the configured cwd', () => {
+  filename = 'consumer.tsx';
+  const code = `import { TabDropIndicator, Box } from './components';
+    <TabDropIndicator position="after" />; <Box gap="17px" />;`;
+  expect(rules(code)).toEqual(['tasty/consistent-token-usage']);
+  expect(rules(code, { project: './tsconfig.json' })).toEqual([
+    'tasty/consistent-token-usage',
+  ]);
+});
+
 it('follows aliases, reexports, member tags, mapped props and indexed style aliases', () => {
   writeFileSync(
     join(dir, 'barrel.ts'),

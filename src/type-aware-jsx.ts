@@ -441,7 +441,7 @@ export function jsxPropKind(
       'tasty: typeAwareJSX must be true, false, or { project: string }.',
     );
 
-  const filename = resolve(context.filename);
+  const filename = resolve(context.cwd, context.filename);
   const explicit = option === true ? undefined : option.project;
   const sourceCode = context.sourceCode;
   const key = explicit ? resolve(context.cwd, explicit) : 'nearest';
