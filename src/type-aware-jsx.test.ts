@@ -1,4 +1,6 @@
 import { Linter } from 'eslint';
+import type { SourceCode } from 'eslint';
+import ts from 'typescript';
 import parser from '@typescript-eslint/parser';
 import {
   cpSync,
@@ -26,7 +28,15 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-function lint(code: string, typeAwareJSX: unknown = true) {
+function lint(
+  code: string | SourceCode,
+  typeAwareJSX: unknown = true,
+  activeRules: Linter.RulesRecord = {
+    'tasty/valid-value': 'error',
+    'tasty/consistent-token-usage': 'error',
+    'tasty/no-raw-color-values': 'error',
+  },
+) {
   return linter.verify(
     code,
     [
@@ -38,11 +48,7 @@ function lint(code: string, typeAwareJSX: unknown = true) {
         },
         plugins: { tasty: plugin },
         settings: { tasty: { typeAwareJSX } },
-        rules: {
-          'tasty/valid-value': 'error',
-          'tasty/consistent-token-usage': 'error',
-          'tasty/no-raw-color-values': 'error',
-        },
+        rules: activeRules,
       },
     ],
     { filename },
@@ -202,4 +208,120 @@ it('preserves style checks when a dependency uses a separate Tasty copy', () => 
     rules(`import { NestedBox } from './nested';
     <NestedBox position="after" gap="17px" />;`),
   ).toEqual(['tasty/valid-value', 'tasty/consistent-token-usage']);
+});
+
+it('refreshes declarations when ESLint reuses an existing SourceCode object', () => {
+  const code = `import { TabDropIndicator } from './components'; <TabDropIndicator position="after" />;`;
+  expect(rules(code)).toEqual([]);
+  const source = linter.getSourceCode();
+  const components = join(dir, 'components.tsx');
+  writeFileSync(
+    components,
+    readFileSync(components, 'utf8').replace(
+      "position: 'before' | 'after'",
+      "position: BaseStyleProps['position']",
+    ),
+  );
+  expect(lint(source).map((message) => message.ruleId)).toEqual([
+    'tasty/valid-value',
+  ]);
+});
+
+it('refreshes compiler configuration when ESLint reuses a SourceCode object', () => {
+  const code = `import { TabDropIndicator } from './components'; <TabDropIndicator position="after" />;`;
+  expect(rules(code)).toEqual([]);
+  const source = linter.getSourceCode();
+  const config = JSON.parse(readFileSync(join(dir, 'tsconfig.json'), 'utf8'));
+  config.include = ['components.tsx'];
+  writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify(config));
+  expect(lint(source).map((message) => message.ruleId)).toEqual([
+    'tasty/valid-value',
+  ]);
+});
+
+it.each(['valid-color-token', 'valid-custom-property'])(
+  'refreshes reused sources when only %s performs deferred checks',
+  (rule) => {
+    writeFileSync(
+      join(dir, 'tasty.config.json'),
+      JSON.stringify({ tokens: ['#known', '$known'] }),
+    );
+    const token = rule === 'valid-color-token' ? '#missing' : '$missing';
+    const code = `import { Item } from './components'; <Item prefix="${token}" />;`;
+    const activeRules: Linter.RulesRecord = { [`tasty/${rule}`]: 'error' };
+    expect(lint(code, true, activeRules)).toEqual([]);
+    const source = linter.getSourceCode();
+    const components = join(dir, 'components.tsx');
+    writeFileSync(
+      components,
+      readFileSync(components, 'utf8').replaceAll(
+        'prefix?: Content',
+        "prefix?: Styles['fill']",
+      ),
+    );
+    expect(
+      lint(source, true, activeRules).map((message) => message.ruleId),
+    ).toEqual([`tasty/${rule}`]);
+  },
+);
+
+it('keeps pixel checks on broad primitive unions while excluding content unions', () => {
+  const components = join(dir, 'components.tsx');
+  writeFileSync(
+    components,
+    readFileSync(components, 'utf8') +
+      `
+    export const CustomGap = (props: { gap?: string | 0 }) => null;
+    export const CustomWidth = (props: { width?: number | 'auto' }) => null;`,
+  );
+  expect(
+    rules(`import { CustomGap, CustomWidth, Item } from './components';
+    <CustomGap gap="17px" />; <CustomWidth width={17} />; <Item prefix="17px" />;`),
+  ).toEqual(['tasty/consistent-token-usage', 'tasty/consistent-token-usage']);
+});
+
+it('reuses unchanged imported source files while rebuilding for changed buffers', () => {
+  const code = `import { TabDropIndicator } from './components'; <TabDropIndicator position="after" />;`;
+  expect(rules(code)).toEqual([]);
+  const readFile = vi.spyOn(ts.sys, 'readFile');
+  try {
+    expect(rules('\n' + code)).toEqual([]);
+    expect(
+      readFile.mock.calls.some(
+        ([file]) => file === join(dir, 'components.tsx'),
+      ),
+    ).toBe(false);
+  } finally {
+    readFile.mockRestore();
+  }
+});
+
+it('keeps the cached compiler graph for repeatedly excluded files', () => {
+  const config = JSON.parse(readFileSync(join(dir, 'tsconfig.json'), 'utf8'));
+  config.include = ['components.tsx'];
+  writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify(config));
+  const code = `import { TabDropIndicator } from './components'; <TabDropIndicator position="after" />;`;
+  writeFileSync(filename, code);
+  expect(rules(code)).toEqual(['tasty/valid-value']);
+  const readFile = vi.spyOn(ts.sys, 'readFile');
+  try {
+    expect(rules(code)).toEqual(['tasty/valid-value']);
+    expect(rules(code)).toEqual(['tasty/valid-value']);
+    expect(
+      readFile.mock.calls.some(
+        ([file]) => file === join(dir, 'components.tsx'),
+      ),
+    ).toBe(false);
+  } finally {
+    readFile.mockRestore();
+  }
+});
+
+it('avoids TypeScript project analysis for opaque JSX values', () => {
+  rmSync(join(dir, 'tsconfig.json'));
+  expect(
+    rules(
+      '<Box gap={value} position={getPosition()} fill={`rgb(${r}, 0, 0)`} />;',
+    ),
+  ).toEqual([]);
 });

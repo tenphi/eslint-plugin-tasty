@@ -21,6 +21,16 @@ interface Project {
   program?: ts.Program;
   versions: Map<string, string>;
   overlay?: { filename: string; text: string };
+  sourceFiles: Map<
+    string,
+    {
+      version: string;
+      overlayText?: string;
+      parseKey: string;
+      source: ts.SourceFile;
+    }
+  >;
+  excludedFiles: Set<string>;
 }
 
 const require = createRequire(import.meta.url);
@@ -93,7 +103,13 @@ function readProject(T: TypeScript, configPath: string): Project {
         .join('\n')}`,
     );
   }
-  return { config, configVersions, versions: new Map() };
+  return {
+    config,
+    configVersions,
+    versions: new Map(),
+    sourceFiles: new Map(),
+    excludedFiles: new Set(),
+  };
 }
 
 function getProgram(
@@ -103,12 +119,24 @@ function getProgram(
   text: string,
 ): ts.Program {
   let project = projects.get(configPath);
-  if (
-    !project ||
-    changed(project.configVersions) ||
-    (project.program && !project.program.getSourceFile(filename))
-  ) {
+  let rootsChanged = false;
+  if (!project || changed(project.configVersions)) {
     project = readProject(T, configPath);
+  } else if (
+    project.program &&
+    !project.program.getSourceFile(filename) &&
+    !project.excludedFiles.has(filename)
+  ) {
+    const refreshed = readProject(T, configPath);
+    const previousFiles = project.config.fileNames;
+    rootsChanged =
+      refreshed.config.fileNames.length !== previousFiles.length ||
+      refreshed.config.fileNames.some(
+        (file, index) => file !== previousFiles[index],
+      );
+    if (rootsChanged) project.config = refreshed.config;
+    if (!project.config.fileNames.includes(filename))
+      project.excludedFiles.add(filename);
   }
   // Bound retained compiler graphs in long-lived editor processes.
   projects.delete(configPath);
@@ -116,15 +144,56 @@ function getProgram(
   if (projects.size > 3) projects.delete(projects.keys().next().value!);
 
   const overlay =
-    T.sys.readFile(filename) === text ? undefined : { filename, text };
+    project.excludedFiles.has(filename) &&
+    !project.program?.getSourceFile(filename)
+      ? undefined
+      : T.sys.readFile(filename) === text
+        ? undefined
+        : { filename, text };
   const overlayChanged =
     project.overlay?.filename !== overlay?.filename ||
     project.overlay?.text !== overlay?.text;
-  if (!project.program || overlayChanged || changed(project.versions)) {
+  if (
+    !project.program ||
+    rootsChanged ||
+    overlayChanged ||
+    changed(project.versions)
+  ) {
     const host = T.createCompilerHost(project.config.options, true);
     const readFile = host.readFile;
     host.readFile = (path) =>
       resolve(path) === overlay?.filename ? overlay.text : readFile(path);
+    const getSourceFile = host.getSourceFile;
+    host.getSourceFile = (path, options, onError, force) => {
+      const key = resolve(path);
+      const stamp = version(key);
+      const overlayText = key === overlay?.filename ? overlay.text : undefined;
+      const parseOptions =
+        typeof options === 'number' ? { languageVersion: options } : options;
+      const parseKey = [
+        parseOptions.languageVersion,
+        parseOptions.impliedNodeFormat,
+        parseOptions.jsDocParsingMode,
+      ].join(':');
+      const cached = project.sourceFiles.get(key);
+      if (
+        !force &&
+        cached?.version === stamp &&
+        cached.overlayText === overlayText &&
+        cached.parseKey === parseKey
+      )
+        return cached.source;
+      const source = getSourceFile(path, options, onError, force);
+      if (source)
+        project.sourceFiles.set(key, {
+          version: stamp,
+          overlayText,
+          parseKey,
+          source,
+        });
+      else project.sourceFiles.delete(key);
+      return source;
+    };
     project.program = T.createProgram({
       rootNames: project.config.fileNames,
       options: project.config.options,
@@ -138,6 +207,12 @@ function getProgram(
         .getSourceFiles()
         .map((file) => [file.fileName, version(file.fileName)]),
     );
+    const retained = new Set(
+      project.program.getSourceFiles().map((file) => resolve(file.fileName)),
+    );
+    for (const path of project.sourceFiles.keys()) {
+      if (!retained.has(path)) project.sourceFiles.delete(path);
+    }
   }
   return project.program;
 }
@@ -273,10 +348,21 @@ function makeClassifier(
           const parts = nonNullable.isUnion()
             ? nonNullable.types
             : [nonNullable];
+          const primitive =
+            T.TypeFlags.StringLike |
+            T.TypeFlags.NumberLike |
+            T.TypeFlags.BooleanLike |
+            T.TypeFlags.BigIntLike;
           const broad =
-            T.TypeFlags.String | T.TypeFlags.Number | T.TypeFlags.BooleanLike;
-          if (!parts.every((part) => Boolean(part.flags & broad)))
-            kind = 'component';
+            T.TypeFlags.String | T.TypeFlags.Number | T.TypeFlags.Boolean;
+          const broadPrimitive =
+            parts.every((part) => Boolean(part.flags & primitive)) &&
+            (Boolean(nonNullable.flags & broad) ||
+              parts.some((part) => Boolean(part.flags & broad)) ||
+              parts.every((part) =>
+                Boolean(part.flags & T.TypeFlags.BooleanLike),
+              ));
+          if (!broadPrimitive) kind = 'component';
         }
       }
     }
@@ -306,36 +392,43 @@ export function jsxPropKind(
       'tasty: typeAwareJSX must be true, false, or { project: string }.',
     );
 
-  const T = getTypeScript();
   const filename = resolve(context.filename);
   const explicit = option === true ? undefined : option.project;
-  const configPath = explicit
-    ? resolve(context.cwd, explicit)
-    : T.findConfigFile(dirname(filename), T.sys.fileExists);
-  if (!configPath)
-    throw new Error(
-      `tasty: typeAwareJSX could not find a tsconfig for ${filename}.`,
-    );
-
   const sourceCode = context.sourceCode;
+  const key = explicit ? resolve(context.cwd, explicit) : 'nearest';
   let byProject = classifiers.get(sourceCode);
   if (!byProject) {
     byProject = new Map();
     classifiers.set(sourceCode, byProject);
   }
-  let cached = byProject.get(configPath);
+  let cached = byProject.get(key);
   if (
     !cached ||
     cached.filename !== filename ||
     cached.text !== sourceCode.text
   ) {
+    const T = getTypeScript();
+    const configPath = explicit
+      ? key
+      : T.findConfigFile(dirname(filename), T.sys.fileExists);
+    if (!configPath)
+      throw new Error(
+        `tasty: typeAwareJSX could not find a tsconfig for ${filename}.`,
+      );
     const program = getProgram(T, configPath, filename, sourceCode.text);
     cached = {
       filename,
       text: sourceCode.text,
       classify: makeClassifier(T, program, filename, sourceCode.text),
     };
-    byProject.set(configPath, cached);
+    byProject.set(key, cached);
   }
   return cached.classify(attribute);
+}
+
+/** A SourceCode object may be reused by ESLint after dependencies change. */
+export function finishJSXAnalysis(
+  context: RuleContext<string, unknown[]>,
+): void {
+  classifiers.delete(context.sourceCode);
 }

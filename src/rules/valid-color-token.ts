@@ -82,16 +82,9 @@ export default createRule<[], MessageIds>({
       }
     }
 
-    return {
-      ...stringStyleValueListeners(
-        ctx,
-        (value, node) => {
-          checkColorTokensInValue(value, node);
-        },
-        { onStyleObject: collectLocalTokens },
-      ),
-
-      'Program:exit'() {
+    return stringStyleValueListeners(ctx, checkColorTokensInValue, {
+      onStyleObject: collectLocalTokens,
+      onProgramExit() {
         if (
           !Array.isArray(ctx.config.tokens) ||
           ctx.config.tokens.length === 0
@@ -110,6 +103,6 @@ export default createRule<[], MessageIds>({
           });
         }
       },
-    };
+    });
   },
 });
