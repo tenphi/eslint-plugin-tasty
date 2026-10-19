@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.7.1
+
+### Patch Changes
+
+- [#71](https://github.com/tenphi/eslint-plugin-tasty/pull/71) [`721d5c2`](https://github.com/tenphi/eslint-plugin-tasty/commit/721d5c2c61ef336d08e9d60c67ba602d24167f8f) Thanks [@tenphi](https://github.com/tenphi)! - Fix `no-unknown-state-alias` treating a whole state key that starts with an alias as one alias name. Compound keys like `'@selected | indeterminate'` are now parsed, and each `@name` alias is checked on its own wherever it appears in the key, including after operators, inside groups, and inside `@root()`/`@parent()`/`@own()`.
+
 ## 1.7.0
 
 ### Minor Changes
