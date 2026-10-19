@@ -80,6 +80,53 @@ tester.run('no-unknown-state-alias', rule, {
         }});
       `,
     },
+    // Known alias at the start of a compound key
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: {
+          '@selected': ':checked',
+          fill: {
+            '': '#white',
+            '@selected | indeterminate': '#blue',
+            '@selected & @media(w < 768px)': '#purple',
+            '@selected & !disabled': '#green',
+          },
+        }});
+      `,
+    },
+    // Known alias inside groups, after operators, and in computed keys
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: {
+          '@selected': ':checked',
+          fill: {
+            '': '#white',
+            '(@selected | indeterminate)': '#blue',
+            'hovered & @selected': '#purple',
+            '!@selected': '#gray',
+            ['@selected, indeterminate']: '#green',
+          },
+        }});
+      `,
+    },
+    // Built-in prefixes mixed with aliases in compound keys
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: {
+          '@selected': ':checked',
+          fill: {
+            '': '#white',
+            '@root(theme=dark) & @selected': '#dark',
+            '@starting | @selected': '#clear',
+            '@(w < 600px) & @selected': '#small',
+            '@supports(display: grid) | @root(@selected)': '#grid',
+          },
+        }});
+      `,
+    },
   ],
   invalid: [
     // Local alias defined but unknown alias used
@@ -95,6 +142,45 @@ tester.run('no-unknown-state-alias', rule, {
         }});
       `,
       errors: [{ messageId: 'unknownAlias' }],
+    },
+    // Unknown alias in compound keys is reported by its own name
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: {
+          '@selected': ':checked',
+          fill: {
+            '': '#white',
+            '@unknown | indeterminate': '#blue',
+            'hovered & @missing': '#purple',
+            '(@absent | indeterminate)': '#green',
+            '@root(@nested)': '#gray',
+          },
+        }});
+      `,
+      errors: [
+        { messageId: 'unknownAlias', data: { alias: '@unknown' } },
+        { messageId: 'unknownAlias', data: { alias: '@missing' } },
+        { messageId: 'unknownAlias', data: { alias: '@absent' } },
+        { messageId: 'unknownAlias', data: { alias: '@nested' } },
+      ],
+    },
+    // Each distinct unknown alias in a key is reported once
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: {
+          '@selected': ':checked',
+          fill: {
+            '': '#white',
+            '@selected & @unknown | @unknown & @other': '#blue',
+          },
+        }});
+      `,
+      errors: [
+        { messageId: 'unknownAlias', data: { alias: '@unknown' } },
+        { messageId: 'unknownAlias', data: { alias: '@other' } },
+      ],
     },
   ],
 });

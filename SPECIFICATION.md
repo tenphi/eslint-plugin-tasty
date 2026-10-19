@@ -1033,7 +1033,7 @@ fill: { '': '#white', '_ & hovered': '#blue' }
 **Complexity:** Low
 **Feasibility:** High — simple prefix check + config lookup
 
-Warns when a `@name` state alias is used that isn't in the config and isn't a built-in prefix.
+Warns when a `@name` state alias is used that isn't in the config, isn't defined locally, and isn't a built-in prefix. Compound keys are parsed, so each alias is checked wherever it appears (`'@dark | hovered'`, `'hovered & @dark'`, `'(@dark | hovered)'`, `'@root(@dark)'`).
 
 **Built-in prefixes (always valid):** `@media`, `@root`, `@own`, `@supports`, `@starting`, `@keyframes`, `@properties`
 
@@ -1043,9 +1043,12 @@ Warns when a `@name` state alias is used that isn't in the config and isn't a bu
 ```js
 // ⚠️ Warning: Unknown state alias '@drak'. Did you mean '@dark'?
 padding: { '': '4x', '@drak': '2x' }
+
+// ⚠️ Warning: Unknown state alias '@drak'.
+padding: { '': '4x', 'hovered & @drak': '2x' }
 ```
 
-**Skipped:** when `config.states` is not set.
+**Skipped:** when `config.states` is not set and the style object defines no local aliases.
 
 ---
 

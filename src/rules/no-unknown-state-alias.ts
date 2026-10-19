@@ -7,6 +7,7 @@ import {
   isKnownStateAlias,
   collectLocalStateAliases,
 } from '../utils.js';
+import { parseStateKey } from '../parsers/state-key-parser.js';
 
 type MessageIds = 'unknownAlias';
 
@@ -38,16 +39,22 @@ export default createRule<[], MessageIds>({
         const key = !prop.computed
           ? getKeyName(prop.key)
           : getStringValue(prop.key);
-        if (key === null || !key.startsWith('@')) continue;
+        if (key === null || !key.includes('@')) continue;
 
-        if (
-          !isKnownStateAlias(key, ctx.config) &&
-          !localAliases.includes(key)
-        ) {
+        // Aliases can appear anywhere in a compound key ('@a | b', 'b & @a')
+        const { referencedAliases } = parseStateKey(key);
+        for (const alias of new Set(referencedAliases)) {
+          if (
+            isKnownStateAlias(alias, ctx.config) ||
+            localAliases.includes(alias)
+          ) {
+            continue;
+          }
+
           context.report({
             node: prop.key,
             messageId: 'unknownAlias',
-            data: { alias: key },
+            data: { alias },
           });
         }
       }
