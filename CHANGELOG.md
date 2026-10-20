@@ -1,5 +1,13 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.7.3
+
+### Patch Changes
+
+- [#78](https://github.com/tenphi/eslint-plugin-tasty/pull/78) [`cf5cb8e`](https://github.com/tenphi/eslint-plugin-tasty/commit/cf5cb8e63231fa738b39eda7e910a81b7bbf9780) Thanks [@tenphi](https://github.com/tenphi)! - Accept TypeScript 6 in the optional `typescript` peer range (`>=5.6.3 <7`), so projects on TypeScript 6 no longer get an unmet peer warning. The experimental `settings.tasty.typeAwareJSX` analysis works unchanged on TypeScript 6, including with tsconfigs that still use options TypeScript 6 deprecates, such as `baseUrl` or `moduleResolution: "node"`. TypeScript 7 is not supported yet: its package no longer exposes the compiler API that `typeAwareJSX` uses.
+
+- [#79](https://github.com/tenphi/eslint-plugin-tasty/pull/79) [`93011d6`](https://github.com/tenphi/eslint-plugin-tasty/commit/93011d60ae4805515a4878932d2a5c160b1406f1) Thanks [@tenphi](https://github.com/tenphi)! - With TypeScript 7 installed, the experimental `settings.tasty.typeAwareJSX` analysis now fails with a clear error that names the installed version and asks for TypeScript 5.6–6.x. Previously it crashed with `TypeError: T.findConfigFile is not a function`. TypeScript 7's package no longer exposes the JavaScript compiler API that `typeAwareJSX` uses.
+
 ## 1.7.2
 
 ### Patch Changes
