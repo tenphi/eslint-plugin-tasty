@@ -183,7 +183,7 @@ for typing shared signatures.
 | `tasty/valid-radius-shape` | error | Unknown radius shape keywords |
 | `tasty/valid-preset` | error | Unknown preset names |
 | `tasty/valid-recipe` | error | Unknown recipe names |
-| `tasty/valid-transition` | warn | Unknown transition property names |
+| `tasty/valid-transition` | warn | Unknown transition names, and camelCase CSS names that Tasty would emit as no property (`gridTemplateColumns` → `grid-template-columns`) |
 | `tasty/no-nested-selector` | warn | `&`-prefixed nested selectors (use sub-elements) |
 | `tasty/no-state-in-selector` | warn | Pseudo-class and attribute conditions in sub-element `$` selectors; put conditions in property state maps ([details](docs/rules/no-state-in-selector.md)) |
 | `tasty/prefer-element-selector` | warn | Prefer element names such as `Primary > Search` over exact `data-element` attributes in sub-element `$` selectors (safely autofixable; [details](docs/rules/prefer-element-selector.md)) |
