@@ -33,6 +33,7 @@ export { default as noRuntimeStylesMutation } from './no-runtime-styles-mutation
 export { default as noStyleSpread } from './no-style-spread.js';
 export { default as validStateDefinition } from './valid-state-definition.js';
 export { default as noOwnAtRoot } from './no-own-at-root.js';
+export { default as noIgnoredPseudoElementState } from './no-ignored-pseudo-element-state.js';
 export { default as validDefaultStateOrder } from './valid-default-state-order.js';
 export { default as preferAutoCalc } from './prefer-auto-calc.js';
 export { default as preferStateNegation } from './prefer-state-negation.js';

@@ -102,8 +102,10 @@ const Pagination = tasty({
 });
 ```
 
-Pseudo-classes written after the pseudo-element are its own states, which
-`@own(...)` expresses exactly, so they are still reported. Conditions after it
+Moving such a condition into `@own(...)` would not work: Tasty ignores it, and
+[`tasty/no-ignored-pseudo-element-state`](no-ignored-pseudo-element-state.md)
+reports it. Pseudo-classes written after the pseudo-element are its own states,
+which `@own(...)` expresses exactly, so they are still reported. Conditions after it
 that `@own(...)` would drop, such as `::part(label):first-child`, are not.
 Conditions inside the pseudo-element, such as `::slotted(img:hover)`, are part
 of what it selects and stay in `$`. A condition in an earlier compound, such as

@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { parseStateKey, validateStateDefinition } from './state-key-parser.js';
+import {
+  getStateAtoms,
+  parseStateKey,
+  validateStateDefinition,
+} from './state-key-parser.js';
 
 describe('state-key-parser', () => {
   describe('valid state keys', () => {
@@ -182,6 +186,26 @@ describe('state-key-parser', () => {
     it('reports empty media queries', () => {
       const result = validateStateDefinition('@media()');
       expect(result.errors.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('getStateAtoms', () => {
+    it('lists atoms without operators, marking those inside @own()', () => {
+      expect(
+        getStateAtoms(':focus & !@own(:hover | [open]), @parent(hovered, >)'),
+      ).toEqual([
+        { value: ':focus', own: false },
+        { value: ':hover', own: true },
+        { value: '[open]', own: true },
+        { value: '@parent(hovered, >)', own: false },
+      ]);
+    });
+
+    it('keeps functional pseudo-classes and modifiers whole', () => {
+      expect(getStateAtoms('@own(:not([open]) & theme=dark)')).toEqual([
+        { value: ':not([open])', own: true },
+        { value: 'theme=dark', own: true },
+      ]);
     });
   });
 });

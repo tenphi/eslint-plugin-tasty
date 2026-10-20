@@ -703,6 +703,33 @@ export function getStateNegationEdits(stateKey: string): StringEdit[] {
     });
 }
 
+export interface StateAtom {
+  /** The atom as written: `hovered`, `:hover`, `[open]`, `@root(...)`. */
+  value: string;
+  /** Whether the atom sits inside `@own(...)`. */
+  own: boolean;
+}
+
+/**
+ * The state atoms of a key, without its operators and grouping. The contents
+ * of `@own(...)` are listed atom by atom; `@root()`, `@parent()`, and at-rule
+ * conditions stay single atoms, since they describe other things.
+ */
+export function getStateAtoms(stateKey: string): StateAtom[] {
+  const atoms: StateAtom[] = [];
+  for (const token of tokenize(stateKey.trim()).tokens) {
+    if (token.type !== 'STATE') continue;
+    if (!token.value.startsWith('@own(')) {
+      atoms.push({ value: token.value, own: false });
+      continue;
+    }
+    for (const inner of tokenize(token.value.slice(5, -1)).tokens) {
+      if (inner.type === 'STATE') atoms.push({ value: inner.value, own: true });
+    }
+  }
+  return atoms;
+}
+
 /**
  * Validate a state key string and return detailed errors.
  */

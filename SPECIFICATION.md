@@ -1278,6 +1278,43 @@ fill: {
 
 ---
 
+#### `tasty/no-ignored-pseudo-element-state`
+
+**Severity:** warning (default)
+**Complexity:** Medium
+**Feasibility:** High — selector parsing plus state-key atoms
+
+Reports state keys that Tasty ignores with a `PSEUDO_ELEMENT_STATE_IGNORED`
+warning. When a sub-element's `$` item ends in a pseudo-element (the first
+`::name` or legacy single-colon spelling in its last compound), `@own(...)`
+describes the pseudo-element itself. A pseudo-element has no attributes,
+modifiers, classes, IDs, or tree position, so `@own([open])`, `@own(hovered)`,
+`@own(.active)`, `@own(:first-child)`, and keys that combine one of them with
+other states can never match. The same applies to the root states of a
+selector-mode call whose literal selector ends in a pseudo-element
+(`useGlobalStyles('.card::before', …)`).
+
+**Rules:**
+1. Each `$` item, `&` key, and selector-mode list item is judged on its own.
+   `&` attaches to the owner's selector.
+2. Pseudo-class states such as `@own(:hover)`, root states of a sub-element,
+   `@parent()`, `@root()`, and at-rule conditions are never reported.
+3. `@name` aliases are not resolved, and malformed keys are left to
+   `tasty/valid-state-key`. There is no autofix: the condition belongs in the
+   selector before the pseudo-element, which changes every property's target.
+
+**Examples:**
+```js
+// ⚠️ Warning: Tasty ignores state '@own([rel="next"])' on 'a::before'
+NextArrow: { $: 'a::before', content: { '': 'none', '@own([rel="next"])': '"→"' } }
+
+// ✅ Valid
+NextArrow: { $: 'a[rel="next"]::before', content: '"→"' }
+Label: { $: '@::part(label)', color: { '': '#text', '@own(:hover)': '#active' } }
+```
+
+---
+
 ### Best Practices
 
 #### Tasty component prop warnings
@@ -1528,6 +1565,7 @@ The plugin should export preset configurations:
   'tasty/no-style-prop': 'warn',
   'tasty/no-classname-prop': 'warn',
   'tasty/no-styles-prop': 'warn',
+  'tasty/no-ignored-pseudo-element-state': 'warn',
 }
 
 // Strict — recommended + best practices
