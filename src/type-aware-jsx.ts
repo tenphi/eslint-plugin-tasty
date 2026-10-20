@@ -51,13 +51,25 @@ const classifiers = new WeakMap<
 
 function getTypeScript(): TypeScript {
   if (!typescript) {
+    let module: Partial<TypeScript>;
     try {
-      typescript = require('typescript') as TypeScript;
+      module = require('typescript') as Partial<TypeScript>;
     } catch {
       throw new Error(
         'tasty: typeAwareJSX requires TypeScript. Install typescript as a dev dependency.',
       );
     }
+    // TypeScript 7 (the native port) exports only its version from the main entry.
+    if (typeof module.createProgram !== 'function') {
+      throw new Error(
+        `tasty: typeAwareJSX requires the TypeScript compiler API, which ${
+          module.version
+            ? `typescript ${module.version}`
+            : 'the installed typescript'
+        } does not provide. Install TypeScript 5.6–6.x as a dev dependency.`,
+      );
+    }
+    typescript = module as TypeScript;
   }
   return typescript;
 }
