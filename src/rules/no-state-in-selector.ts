@@ -2,39 +2,15 @@ import type { TSESTree } from '@typescript-eslint/utils';
 import selectorParser from 'postcss-selector-parser';
 import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
+import {
+  isPseudoElement,
+  pseudoElementMismatch,
+  pseudoName,
+  splitAtPseudoElement,
+} from '../pseudo-elements.js';
 import { getKeyName, getStringValue, unwrapExpression } from '../utils.js';
 
 const STRUCTURAL_PSEUDOS = new Set([':is', ':where']);
-const LEGACY_PSEUDO_ELEMENTS = new Set([
-  ':before',
-  ':after',
-  ':first-line',
-  ':first-letter',
-]);
-
-// Tasty drops these states from @own() on a pseudo-element, which has no
-// attributes, classes, IDs, or position in the DOM tree.
-const QUOTED_RE = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g;
-const TREE_PSEUDO_RE =
-  /:(?:root|empty|scope|has|(?:first|last|only)-(?:child|of-type)|nth-(?:last-)?(?:child|of-type))(?![\w-])/i;
-
-function pseudoName(node: selectorParser.Pseudo): string {
-  const name = node.value.toLowerCase();
-  if (!name.includes('\\')) return name;
-  // The parser decodes tag identifiers but preserves pseudo spelling.
-  const colons = name.startsWith('::') ? '::' : ':';
-  const identifier = selectorParser().astSync(name.slice(colons.length)).first
-    ?.first;
-  return identifier?.type === 'tag'
-    ? colons + identifier.value.toLowerCase()
-    : name;
-}
-
-function isPseudoElement(node: selectorParser.Node): boolean {
-  if (node.type !== 'pseudo') return false;
-  const name = pseudoName(node);
-  return name.startsWith('::') || LEGACY_PSEUDO_ELEMENTS.has(name);
-}
 
 function isCondition(node: selectorParser.Node): boolean {
   if (node.type === 'attribute') {
@@ -66,33 +42,20 @@ function findCondition(nodes: selectorParser.Node[]): string | null {
 
 /** Whether @own() can express `node` on a pseudo-element. */
 function isPseudoElementState(node: selectorParser.Node): boolean {
-  if (node.type !== 'pseudo') return false;
-  const text = node.toString().replace(QUOTED_RE, '""');
-  return !TREE_PSEUDO_RE.test(text) && !/[[.#]/.test(text);
+  return node.type === 'pseudo' && !pseudoElementMismatch(node.toString());
 }
 
 function firstItemCondition(item: selectorParser.Selector): string | null {
-  const { nodes } = item;
-  let compound = 0;
-  nodes.forEach((node, index) => {
-    if (node.type === 'combinator') compound = index + 1;
-  });
-  const first = nodes.findIndex(
-    (node, index) => index >= compound && isPseudoElement(node),
-  );
-  if (first === -1) return findCondition(nodes);
+  const split = splitAtPseudoElement(item);
+  if (split === null) return findCondition(item.nodes);
 
   // The item ends in a pseudo-element, which Tasty treats as the subject:
   // @own() states go after the pseudo-element, and the states it cannot have
   // are dropped. Conditions on the originating element before it, and inside
   // it (::slotted(img:hover), ::after:hover::marker), must stay in `$`.
-  let last = first;
-  nodes.forEach((node, index) => {
-    if (index > first && isPseudoElement(node)) last = index;
-  });
   return (
-    findCondition(nodes.slice(0, compound)) ??
-    findCondition(nodes.slice(last + 1).filter(isPseudoElementState))
+    findCondition(item.nodes.slice(0, split.compound)) ??
+    findCondition(item.nodes.slice(split.last + 1).filter(isPseudoElementState))
   );
 }
 

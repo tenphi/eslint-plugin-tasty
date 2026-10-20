@@ -41,6 +41,12 @@ describe('plugin surface', () => {
     expect(plugin.rules['no-style-spread']).toBeDefined();
   });
 
+  it('reports ignored pseudo-element states as errors, selector states as warnings', () => {
+    expect(recommended['tasty/no-state-in-selector']).toBe('warn');
+    expect(recommended['tasty/no-ignored-pseudo-element-state']).toBe('error');
+    expect(strict['tasty/no-ignored-pseudo-element-state']).toBe('error');
+  });
+
   it('gives every rule a matching meta.docs.url', () => {
     for (const [id, rule] of Object.entries(plugin.rules)) {
       expect(rule.meta.docs?.url, id).toContain(id);
