@@ -1,5 +1,19 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.7.2
+
+### Patch Changes
+
+- [#74](https://github.com/tenphi/eslint-plugin-tasty/pull/74) [`ea0653a`](https://github.com/tenphi/eslint-plugin-tasty/commit/ea0653a74d65c5cb0f8a1b16e321306a29c07a4d) Thanks [@tenphi](https://github.com/tenphi)! - `valid-custom-property` no longer reports Tasty's built-in custom properties as unknown when the config lists `tokens`: `$gap`, `$radius`, `$border-width`, `$outline-width`, `$transition`, `$sharp-radius`, `$bold-font-weight`, `$font-sans-fallback` and `$font-mono-fallback`, including the `$$name` form. Before, they were accepted only when the plugin could load the `tasty.config.ts` that `@tenphi/tasty` ships, and that file lacks the two font fallbacks.
+
+- [#76](https://github.com/tenphi/eslint-plugin-tasty/pull/76) [`51f5ed3`](https://github.com/tenphi/eslint-plugin-tasty/commit/51f5ed3a5de4a9e49c8c8fe5fade56943290142c) Thanks [@tenphi](https://github.com/tenphi)! - `valid-transition` reports a camelCase CSS name such as `gridTemplateColumns` or `maskSize`, with a suggestion for the kebab-case name. Tasty lowercases the name and emits it verbatim, so it compiles to no property at all (`gridtemplatecolumns`). Names with a semantic equivalent (`boxShadow`) keep the semantic suggestion, and `zIndex` is still accepted.
+
+- [#73](https://github.com/tenphi/eslint-plugin-tasty/pull/73) [`4362959`](https://github.com/tenphi/eslint-plugin-tasty/commit/43629590a6edcec9bf7162a2c8f142ac767586e8) Thanks [@tenphi](https://github.com/tenphi)! - Align four rules with what `@tenphi/tasty` does.
+  - `valid-color-token` no longer reports Tasty's built-in color tokens as unknown when the config lists `tokens`: `#current`, `#clear`, `#white`, `#black`, `#border` and `#outline`, with or without an opacity suffix. This includes the `#clear` that `prefer-custom-property-syntax` writes for `transparent`.
+  - `valid-transition` reports `flow` and `dimension`, which are not Tasty transition names (Tasty emits them verbatim as invalid CSS). It no longer suggests `flow` for `flex-direction` / `grid-auto-flow`, or `gridColumns` / `gridRows` for `grid-template-columns` / `grid-template-rows`.
+  - `valid-preset` accepts the `normal` modifier (`line-height: normal`), both after a slash (`h1 / normal`) and as the modifier-only shorthand (`preset: 'normal'`).
+  - Color token opacity suffixes are read as a decimal fraction, as Tasty reads them, so any digit string is valid: `#purple.150` (15%) and `#purple.999` (99.9%) no longer report "exceeds 100". A suffix that is not a digit string, such as `#purple.5.5`, is now reported.
+
 ## 1.7.1
 
 ### Patch Changes
