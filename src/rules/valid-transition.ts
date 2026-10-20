@@ -12,7 +12,9 @@ import { replaceInStringValue } from '../fix-utils.js';
 type MessageIds =
   | 'unknownTransition'
   | 'preferSemanticTransition'
-  | 'useSemantic';
+  | 'useSemantic'
+  | 'camelCaseTransition'
+  | 'useKebabCase';
 
 /**
  * `KNOWN_CSS_PROPERTIES` is keyed by camelCase style keys, but a `transition`
@@ -22,6 +24,11 @@ type MessageIds =
  */
 function kebabToCamel(name: string): string {
   return name.replace(/-([a-z])/g, (_, char: string) => char.toUpperCase());
+}
+
+/** `gridTemplateColumns` -> `grid-template-columns`. */
+function camelToKebab(name: string): string {
+  return name.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`);
 }
 
 /**
@@ -47,6 +54,9 @@ export default createRule<[], MessageIds>({
       preferSemanticTransition:
         "Transition '{{native}}' has a Tasty semantic equivalent — use '{{semantic}}' instead.",
       useSemantic: "Use '{{semantic}}' instead of '{{native}}'",
+      camelCaseTransition:
+        "Transition '{{name}}' compiles to '{{lowered}}', which is not a CSS property. Use the CSS name '{{kebab}}'.",
+      useKebabCase: "Use '{{kebab}}' instead of '{{name}}'",
     },
     schema: [],
   },
@@ -79,11 +89,11 @@ export default createRule<[], MessageIds>({
           continue;
         }
 
+        const start = offset + group.indexOf(name);
+        const end = start + name.length;
+
         const semantic = TRANSITION_SEMANTIC_MAPPING[name];
         if (semantic) {
-          const nameStartInGroup = group.indexOf(name);
-          const start = offset + nameStartInGroup;
-          const end = start + name.length;
           context.report({
             node,
             messageId: 'preferSemanticTransition',
@@ -97,6 +107,39 @@ export default createRule<[], MessageIds>({
                     fixer,
                     node,
                     [{ start, end, replacement: semantic }],
+                    context.sourceCode,
+                  );
+                },
+              },
+            ],
+          });
+          offset += group.length + 1;
+          continue;
+        }
+
+        // Tasty lowercases the name and emits it verbatim, so a camelCase CSS
+        // property comes out as `gridtemplatecolumns`, which is no property.
+        // Only the semantic names (`zIndex` -> `z-index`) are translated.
+        if (
+          /[A-Z]/.test(name) &&
+          !SEMANTIC_TRANSITIONS.has(name) &&
+          KNOWN_CSS_PROPERTIES.has(name)
+        ) {
+          const kebab = camelToKebab(name);
+          const data = { name, lowered: name.toLowerCase(), kebab };
+          context.report({
+            node,
+            messageId: 'camelCaseTransition',
+            data,
+            suggest: [
+              {
+                messageId: 'useKebabCase',
+                data,
+                fix(fixer) {
+                  return replaceInStringValue(
+                    fixer,
+                    node,
+                    [{ start, end, replacement: kebab }],
                     context.sourceCode,
                   );
                 },

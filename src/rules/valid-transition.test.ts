@@ -65,6 +65,12 @@ tester.run('valid-transition', rule, {
         tasty({ styles: { transition: 'zIndex 0.2s, inset, text, gap' } });
       `,
     },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { transition: 'z-index 0.2s, mask-size 0.3s' } });
+      `,
+    },
     // No Tasty transition name covers these, so the CSS name is the answer:
     // no `flow` / `gridColumns` / `gridRows` suggestion.
     {
@@ -135,6 +141,91 @@ tester.run('valid-transition', rule, {
               output: `
         import { tasty } from '@tenphi/tasty';
         tasty({ styles: { transition: 'fill 0.3s' } });
+      `,
+            },
+          ],
+        },
+      ],
+    },
+    // Tasty lowercases a camelCase CSS name into no property at all
+    // (`gridtemplatecolumns`), so the kebab-case CSS name is suggested.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { transition: 'gridTemplateColumns 0.3s' } });
+      `,
+      errors: [
+        {
+          messageId: 'camelCaseTransition',
+          data: {
+            name: 'gridTemplateColumns',
+            lowered: 'gridtemplatecolumns',
+            kebab: 'grid-template-columns',
+          },
+          suggestions: [
+            {
+              messageId: 'useKebabCase',
+              data: {
+                name: 'gridTemplateColumns',
+                lowered: 'gridtemplatecolumns',
+                kebab: 'grid-template-columns',
+              },
+              output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { transition: 'grid-template-columns 0.3s' } });
+      `,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { transition: 'opacity 0.2s, flexDirection, maskSize 0.3s ease-in' } });
+      `,
+      errors: [
+        {
+          messageId: 'camelCaseTransition',
+          suggestions: [
+            {
+              messageId: 'useKebabCase',
+              output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { transition: 'opacity 0.2s, flex-direction, maskSize 0.3s ease-in' } });
+      `,
+            },
+          ],
+        },
+        {
+          messageId: 'camelCaseTransition',
+          suggestions: [
+            {
+              messageId: 'useKebabCase',
+              output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { transition: 'opacity 0.2s, flexDirection, mask-size 0.3s ease-in' } });
+      `,
+            },
+          ],
+        },
+      ],
+    },
+    // A camelCase name with a semantic equivalent keeps that suggestion.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { transition: 'boxShadow 0.2s' } });
+      `,
+      errors: [
+        {
+          messageId: 'preferSemanticTransition',
+          suggestions: [
+            {
+              messageId: 'useSemantic',
+              output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { transition: 'shadow 0.2s' } });
       `,
             },
           ],

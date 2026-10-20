@@ -734,6 +734,8 @@ The value is comma-separated, each entry is `name [duration] [easing] [delay]`.
 
 **Checks:**
 1. First token of each comma-group should be a known semantic name, a CSS property name, or a `$$name` custom property reference.
+2. A CSS property name must be kebab-case. Tasty lowercases the name and emits it verbatim, so `gridTemplateColumns` becomes `gridtemplatecolumns`, which is no property. The rule suggests `grid-template-columns` instead. `zIndex` is the exception: it is a semantic name that compiles to `z-index`.
+3. A CSS property with a semantic equivalent (`background-color`, `boxShadow`) gets a suggestion to use the semantic name.
 
 **Examples:**
 ```js
