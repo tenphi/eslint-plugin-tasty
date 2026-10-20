@@ -1,5 +1,17 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.8.0
+
+### Minor Changes
+
+- [#85](https://github.com/tenphi/eslint-plugin-tasty/pull/85) [`45e4bc3`](https://github.com/tenphi/eslint-plugin-tasty/commit/45e4bc34963c298e260b6aca63a242379b1c8538) Thanks [@tenphi](https://github.com/tenphi)! - Add `tasty/no-ignored-pseudo-element-state`, enabled as an error in the recommended and strict presets, like `valid-state-key`'s check for a misused `_` fallback key, which Tasty also ignores with a runtime warning. When a sub-element's `$` ends in a pseudo-element, Tasty applies `@own(...)` to the pseudo-element itself and ignores states a pseudo-element cannot have, with a `PSEUDO_ELEMENT_STATE_IGNORED` warning at runtime. The rule reports those states while you edit: modifiers (`@own(hovered)`), attributes (`@own([open])`), classes and IDs, tree-structural pseudo-classes (`@own(:last-child)`, `:nth-*()`, `:has()`), and keys that combine one of them with other states. It also covers `&` keys and the root states of `useGlobalStyles()` / `tastyStatic()` selectors that end in a pseudo-element. Write a condition on the element the pseudo-element belongs to in the selector instead: `$: 'a[rel="next"]::before'`.
+
+### Patch Changes
+
+- [#84](https://github.com/tenphi/eslint-plugin-tasty/pull/84) [`7737419`](https://github.com/tenphi/eslint-plugin-tasty/commit/7737419ef9496d467003e80f020663894f0d1b46) Thanks [@tenphi](https://github.com/tenphi)! - `tasty/no-state-in-selector` no longer reports conditions on the element a pseudo-element belongs to, such as `a[rel="next"]::before`, `dialog[open]::backdrop`, `li:last-child::marker`, or the legacy `a[rel]:before`. Tasty now applies `@own(...)` on such a sub-element to the pseudo-element itself and drops the states a pseudo-element cannot have, so these conditions must stay in `$`. Conditions inside the pseudo-element (`::slotted(img:hover)`) are accepted for the same reason. Pseudo-classes after the pseudo-element (`@::part(label):hover`) are still reported, because `@own(:hover)` now expresses them exactly. Each item of a selector list is checked on its own.
+
+- [#82](https://github.com/tenphi/eslint-plugin-tasty/pull/82) [`c2ebb63`](https://github.com/tenphi/eslint-plugin-tasty/commit/c2ebb63f60b87a3d5d36c71164592dcf87f313af) Thanks [@tenphi](https://github.com/tenphi)! - `valid-state-key` accepts every standard CSS pseudo-class, including functional ones. Keys such as `:dir(rtl)`, `:lang(en)`, `:popover-open`, `:open`, `:modal`, `:user-invalid`, `:state(checked)` and `@own(:popover-open)` were reported as unknown, even though Tasty compiles them correctly. The known list now covers every standard pseudo-class in MDN's browser-compat-data, plus the Selectors Level 4 ones it does not list yet. Misspelled pseudo-classes are still reported.
+
 ## 1.7.3
 
 ### Patch Changes
