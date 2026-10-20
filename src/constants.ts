@@ -1066,6 +1066,24 @@ export const KNOWN_CSS_PROPERTIES = new Set([
 export const BUILT_IN_UNITS = new Set(['x', 'r', 'cr', 'bw', 'ow', 'lh', 'sf']);
 
 /**
+ * Custom properties Tasty registers as default `@property` rules, so they are
+ * always defined whatever the config's `tokens` list says. The scale tokens
+ * match their built-in units; style handlers read the rest as bare `var()`s
+ * (`radius: 'leaf'`, `preset: 'h1 / strong'`, the font fallbacks, timings).
+ */
+export const BUILT_IN_CUSTOM_PROPERTIES = new Set([
+  '$gap',
+  '$radius',
+  '$border-width',
+  '$outline-width',
+  '$transition',
+  '$sharp-radius',
+  '$bold-font-weight',
+  '$font-sans-fallback',
+  '$font-mono-fallback',
+]);
+
+/**
  * Standard CSS units (always valid).
  */
 export const CSS_UNITS = new Set([
