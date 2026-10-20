@@ -12,6 +12,90 @@ const LEGACY_PSEUDO_ELEMENTS = new Set([
   ':first-letter',
 ]);
 
+// Tasty drops these states from @own() on a pseudo-element, which has no
+// attributes, classes, IDs, or position in the DOM tree.
+const QUOTED_RE = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g;
+const TREE_PSEUDO_RE =
+  /:(?:root|empty|scope|has|(?:first|last|only)-(?:child|of-type)|nth-(?:last-)?(?:child|of-type))(?![\w-])/i;
+
+function pseudoName(node: selectorParser.Pseudo): string {
+  const name = node.value.toLowerCase();
+  if (!name.includes('\\')) return name;
+  // The parser decodes tag identifiers but preserves pseudo spelling.
+  const colons = name.startsWith('::') ? '::' : ':';
+  const identifier = selectorParser().astSync(name.slice(colons.length)).first
+    ?.first;
+  return identifier?.type === 'tag'
+    ? colons + identifier.value.toLowerCase()
+    : name;
+}
+
+function isPseudoElement(node: selectorParser.Node): boolean {
+  if (node.type !== 'pseudo') return false;
+  const name = pseudoName(node);
+  return name.startsWith('::') || LEGACY_PSEUDO_ELEMENTS.has(name);
+}
+
+function isCondition(node: selectorParser.Node): boolean {
+  if (node.type === 'attribute') {
+    // An exact data-element identity is structural, like Tasty's uppercase
+    // element names. Other attributes express conditions on that element.
+    return !(
+      node.attribute === 'data-element' &&
+      !node.namespace &&
+      node.operator === '=' &&
+      node.value
+    );
+  }
+  if (node.type !== 'pseudo') return false;
+  return !isPseudoElement(node) && !STRUCTURAL_PSEUDOS.has(pseudoName(node));
+}
+
+function findCondition(nodes: selectorParser.Node[]): string | null {
+  for (const node of nodes) {
+    if (isCondition(node)) return node.toString().trim();
+    // Continue into structural wrappers: :where(img:hover) still contains
+    // a condition, although the wrapper itself is structural.
+    if (selectorParser.isContainer(node)) {
+      const condition = findCondition(node.nodes);
+      if (condition !== null) return condition;
+    }
+  }
+  return null;
+}
+
+/** Whether @own() can express `node` on a pseudo-element. */
+function isPseudoElementState(node: selectorParser.Node): boolean {
+  if (node.type !== 'pseudo') return false;
+  const text = node.toString().replace(QUOTED_RE, '""');
+  return !TREE_PSEUDO_RE.test(text) && !/[[.#]/.test(text);
+}
+
+function firstItemCondition(item: selectorParser.Selector): string | null {
+  const { nodes } = item;
+  let compound = 0;
+  nodes.forEach((node, index) => {
+    if (node.type === 'combinator') compound = index + 1;
+  });
+  const first = nodes.findIndex(
+    (node, index) => index >= compound && isPseudoElement(node),
+  );
+  if (first === -1) return findCondition(nodes);
+
+  // The item ends in a pseudo-element, which Tasty treats as the subject:
+  // @own() states go after the pseudo-element, and the states it cannot have
+  // are dropped. Conditions on the originating element before it, and inside
+  // it (::slotted(img:hover), ::after:hover::marker), must stay in `$`.
+  let last = first;
+  nodes.forEach((node, index) => {
+    if (index > first && isPseudoElement(node)) last = index;
+  });
+  return (
+    findCondition(nodes.slice(0, compound)) ??
+    findCondition(nodes.slice(last + 1).filter(isPseudoElementState))
+  );
+}
+
 function firstStateCondition(selector: string): string | null {
   let root: selectorParser.Root;
   try {
@@ -22,47 +106,12 @@ function firstStateCondition(selector: string): string | null {
     return null;
   }
 
-  let condition: string | null = null;
-  root.walk((node) => {
-    if (node.type === 'attribute') {
-      // An exact data-element identity is structural, like Tasty's uppercase
-      // element names. Other attributes express conditions on that element.
-      if (
-        node.attribute === 'data-element' &&
-        !node.namespace &&
-        node.operator === '=' &&
-        node.value
-      ) {
-        return;
-      }
-    } else if (node.type === 'pseudo') {
-      let name = node.value.toLowerCase();
-      if (name.includes('\\')) {
-        // The parser decodes tag identifiers but preserves pseudo spelling.
-        const colons = name.startsWith('::') ? '::' : ':';
-        const identifier = selectorParser().astSync(name.slice(colons.length))
-          .first?.first;
-        if (identifier?.type === 'tag') {
-          name = colons + identifier.value.toLowerCase();
-        }
-      }
-      if (
-        name.startsWith('::') ||
-        LEGACY_PSEUDO_ELEMENTS.has(name) ||
-        STRUCTURAL_PSEUDOS.has(name)
-      ) {
-        // Continue walking: :where(img:hover) and ::slotted(img[width])
-        // still contain conditions, although the outer wrapper is structural.
-        return;
-      }
-    } else {
-      return;
-    }
-
-    condition = node.toString().trim();
-    return false;
-  });
-  return condition;
+  // Each item of a selector list is judged on its own.
+  for (const item of root.nodes) {
+    const condition = firstItemCondition(item);
+    if (condition !== null) return condition;
+  }
+  return null;
 }
 
 export default createRule<[], 'stateInSelector'>({

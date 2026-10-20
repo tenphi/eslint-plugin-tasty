@@ -232,7 +232,11 @@ maps, using `@own(...)` for the sub-element's own state. Root states stay outsid
 `@own(...)`.
 
 Tags, combinators, classes, IDs, exact `[data-element="Name"]` identities, and
-pseudo-elements remain valid structural selectors. `:is()` and `:where()` may
+pseudo-elements remain valid structural selectors. When a `$` item ends in a
+pseudo-element, conditions on the element it belongs to stay in `$`
+(`a[rel="next"]::before`, `dialog[open]::backdrop`) because Tasty applies
+`@own(...)` to the pseudo-element itself; pseudo-classes after it
+(`@::part(label):hover`) are still reported and move to `@own(:hover)`. `:is()` and `:where()` may
 group structural selectors, but conditions inside them still produce a warning:
 `:where(picture)` is accepted, while `:where(img:not([width]))` is reported.
 The rule does not autofix because moving a condition can change its scope and
