@@ -2,6 +2,7 @@ import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
 import { TastyContext } from '../context.js';
 import { stringStyleValueListeners } from '../style-values.js';
+import { BUILT_IN_CUSTOM_PROPERTIES } from '../constants.js';
 import { getKeyName } from '../utils.js';
 import { scanValueWords } from '../value-words.js';
 
@@ -61,6 +62,8 @@ export default createRule<[], MessageIds>({
         )
           continue;
         const baseName = token.startsWith('$$') ? '$' + token.slice(2) : token;
+
+        if (BUILT_IN_CUSTOM_PROPERTIES.has(baseName)) continue;
 
         pendingChecks.push({ token, baseName, node });
       }

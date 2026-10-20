@@ -631,6 +631,7 @@ Validates `$name` custom property references.
 **Checks:**
 1. **Syntax** — must match `$[a-z][a-z0-9-]*` pattern.
 2. **Existence** — warns when a `$token` is not found in any of:
+   - Tasty's built-in custom properties: `$gap`, `$radius`, `$border-width`, `$outline-width`, `$transition`, `$sharp-radius`, `$bold-font-weight`, `$font-sans-fallback`, `$font-mono-fallback`
    - `config.tokens` (if set as an array)
    - `$`-prefixed keys defined in the same styles object (e.g., a sibling `'$spacing': '...'` key)
    - `$`-prefixed keys in a `tastyStatic(':root', { ... })` call in the same file
