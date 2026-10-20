@@ -46,6 +46,25 @@ tester.run('valid-preset', rule, {
         tasty({ styles: { preset: 'h1 / strong italic tight' } });
       `,
     },
+    // `normal` sets `line-height: normal`.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { preset: 'h1 / normal' } });
+      `,
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { preset: 'h1 / strong normal' } });
+      `,
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { preset: 'normal' } });
+      `,
+    },
     {
       code: `
         import { tasty } from '@tenphi/tasty';

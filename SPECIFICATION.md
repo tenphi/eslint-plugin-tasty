@@ -552,8 +552,9 @@ width: 'min 200px'
 Validates color token syntax and (optionally) existence.
 
 **Checks:**
-1. **Syntax validation** — color tokens must match `#name` or `#name.N` or `#name.NN` or `#name.100` pattern, where the opacity suffix is a number 0–100. Always enabled.
+1. **Syntax validation** — color tokens must match `#name` or `#name.<digits>` or `#name.$prop`. The digits are a decimal fraction: `.5` and `.50` are 50%, `.05` is 5%, `.100` is 10%, `.150` is 15%, so any digit string is in range. Always enabled.
 2. **Existence validation** — warns when a `#token` is not found in any of:
+   - Tasty's built-in color tokens: `#current`, `#clear`, `#white`, `#black`, `#border`, `#outline` (with or without an opacity suffix)
    - `config.tokens` (if set as an array)
    - `#`-prefixed keys defined in the same styles object (e.g., a sibling `'#accent': '...'` key)
    - `#`-prefixed keys in a `tastyStatic(':root', { ... })` call in the same file
@@ -565,7 +566,8 @@ Validates color token syntax and (optionally) existence.
 - `#purple` — full opacity
 - `#purple.5` — 50% opacity
 - `#purple.05` — 5% opacity
-- `#purple.100` — 100% opacity
+- `#purple.100` — 10% opacity (same as `#purple.1`)
+- `#purple.999` — 99.9% opacity
 - `#current` — reserved, maps to `currentcolor`
 - `#current.5` — `currentcolor` at 50%
 - `##purple` — raw `--purple-color` reference (for transitions/`@property`)
@@ -575,14 +577,14 @@ Validates color token syntax and (optionally) existence.
 **Invalid syntax:**
 - `#` — empty token name
 - `#purple.` — trailing dot with no number
-- `#purple.150` — opacity > 100
+- `#purple.5.5` — the opacity suffix is not a digit string
 - `#purple.-5` — negative opacity
 - `#PURPLE` — uppercase token names (tokens are lowercase-kebab-case by convention; configurable)
 
 **Examples:**
 ```js
-// ❌ Error: Invalid color token opacity '.150' (must be 0-100)
-fill: '#purple.150'
+// ❌ Error: Invalid color token '#purple.-5': Opacity cannot be negative.
+fill: '#purple.-5'
 
 // ⚠️ Warning: Unknown color token '#pruple' (not in config)
 fill: '#pruple'
@@ -662,12 +664,12 @@ Validates `preset` property values against `config.presets`.
 **Parsing:**
 The preset value is a space-separated string: `name [modifier...]`
 - First token is the preset name.
-- Remaining tokens are modifiers: `strong`, `italic`, `tight`, or other project-specific modifiers.
+- Remaining tokens are modifiers: `strong`, `bold`, `italic`, `icon`, `tight`, `normal` (`line-height: normal`).
 - `preset={true}` is always valid (means "use defaults").
 
 **Checks:**
 1. If `config.presets` is set, validate the preset name is in the list.
-2. Validate modifiers are from the known set: `strong`, `italic`, `tight` (could be extensible via config).
+2. Validate modifiers are from the known set: `strong`, `bold`, `italic`, `icon`, `tight`, `normal`. A value made only of modifiers (`preset: 'normal'`, `preset: 'bold italic'`) is the modifier-only shorthand and is not checked against `config.presets`.
 
 **Examples:**
 ```js
@@ -725,7 +727,7 @@ recipe: 'cards'
 
 Validates the `transition` property value uses valid semantic transition names or raw CSS properties.
 
-**Known semantic transitions:** `fade`, `fill`, `border`, `radius`, `shadow`, `preset`, `gap`, `theme`, `color`, `outline`, `dimension`, `flow`, `inset`
+**Known semantic transitions:** `fade`, `fill`, `color`, `theme`, `border`, `radius`, `shadow`, `outline`, `preset`, `text`, `gap`, `opacity`, `translate`, `rotate`, `scale`, `filter`, `image`, `background`, `width`, `height`, `inset`, `zIndex` (compiles to `z-index`). Any other name is emitted verbatim as a CSS property, so it must be one. `flow` is reported even though the CSS property dataset lists it: no browser implements it, and Tasty has no `flow` transition.
 
 **Parsing:**
 The value is comma-separated, each entry is `name [duration] [easing] [delay]`.

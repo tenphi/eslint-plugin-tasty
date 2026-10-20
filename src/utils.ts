@@ -107,10 +107,13 @@ export function validateColorTokenSyntax(token: string): string | null {
 
     if (opacitySuffix.length === 0) return 'Trailing dot with no opacity value';
 
-    const opacity = Number(opacitySuffix);
-    if (isNaN(opacity)) return `Invalid opacity value '${opacitySuffix}'`;
-    if (opacity < 0) return 'Opacity cannot be negative';
-    if (opacity > 100) return `Opacity '${opacitySuffix}' exceeds 100`;
+    // Tasty reads the digits as a decimal fraction (`.5` and `.50` are 50%,
+    // `.150` is 15%), so any digit string is in range.
+    if (!/^\d+$/.test(opacitySuffix)) {
+      return /^-\d+$/.test(opacitySuffix)
+        ? 'Opacity cannot be negative'
+        : `Invalid opacity value '${opacitySuffix}'`;
+    }
   }
 
   return null;

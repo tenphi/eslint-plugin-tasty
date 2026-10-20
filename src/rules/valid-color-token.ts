@@ -2,6 +2,7 @@ import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
 import { TastyContext } from '../context.js';
 import { stringStyleValueListeners } from '../style-values.js';
+import { BUILT_IN_COLOR_TOKENS } from '../constants.js';
 import {
   getKeyName,
   validateColorTokenSyntax,
@@ -76,7 +77,7 @@ export default createRule<[], MessageIds>({
           ? '#' + token.slice(2).split('.')[0]
           : '#' + token.slice(1).split('.')[0];
 
-        if (baseName === '#current') continue;
+        if (BUILT_IN_COLOR_TOKENS.has(baseName)) continue;
 
         pendingChecks.push({ token, baseName, node });
       }

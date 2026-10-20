@@ -670,28 +670,13 @@ function classifyColorToken(
       return { type: 'unknown', raw };
     }
 
-    const opacity = Number(opacitySuffix);
-    if (isNaN(opacity)) {
+    // Tasty reads the digits as a decimal fraction (`.5` and `.50` are 50%,
+    // `.150` is 15%), so any digit string is in range.
+    if (!/^\d+$/.test(opacitySuffix)) {
       errors.push({
-        message: `Invalid opacity value '${opacitySuffix}'.`,
-        offset,
-        length: token.length,
-        raw,
-      });
-      return { type: 'unknown', raw };
-    }
-    if (opacity < 0) {
-      errors.push({
-        message: 'Opacity cannot be negative.',
-        offset,
-        length: token.length,
-        raw,
-      });
-      return { type: 'unknown', raw };
-    }
-    if (opacity > 100) {
-      errors.push({
-        message: `Opacity '${opacitySuffix}' exceeds 100.`,
+        message: /^-\d+$/.test(opacitySuffix)
+          ? 'Opacity cannot be negative.'
+          : `Invalid opacity value '${opacitySuffix}'.`,
         offset,
         length: token.length,
         raw,
