@@ -985,7 +985,7 @@ Validates the syntax of state keys in style mapping objects.
 - `_` — fallback floor (standalone only; always applies and is layered over by other states via the cascade)
 - Boolean modifier: `hovered`, `pressed`, `disabled`, etc.
 - Value modifier: `theme=danger`, `size=large`, `size^=sm` (with operators `=`, `^=`, `$=`, `*=`)
-- Pseudo-class: `:hover`, `:focus`, `:focus-visible`, `:nth-child(2n+1)`, etc.
+- Pseudo-class: any standard CSS pseudo-class, such as `:hover`, `:focus-visible`, `:popover-open`, `:nth-child(2n+1)` or `:dir(rtl)`
 - Class: `.active`, `.highlighted`
 - Attribute: `[aria-expanded="true"]`, `[data-mode]`
 - Combined with operators: `hovered & .active`, `!disabled`, `(loading | processing) & !readonly`
@@ -1641,7 +1641,7 @@ Full recursive descent parser for state key notation. Returns validation errors 
 
 Validates:
 - Operator placement (`&`, `|`, `!`, `^`)
-- Pseudo-class existence against known list
+- Pseudo-class existence against `KNOWN_PSEUDO_CLASSES` (every standard pseudo-class in MDN's browser-compat-data, plus Selectors Level 4 ones it does not list yet)
 - `@media()` / `@()` dimension query syntax
 - `@root()`, `@parent()`, `@own()` inner expressions (recursive)
 - `@alias` references (tracked for config-based existence checks)
