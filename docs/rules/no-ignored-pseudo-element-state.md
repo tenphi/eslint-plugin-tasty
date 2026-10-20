@@ -2,7 +2,7 @@
 
 Report states that Tasty ignores because they test a pseudo-element for
 something it cannot have. Both the recommended and strict presets enable this
-rule as a warning.
+rule as an error: the reported state never applies.
 
 When a sub-element's `$` ends in a pseudo-element, Tasty applies `@own(...)` to
 the pseudo-element itself: `$: '@::part(label)'` with `@own(:focus)` becomes

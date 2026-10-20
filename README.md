@@ -191,7 +191,7 @@ for typing shared signatures.
 | `tasty/static-valid-selector` | error | Invalid selector in `tastyStatic(selector, ...)` |
 | `tasty/require-default-state` | error | Missing default (`''`) or fallback floor (`_`) key in state mappings (skipped for extending calls) |
 | `tasty/no-own-at-root` | warn | `@own()` used at root level where it is redundant |
-| `tasty/no-ignored-pseudo-element-state` | warn | States Tasty ignores on a pseudo-element, such as `@own([open])` on `$: 'a::before'`: attributes, modifiers, classes, and tree-structural pseudo-classes ([details](docs/rules/no-ignored-pseudo-element-state.md)) |
+| `tasty/no-ignored-pseudo-element-state` | error | States Tasty ignores on a pseudo-element, such as `@own([open])` on `$: 'a::before'`: attributes, modifiers, classes, and tree-structural pseudo-classes ([details](docs/rules/no-ignored-pseudo-element-state.md)) |
 | `tasty/valid-default-state-order` | warn | Misplaced default (`''`) or redundant `''` when only `_` is present |
 | `tasty/prefer-shorthand-property` | warn | Use Tasty shorthand instead of native CSS properties (`backgroundColor` → `fill`, `paddingBlock` → `blockPadding`, etc.). Report-only warnings explain how to override one part through a token, with concrete min/max dimension examples. Extension warnings point at the base component and are skipped over bases you cannot edit (see `ownedSources`; [details](docs/rules/prefer-shorthand-property.md)) |
 | `tasty/no-raw-color-values` | warn | Raw hex/rgb/`okhsl`/`okhst`/`oklch`/named colors instead of `#color` tokens |

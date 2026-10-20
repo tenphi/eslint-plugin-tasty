@@ -23,7 +23,7 @@ export const recommended: TSESLint.SharedConfig.RulesRecord = {
   'tasty/valid-transition': 'warn',
   'tasty/require-default-state': 'error',
   'tasty/no-own-at-root': 'warn',
-  'tasty/no-ignored-pseudo-element-state': 'warn',
+  'tasty/no-ignored-pseudo-element-state': 'error',
   'tasty/valid-default-state-order': 'warn',
   'tasty/prefer-shorthand-property': 'warn',
   'tasty/no-raw-color-values': 'warn',

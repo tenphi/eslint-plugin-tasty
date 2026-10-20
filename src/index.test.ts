@@ -41,10 +41,10 @@ describe('plugin surface', () => {
     expect(plugin.rules['no-style-spread']).toBeDefined();
   });
 
-  it('recommends the pseudo-element state checks as warnings', () => {
+  it('reports ignored pseudo-element states as errors, selector states as warnings', () => {
     expect(recommended['tasty/no-state-in-selector']).toBe('warn');
-    expect(recommended['tasty/no-ignored-pseudo-element-state']).toBe('warn');
-    expect(strict['tasty/no-ignored-pseudo-element-state']).toBe('warn');
+    expect(recommended['tasty/no-ignored-pseudo-element-state']).toBe('error');
+    expect(strict['tasty/no-ignored-pseudo-element-state']).toBe('error');
   });
 
   it('gives every rule a matching meta.docs.url', () => {

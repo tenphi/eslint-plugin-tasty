@@ -1280,7 +1280,7 @@ fill: {
 
 #### `tasty/no-ignored-pseudo-element-state`
 
-**Severity:** warning (default)
+**Severity:** error (default)
 **Complexity:** Medium
 **Feasibility:** High — selector parsing plus state-key atoms
 
@@ -1305,7 +1305,7 @@ selector-mode call whose literal selector ends in a pseudo-element
 
 **Examples:**
 ```js
-// ⚠️ Warning: Tasty ignores state '@own([rel="next"])' on 'a::before'
+// ❌ Error: Tasty ignores state '@own([rel="next"])' on 'a::before'
 NextArrow: { $: 'a::before', content: { '': 'none', '@own([rel="next"])': '"→"' } }
 
 // ✅ Valid
@@ -1565,7 +1565,7 @@ The plugin should export preset configurations:
   'tasty/no-style-prop': 'warn',
   'tasty/no-classname-prop': 'warn',
   'tasty/no-styles-prop': 'warn',
-  'tasty/no-ignored-pseudo-element-state': 'warn',
+  'tasty/no-ignored-pseudo-element-state': 'error',
 }
 
 // Strict — recommended + best practices
