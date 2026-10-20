@@ -70,8 +70,49 @@ suggestions because a safe migration depends on that intent.
 - Combinators, classes and IDs that identify the component's anatomy.
 - Exact, non-namespaced `[data-element="Name"]` selectors with a nonempty name.
 - Pseudo-elements, including the legacy spellings `:before`, `:after`,
-  `:first-line`, and `:first-letter`. Conditions inside `::slotted()` are checked.
+  `:first-line`, and `:first-letter`.
 - `:is()` and `:where()` containing only structural selectors.
+
+## Selectors that end in a pseudo-element
+
+When a `$` item ends in a pseudo-element, Tasty treats the pseudo-element as
+the sub-element: `@own(...)` states go after it, and states a pseudo-element
+cannot have (attributes, classes, `:first-child`, `:nth-*()`, `:empty`,
+`:has()`, and modifiers) are dropped with a warning. A condition on the element
+the pseudo-element belongs to must therefore stay in `$`, before the
+pseudo-element, and the rule accepts it:
+
+```js
+const Pagination = tasty({
+  styles: {
+    NextArrow: {
+      $: 'a[rel="next"]::before',
+      content: '"→"',
+    },
+    Marker: {
+      $: 'li:last-child::marker',
+      color: '#text',
+    },
+    Label: {
+      // Not '@::part(label):hover': @own(:hover) is the part's own state.
+      $: '@::part(label)',
+      color: { '': '#text', '@own(:hover)': '#active' },
+    },
+  },
+});
+```
+
+Pseudo-classes written after the pseudo-element are its own states, which
+`@own(...)` expresses exactly, so they are still reported. Conditions after it
+that `@own(...)` would drop, such as `::part(label):first-child`, are not.
+Conditions inside the pseudo-element, such as `::slotted(img:hover)`, are part
+of what it selects and stay in `$`. A condition in an earlier compound, such as
+`:last-child` in `li:last-child > a::before`, describes an ancestor and is
+still reported.
+
+"Ends in a pseudo-element" means the first `::name` or legacy single-colon
+spelling in the item's last compound. Each item of a selector list is checked
+on its own, so `summary::marker, li:last-child` still reports `:last-child`.
 
 Class and ID names are treated as identities; the rule cannot infer whether a
 particular class name represents application state. Keep such state in maps too.
