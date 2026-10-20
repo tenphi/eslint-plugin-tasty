@@ -394,7 +394,7 @@ By default, these checks do not require TypeScript type services.
 ### Experimental type-aware JSX props
 
 Opt into type analysis to distinguish semantic component props from style props.
-Install TypeScript 5.6–5.9 as a dev dependency, then add the same setting to either
+Install TypeScript 5.6–6.x as a dev dependency, then add the same setting to either
 ESLint or Oxlint:
 
 ```js

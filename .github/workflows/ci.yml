@@ -45,6 +45,12 @@ jobs:
       - name: ESLint and oxlint integration
         run: pnpm test:linters
 
+      - name: Install TypeScript 6
+        run: pnpm add -D --save-exact typescript@6.0.3
+
+      - name: Test TypeScript 6 compatibility
+        run: pnpm typecheck && pnpm build && pnpm test && pnpm test:linters
+
       - name: Install minimum supported TypeScript
         run: pnpm add -D --save-exact typescript@5.6.3
 
