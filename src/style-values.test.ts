@@ -158,6 +158,13 @@ it('collects local token declarations once, including nested shared styles', () 
   expect(lint(code, 'valid-custom-property')).toEqual([]);
 });
 
+it('accepts the normal preset modifier when the config lists presets', () => {
+  const code =
+    factory +
+    `tasty({ styles: { preset: 'normal', Title: { preset: 'body / normal' } } });`;
+  expect(lint(code, 'valid-preset')).toEqual([]);
+});
+
 it('reports raw pixels in compounds, groups, fallbacks and expressions', () => {
   for (const value of [
     '17px 19px',
@@ -228,13 +235,28 @@ it('validates units inside expressions and comma-separated groups', () => {
 it('validates complete color opacity suffixes', () => {
   for (const value of [
     '#surface.',
-    '#surface.200',
     '#surface.-1',
     '#surface.invalid',
+    '#surface.1e2',
+    '#surface.5.5',
   ]) {
     expect(
       lint(`<Box fill="${value}" />;`, 'valid-color-token')[0].messageId,
     ).toBe('invalidSyntax');
+  }
+});
+
+it('reads any digit string as an opacity fraction', () => {
+  // `.5` = `.50` = 50%, `.05` = 5%, `.100` = 10%, `.150` = 15%, `.999` = 99.9%.
+  for (const value of [
+    '#surface.0',
+    '#surface.5',
+    '#surface.05',
+    '#surface.100',
+    '#surface.150',
+    '#surface.999',
+  ]) {
+    expect(lint(`<Box fill="${value}" />;`, 'valid-color-token')).toEqual([]);
   }
 });
 

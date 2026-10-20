@@ -140,10 +140,22 @@ describe('value-parser', () => {
       expect(result.errors[0].message).toContain("Unknown unit 'q'");
     });
 
+    it('reads any digit string as a color token opacity fraction', () => {
+      for (const value of ['#purple.100', '#purple.150', '#purple.999']) {
+        expect(parseValue(value).errors).toEqual([]);
+      }
+    });
+
     it('reports invalid color token opacity', () => {
-      const result = parseValue('#purple.150');
+      const result = parseValue('#purple.5.5');
       expect(result.errors).toHaveLength(1);
-      expect(result.errors[0].message).toContain('exceeds 100');
+      expect(result.errors[0].message).toContain("Invalid opacity value '5.5'");
+    });
+
+    it('reports negative color token opacity', () => {
+      const result = parseValue('#purple.-5');
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].message).toContain('cannot be negative');
     });
 
     it('reports empty color token name', () => {

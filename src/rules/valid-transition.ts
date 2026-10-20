@@ -24,6 +24,14 @@ function kebabToCamel(name: string): string {
   return name.replace(/-([a-z])/g, (_, char: string) => char.toUpperCase());
 }
 
+/**
+ * Tasty style names that `KNOWN_CSS_PROPERTIES` also lists, but that name no
+ * property a browser implements. The `flow` style sets `flex-direction` /
+ * `grid-auto-flow`, yet Tasty has no `flow` transition: it emits the name
+ * verbatim (`transition: flow …`), which animates nothing.
+ */
+const NON_TRANSITION_STYLE_NAMES = new Set(['flow']);
+
 export default createRule<[], MessageIds>({
   name: 'valid-transition',
   meta: {
@@ -100,12 +108,13 @@ export default createRule<[], MessageIds>({
         }
 
         if (
-          !SEMANTIC_TRANSITIONS.has(name) &&
-          !KNOWN_CSS_PROPERTIES.has(name) &&
-          !KNOWN_CSS_PROPERTIES.has(kebabToCamel(name)) &&
-          !name.startsWith('--') &&
-          name !== 'all' &&
-          name !== 'none'
+          NON_TRANSITION_STYLE_NAMES.has(name) ||
+          (!SEMANTIC_TRANSITIONS.has(name) &&
+            !KNOWN_CSS_PROPERTIES.has(name) &&
+            !KNOWN_CSS_PROPERTIES.has(kebabToCamel(name)) &&
+            !name.startsWith('--') &&
+            name !== 'all' &&
+            name !== 'none')
         ) {
           context.report({
             node,

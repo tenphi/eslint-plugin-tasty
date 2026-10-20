@@ -1137,8 +1137,7 @@ export const BOOLEAN_TRUE_PROPERTIES = new Set([
   'inset',
   'width',
   'height',
-  // `fade: true` falls back to `calc(2 * var(--gap))` — a token-following
-  // default no explicit value can express, so it is genuinely useful.
+  // `fade: true` falls back to `2x`, which follows `configure({ units })`.
   'fade',
   'hide',
   'preset',
@@ -1294,7 +1293,9 @@ export const DOCK_PROPERTIES = new Set(['inset']);
 export const RADIUS_SHAPES = new Set(['round', 'ellipse', 'leaf', 'backleaf']);
 
 /**
- * Known semantic transition names.
+ * Known semantic transition names — the keys of Tasty's transition map, plus
+ * `zIndex`, which Tasty compiles to `z-index`. Any other name is emitted
+ * verbatim as a CSS property.
  */
 export const SEMANTIC_TRANSITIONS = new Set([
   'fade',
@@ -1307,8 +1308,6 @@ export const SEMANTIC_TRANSITIONS = new Set([
   'theme',
   'color',
   'outline',
-  'dimension',
-  'flow',
   'inset',
   'text',
   'opacity',
@@ -1610,14 +1609,6 @@ export const TRANSITION_SEMANTIC_MAPPING: Record<string, string> = {
   'outline-width': 'outline',
   outlineOffset: 'outline',
   'outline-offset': 'outline',
-  gridTemplateColumns: 'gridColumns',
-  'grid-template-columns': 'gridColumns',
-  gridTemplateRows: 'gridRows',
-  'grid-template-rows': 'gridRows',
-  flexDirection: 'flow',
-  'flex-direction': 'flow',
-  gridAutoFlow: 'flow',
-  'grid-auto-flow': 'flow',
   fontSize: 'preset',
   'font-size': 'preset',
   lineHeight: 'preset',
@@ -1627,7 +1618,8 @@ export const TRANSITION_SEMANTIC_MAPPING: Record<string, string> = {
 };
 
 /**
- * Known preset modifiers.
+ * Known preset modifiers, mirroring Tasty's preset handler. `normal` sets
+ * `line-height: normal`.
  */
 export const PRESET_MODIFIERS = new Set([
   'strong',
@@ -1635,6 +1627,7 @@ export const PRESET_MODIFIERS = new Set([
   'italic',
   'icon',
   'tight',
+  'normal',
 ]);
 
 /**
@@ -1712,6 +1705,25 @@ export const KNOWN_PSEUDO_CLASSES = new Set([
   '::first-letter',
   '::marker',
   '::backdrop',
+]);
+
+/**
+ * Color tokens Tasty provides without any project configuration, so they are
+ * always defined whatever the config's `tokens` list says.
+ *
+ * `#current` compiles to the `currentcolor` keyword, `#clear` is a default
+ * replace token for `transparent`, and the rest are registered as default
+ * `@property` rules (`#white`, `#black`, and `#border`/`#outline`, which fall
+ * back to `currentcolor`). `prefer-custom-property-syntax` rewrites
+ * `transparent` / `currentColor` to `#clear` / `#current`, so both must stay here.
+ */
+export const BUILT_IN_COLOR_TOKENS = new Set([
+  '#current',
+  '#clear',
+  '#white',
+  '#black',
+  '#border',
+  '#outline',
 ]);
 
 /**
