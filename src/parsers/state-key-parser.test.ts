@@ -23,6 +23,36 @@ describe('state-key-parser', () => {
       expect(result.errors).toHaveLength(0);
     });
 
+    it.each([
+      ':dir(rtl)',
+      ':lang(en)',
+      ':popover-open',
+      ':open',
+      ':modal',
+      ':fullscreen',
+      ':defined',
+      ':user-valid',
+      ':user-invalid',
+      ':scope',
+      ':target-within',
+      ':playing',
+      ':paused',
+      ':muted',
+      ':state(checked)',
+      ':host(.compact)',
+      ':active-view-transition-type(slide)',
+    ])('accepts the standard pseudo-class %s', (key) => {
+      expect(parseStateKey(key).errors).toEqual([]);
+    });
+
+    it('reports unknown pseudo-classes', () => {
+      expect(parseStateKey(':hovered').errors).toEqual([
+        expect.objectContaining({
+          message: "Unknown pseudo-class ':hovered'.",
+        }),
+      ]);
+    });
+
     it('accepts combined states', () => {
       const result = parseStateKey('hovered & !disabled');
       expect(result.errors).toHaveLength(0);

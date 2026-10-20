@@ -321,6 +321,25 @@ tester.run('valid-state-key', rule, {
         }});
       `,
     },
+    // Standard pseudo-classes, functional ones included (issue #77)
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: {
+          transform: { '': 'none', ':dir(rtl)': 'rotate(180deg)' },
+          opacity: { '': '0', ':popover-open': '1' },
+          Panel: { opacity: { '': '0', '@own(:popover-open)': '1' } },
+          fill: {
+            '': '#white',
+            ':lang(ar) & :open': '#blue',
+            ':modal | :fullscreen': '#black',
+            ':state(checked) & :defined': '#green',
+            ':user-invalid & !:user-valid': '#red',
+            ':host(.compact) & :has-slotted': '#gray',
+          },
+        }});
+      `,
+    },
     // Standalone '_' fallback floor
     {
       code: `
@@ -386,6 +405,29 @@ tester.run('valid-state-key', rule, {
         }});
       `,
       errors: [{ messageId: 'invalidStateKey' }],
+    },
+    // Misspelled pseudo-classes, simple and functional
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: {
+          fill: {
+            '': '#white',
+            ':popover-opened': '#blue',
+            ':direction(rtl)': '#red',
+          },
+        }});
+      `,
+      errors: [
+        {
+          messageId: 'invalidStateKey',
+          data: { reason: "Unknown pseudo-class ':popover-opened'." },
+        },
+        {
+          messageId: 'invalidStateKey',
+          data: { reason: "Unknown pseudo-class ':direction'." },
+        },
+      ],
     },
     // Note: @own() at root is now handled by the 'no-own-at-root' rule
   ],
