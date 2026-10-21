@@ -101,6 +101,21 @@ describe('value-parser', () => {
       expect(tokens[0]).toMatchObject({ type: 'string', value: 'hello' });
     });
 
+    it('classifies named and system colors as color keywords', () => {
+      for (const word of ['red', 'RebeccaPurple', 'Canvas', 'highlighttext']) {
+        const tokens = flattenTokens(parseValue(word));
+        expect(tokens[0]).toMatchObject({ type: 'color-keyword', raw: word });
+      }
+    });
+
+    it('does not treat deprecated system colors as color keywords', () => {
+      const tokens = flattenTokens(parseValue('ButtonHighlight'));
+      expect(tokens[0]).toMatchObject({
+        type: 'unknown',
+        raw: 'ButtonHighlight',
+      });
+    });
+
     it('marks unknown tokens', () => {
       const result = parseValue('purle');
       const tokens = flattenTokens(result);

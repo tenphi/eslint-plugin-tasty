@@ -1954,6 +1954,35 @@ export const NAMED_CSS_COLORS = new Set<string>([
 ]);
 
 /**
+ * CSS system colors (CSS Color 4), lowercase. Tasty (>= 3.12) reads these as
+ * colors, matched case-insensitively. Forced-colors styles are written in them,
+ * so unlike `NAMED_CSS_COLORS` they are not something to replace with a token.
+ * The deprecated system colors (`Menu`, `Window`, `ButtonHighlight`, …) are
+ * left out, as Tasty leaves them out.
+ */
+export const SYSTEM_COLORS = new Set<string>([
+  'accentcolor',
+  'accentcolortext',
+  'activetext',
+  'buttonborder',
+  'buttonface',
+  'buttontext',
+  'canvas',
+  'canvastext',
+  'field',
+  'fieldtext',
+  'graytext',
+  'highlight',
+  'highlighttext',
+  'linktext',
+  'mark',
+  'marktext',
+  'selecteditem',
+  'selecteditemtext',
+  'visitedtext',
+]);
+
+/**
  * Properties that accept color values. Used to scope named-color checks so
  * string properties like `content` or `cursor` don't false-positive.
  */

@@ -126,15 +126,19 @@ export default createRule<[], MessageIds>({
               continue;
             }
 
-            // Check color tokens in non-color properties
+            // Check color tokens and keywords in non-color properties
             if (
               !expectation.acceptsColor &&
-              (token.type === 'color-token' || token.type === 'color-ref')
+              (token.type === 'color-token' ||
+                token.type === 'color-ref' ||
+                token.type === 'color-keyword')
             ) {
               const colorName =
                 token.type === 'color-token'
                   ? `#${token.name}`
-                  : `##${token.name}`;
+                  : token.type === 'color-ref'
+                    ? `##${token.name}`
+                    : token.raw;
               context.report({
                 node,
                 messageId: 'unexpectedColor',

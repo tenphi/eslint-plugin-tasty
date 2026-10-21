@@ -1,5 +1,10 @@
 import { scanTokens, checkBracketBalance } from './utils.js';
-import { BUILT_IN_UNITS, CSS_UNITS } from '../constants.js';
+import {
+  BUILT_IN_UNITS,
+  CSS_UNITS,
+  NAMED_CSS_COLORS,
+  SYSTEM_COLORS,
+} from '../constants.js';
 
 // ============================================================================
 // Types
@@ -8,6 +13,8 @@ import { BUILT_IN_UNITS, CSS_UNITS } from '../constants.js';
 export type ValueToken =
   | { type: 'color-token'; name: string; opacity?: string; raw: string }
   | { type: 'color-ref'; name: string; raw: string }
+  /** A CSS named color (`rebeccapurple`) or system color (`Canvas`). */
+  | { type: 'color-keyword'; raw: string }
   | { type: 'custom-prop'; name: string; raw: string }
   | { type: 'custom-prop-ref'; name: string; raw: string }
   | { type: 'custom-unit'; value: number; unit: string; raw: string }
@@ -567,6 +574,13 @@ function classifyToken(
   // Known keyword
   if (VALUE_KEYWORDS.has(token) || VALUE_KEYWORDS.has(token.toLowerCase())) {
     return { type: 'keyword', value: token };
+  }
+
+  // Color keyword: no token syntax, so the keyword itself is the color.
+  // Matched case-insensitively, as CSS and Tasty match them.
+  const lower = token.toLowerCase();
+  if (NAMED_CSS_COLORS.has(lower) || SYSTEM_COLORS.has(lower)) {
+    return { type: 'color-keyword', raw: token };
   }
 
   // CSS custom property function var(--name)

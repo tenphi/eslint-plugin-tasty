@@ -251,6 +251,43 @@ tester.run('valid-value', rule, {
         tasty({ styles: { radius: '$group-radius longhand' } });
       `,
     },
+    // CSS system colors are colors wherever a color is (tasty >= 3.12),
+    // matched case-insensitively — forced-colors styles are written in them.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({
+          styles: {
+            border: '1bw Highlight',
+            outline: '1ow Highlight',
+            fill: 'Canvas',
+            color: 'CanvasText',
+          },
+        });
+      `,
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({
+          styles: {
+            border: '2bw dashed buttonborder top',
+            blockBorder: '1bw GrayText start',
+            shadow: 'inset 0 0 0 1bw AccentColor',
+            caretColor: 'FieldText',
+            fill: { '': '#white', '@media(forced-colors: active)': 'Field' },
+          },
+        });
+      `,
+    },
+    // CSS named colors are colors too; no-raw-color-values is what nudges
+    // them toward tokens.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fill: 'red', border: '1bw solid RebeccaPurple' } });
+      `,
+    },
   ],
   invalid: [
     // Unbalanced parentheses
@@ -348,6 +385,27 @@ tester.run('valid-value', rule, {
         tasty({ styles: { gap: '#red' } });
       `,
       errors: [{ messageId: 'unexpectedColor' }],
+    },
+    // ...including color keywords
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { padding: '2x Highlight' } });
+      `,
+      errors: [
+        {
+          messageId: 'unexpectedColor',
+          data: { property: 'padding', color: 'Highlight' },
+        },
+      ],
+    },
+    // Deprecated system colors are not recognized
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fill: 'ButtonHighlight' } });
+      `,
+      errors: [{ messageId: 'invalidMod' }],
     },
   ],
 });

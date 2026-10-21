@@ -38,6 +38,14 @@ tester.run('no-raw-color-values', rule, {
       `,
     },
     {
+      // System colors are what forced-colors styles are written in; there is
+      // no token to suggest instead.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fill: 'Canvas', border: '1bw Highlight' } });
+      `,
+    },
+    {
       // $red is a custom property reference, not a raw named color.
       code: `
         import { tasty } from '@tenphi/tasty';
