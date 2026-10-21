@@ -460,12 +460,13 @@ const styles: Styles = { position: 'after' };
 `,
     );
     writeFileSync(join(dir, linter.configName), linter.config(typedRules));
+    // `fill="red"` is a valid color, so only no-raw-color-values reports it.
     assert.deepEqual(
       run('typed.tsx'),
       {
         status: 1,
         rules: [
-          ...Array(6).fill('valid-value'),
+          ...Array(5).fill('valid-value'),
           ...Array(4).fill('consistent-token-usage'),
           'no-raw-color-values',
         ].sort(),
@@ -482,7 +483,7 @@ const styles: Styles = { position: 'after' };
         {
           status: 1,
           rules: [
-            ...Array(4).fill('valid-value'),
+            ...Array(3).fill('valid-value'),
             ...Array(2).fill('consistent-token-usage'),
             'no-raw-color-values',
           ].sort(),
@@ -499,7 +500,7 @@ const styles: Styles = { position: 'after' };
         {
           status: 1,
           rules: [
-            ...Array(4).fill('valid-value'),
+            ...Array(3).fill('valid-value'),
             ...Array(3).fill('consistent-token-usage'),
             'no-raw-color-values',
           ].sort(),

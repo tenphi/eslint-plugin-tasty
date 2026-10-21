@@ -527,6 +527,7 @@ fill: 'rgb(255, 0, 0'  // parser warns about unmatched parens
 fill: '#purple.5'
 padding: '2x top bottom'
 border: '1bw solid #red top'
+border: '1bw Highlight'  // CSS named and system colors are colors
 width: 'min 200px'
 ```
 

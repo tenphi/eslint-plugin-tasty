@@ -65,9 +65,9 @@ it('removes semantic collisions and preserves style diagnostics with either sett
     <TabDropIndicator position="after" prefix="17px red" />;
     <Item prefix="17px" gap="17px" />;
     <Box position="after" fill="red" />;`;
+  // `fill="red"` is a valid color, so only no-raw-color-values reports it.
   const expected = [
     'tasty/consistent-token-usage',
-    'tasty/valid-value',
     'tasty/valid-value',
     'tasty/no-raw-color-values',
   ];
@@ -75,7 +75,7 @@ it('removes semantic collisions and preserves style diagnostics with either sett
   expect(rules(code, { project: join(dir, 'tsconfig.json') })).toEqual(
     expected,
   );
-  expect(rules(code, false)).toHaveLength(7);
+  expect(rules(code, false)).toHaveLength(6);
 });
 
 it('resolves relative Linter API filenames against the configured cwd', () => {
