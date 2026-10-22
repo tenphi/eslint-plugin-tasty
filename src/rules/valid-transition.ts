@@ -8,6 +8,7 @@ import {
   TRANSITION_SEMANTIC_MAPPING,
 } from '../constants.js';
 import { replaceInStringValue } from '../fix-utils.js';
+import { splitTopLevelCommas } from '../parsers/utils.js';
 
 type MessageIds =
   | 'unknownTransition'
@@ -65,7 +66,7 @@ export default createRule<[], MessageIds>({
     const ctx = new TastyContext(context);
 
     function checkTransitionValue(value: string, node: TSESTree.Node): void {
-      const groups = value.split(',');
+      const groups = splitTopLevelCommas(value);
       let offset = 0;
 
       for (const group of groups) {
