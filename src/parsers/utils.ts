@@ -10,6 +10,32 @@ export function isAlpha(ch: string): boolean {
   return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
 }
 
+/**
+ * Split on commas outside parentheses and quotes, so a comma inside a function
+ * (`steps(2, start)`, `cubic-bezier(0.5, 0, 0.3, 1)`) stays in its part. Like
+ * `split(',')`, the parts joined with `,` give back the input.
+ */
+export function splitTopLevelCommas(src: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let inQuote: string | 0 = 0;
+  let start = 0;
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (inQuote) {
+      if (ch === inQuote) inQuote = 0;
+    } else if (ch === '"' || ch === "'") inQuote = ch;
+    else if (ch === '(') depth++;
+    else if (ch === ')') depth = Math.max(0, depth - 1);
+    else if (ch === ',' && depth === 0) {
+      parts.push(src.slice(start, i));
+      start = i + 1;
+    }
+  }
+  parts.push(src.slice(start));
+  return parts;
+}
+
 export interface BracketError {
   position: number;
   message: string;

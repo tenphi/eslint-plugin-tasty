@@ -13,6 +13,18 @@ const tester = new RuleTester({
 
 tester.run('valid-transition', rule, {
   valid: [
+    // Commas inside a timing function do not start a new transition.
+    ...[
+      'visibility .5s steps(2, start)',
+      'opacity .2s cubic-bezier(0.5, 0.05, 0.3, 0.95)',
+      'opacity .2s cubic-bezier(0.5, 0.05, 0.3, 0.95), visibility .5s steps(2, jump-end)',
+      'opacity .2s linear(0, 0.25 25%, 1)',
+    ].map((value) => ({
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { transition: '${value}' } });
+      `,
+    })),
     {
       code: `
         import { tasty } from '@tenphi/tasty';
@@ -141,6 +153,27 @@ tester.run('valid-transition', rule, {
               output: `
         import { tasty } from '@tenphi/tasty';
         tasty({ styles: { transition: 'fill 0.3s' } });
+      `,
+            },
+          ],
+        },
+      ],
+    },
+    // A group after a function with commas is found at its real offset.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { transition: 'opacity .2s steps(2, start), background-color 0.3s' } });
+      `,
+      errors: [
+        {
+          messageId: 'preferSemanticTransition',
+          suggestions: [
+            {
+              messageId: 'useSemantic',
+              output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { transition: 'opacity .2s steps(2, start), fill 0.3s' } });
       `,
             },
           ],
