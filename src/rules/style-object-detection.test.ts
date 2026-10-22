@@ -42,6 +42,10 @@ tester.run('valid-directional-modifier (detection)', rule, {
     // valid *inside* tasty. Nested shapes are covered in
     // `prefer-custom-property-syntax.test.ts`, which is the rule that reaches them.
     `const styles: CSSProperties = { ${BAD} };`,
+    // Unannotated constants are not matched on name alone.
+    `const CARD_STYLES = { ${BAD} };`,
+    // The map itself is not a style object.
+    `const stuff: Record<string, Styles> = { ${BAD} };`,
     `const wrapperStyles: CSSProperties = { ${BAD} };`,
 
     // Block-map coverage lives in `prefer-custom-property-syntax.test.ts`: this rule
@@ -77,11 +81,29 @@ tester.run('valid-directional-modifier (detection)', rule, {
       errors: [{ messageId: 'tooManyValues' }],
     },
     {
-      // The annotation walk finds `Styles` nested inside a wrapper type.
-      name: 'Styles annotation opts in through a wrapper type',
-      code: `const stuff: Record<string, Styles> = { ${BAD} };`,
+      // The annotation outranks the constant-case exclusion for names.
+      name: 'Styles annotation opts in a SCREAMING_CASE constant',
+      code: `export const CARD_STYLES: Styles = { ${BAD} };`,
       errors: [{ messageId: 'tooManyValues' }],
     },
+    {
+      // The annotation walk finds `Styles` nested inside a wrapper type.
+      name: 'Styles annotation opts in through a wrapper type',
+      code: `const stuff: Readonly<Styles> = { ${BAD} };`,
+      errors: [{ messageId: 'tooManyValues' }],
+    },
+    // A map of styles opts in its values, not the map.
+    ...[
+      'Record<string, Styles>',
+      'Record<Variant, Styles | undefined>',
+      'Partial<Record<Variant, Styles>>',
+      '{ [key: string]: Styles }',
+      '{ root: Styles; toolbar?: Styles }',
+    ].map((type) => ({
+      name: `${type} opts in its values`,
+      code: `const VARIANTS: ${type} = { root: { ${BAD} } };`,
+      errors: [{ messageId: 'tooManyValues' as const }],
+    })),
     {
       name: 'Styles annotation opts in through a union',
       code: `const stuff: Styles | undefined = { ${BAD} };`,

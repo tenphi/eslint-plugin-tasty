@@ -1,6 +1,8 @@
 import { Linter } from 'eslint';
 import parser from '@typescript-eslint/parser';
-import { resolve } from 'node:path';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import plugin, { recommended, strict } from '../index.js';
 
 const linter = new Linter();
@@ -208,3 +210,88 @@ for (const [name, preset] of Object.entries({ recommended, strict })) {
     ).toEqual([]);
   });
 }
+
+describe('components imported from relative modules', () => {
+  const project = mkdtempSync(join(tmpdir(), 'tasty-relative-components-'));
+  const modules = {
+    'package.json': '{}',
+    'tasty.config.json': JSON.stringify({
+      importSources: ['@my/ds'],
+      styleFunctions: { component: { argument: 0, kind: 'options' } },
+    }),
+    'styled.ts': `
+      import { tasty } from '@tenphi/tasty';
+      import { component, Card } from '@my/ds';
+      export const Panel = tasty({ styles: { width: '$panel-width' } });
+      const Inner = tasty({});
+      export { Inner as Renamed };
+      export const Alias = (Panel as typeof Panel)!;
+      export const Custom = component({});
+      export const Reexported = Card;
+      export const Plain = (props: object) => null;
+      export default tasty({});
+    `,
+    'elements.ts': `export { Panel as Deep } from './styled.js';`,
+    'ui/index.ts': `export * from '../styled';`,
+    'other.ts': `import { tasty } from 'unrelated'; export const Fake = tasty({});`,
+    'cycle-a.ts': `export { Loop } from './cycle-b';`,
+    'cycle-b.ts': `export { Loop } from './cycle-a';`,
+  };
+  for (const [path, text] of Object.entries(modules)) {
+    mkdirSync(dirname(join(project, path)), { recursive: true });
+    writeFileSync(join(project, path), text);
+  }
+  const app = join(project, 'App.tsx');
+  const projectLinter = new Linter({ cwd: project });
+  afterAll(() => rmSync(project, { recursive: true, force: true }));
+
+  function warnings(source: string) {
+    return projectLinter
+      .verify(
+        source,
+        [
+          {
+            files: ['**/*.tsx'],
+            languageOptions: {
+              parser,
+              parserOptions: { ecmaFeatures: { jsx: true } },
+            },
+            plugins: { tasty: plugin },
+            rules: { 'tasty/no-style-prop': 'warn' },
+          },
+        ],
+        { filename: app },
+      )
+      .map((message) => message.messageId);
+  }
+
+  for (const [name, source] of Object.entries({
+    'named export': `import { Panel } from './styled'; <Panel style={value} />;`,
+    'emitted extension': `import { Panel } from './styled.js'; <Panel style={value} />;`,
+    'renamed export': `import { Renamed } from './styled'; <Renamed style={value} />;`,
+    'exported alias': `import { Alias } from './styled'; <Alias style={value} />;`,
+    'custom factory': `import { Custom } from './styled'; <Custom style={value} />;`,
+    'configured import': `import { Reexported } from './styled'; <Reexported style={value} />;`,
+    'default export': `import Styled from './styled'; <Styled style={value} />;`,
+    're-export': `import { Deep } from './elements'; <Deep style={value} />;`,
+    'directory star re-export': `import { Panel } from './ui'; <Panel style={value} />;`,
+    'local alias of import': `import { Panel } from './styled'; const Local = Panel; <Local style={value} />;`,
+  })) {
+    it(`detects a ${name}`, () => {
+      expect(warnings(source)).toEqual(['noStyleProp']);
+    });
+  }
+
+  for (const [name, source] of Object.entries({
+    'plain component': `import { Plain } from './styled'; <Plain style={value} />;`,
+    'unrelated factory': `import { Fake } from './other'; <Fake style={value} />;`,
+    'missing export': `import { Missing } from './styled'; <Missing style={value} />;`,
+    'missing module': `import { Panel } from './missing'; <Panel style={value} />;`,
+    're-export cycle': `import { Loop } from './cycle-a'; <Loop style={value} />;`,
+    'type-only import': `import type { Panel } from './styled'; <Panel style={value} />;`,
+  })) {
+    it(`ignores a ${name}`, () => {
+      expect(warnings(source)).toEqual([]);
+    });
+  }
+});

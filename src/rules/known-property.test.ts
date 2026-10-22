@@ -98,8 +98,49 @@ tester.run('known-property', rule, {
         tasty({ styles: { colour: '#purple' } });
       `,
     },
+    // A map of style objects is not itself a style object: its keys are
+    // variant names, and a value that names a shared constant is opaque.
+    {
+      code: `
+        import type { Styles } from '@tenphi/tasty';
+        export const ITEM_VARIANTS: Record<ItemVariant, Styles> = {
+          'current.item': CURRENT_ITEM_STYLES,
+          default: { fill: '#purple' },
+        };
+      `,
+    },
+    {
+      code: `
+        import type { Styles } from '@tenphi/tasty';
+        const BLOCKS: { [key: string]: Styles } = { header: { padding: '2x' } };
+      `,
+    },
+    // An unannotated constant is a shared value, not a style object by name.
+    `const CARD_STYLES = { colour: '#purple' };`,
   ],
   invalid: [
+    {
+      // The annotation is read before the constant-case exclusion.
+      code: `
+        import type { Styles } from '@tenphi/tasty';
+        export const CARD_STYLES: Styles = { colour: '#purple' };
+      `,
+      errors: [{ messageId: 'unknownProperty', data: { name: 'colour' } }],
+    },
+    {
+      // The values of a `Record<K, Styles>` are the style objects.
+      code: `
+        import type { Styles } from '@tenphi/tasty';
+        export const ITEM_VARIANTS: Record<string, Styles> = {
+          'current.item': { colour: '#purple' },
+          Primary: { boarder: true },
+        };
+      `,
+      errors: [
+        { messageId: 'unknownProperty', data: { name: 'colour' } },
+        { messageId: 'unknownProperty', data: { name: 'boarder' } },
+      ],
+    },
     {
       code: `
         import { tasty } from '@tenphi/tasty';

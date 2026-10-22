@@ -3,7 +3,7 @@ import { createRule } from '../create-rule.js';
 import { TastyContext } from '../context.js';
 import { stringStyleValueListeners } from '../style-values.js';
 import { BUILT_IN_CUSTOM_PROPERTIES } from '../constants.js';
-import { getKeyName } from '../utils.js';
+import { getKeyName, getStringValue, unwrapExpression } from '../utils.js';
 import { scanValueWords } from '../value-words.js';
 
 type MessageIds = 'invalidSyntax' | 'unknownProperty';
@@ -25,7 +25,7 @@ export default createRule<[], MessageIds>({
       invalidSyntax:
         "Invalid custom property '{{token}}'. Use '$name' with letters, digits, or hyphens (e.g. $accent-color).",
       unknownProperty:
-        "Unknown custom property '{{token}}'. Declare it as a '$name' key in this styles object, or add it to your tasty config.",
+        "Unknown custom property '{{token}}'. Declare it as a '$name' key in a styles object or 'tokens' prop in this file, or add it to your tasty config.",
     },
     schema: [],
   },
@@ -42,6 +42,27 @@ export default createRule<[], MessageIds>({
         if (key && key.startsWith('$') && !key.startsWith('$$')) {
           fileCustomProperties.add(key);
         }
+      }
+    }
+
+    /**
+     * Tokens declare custom properties too: `tokens={{ $progress: … }}` on an
+     * element, a `tokens` option of a component definition, and a raw
+     * `'--progress'` entry of an inline `style`, which sets the same property.
+     */
+    function collectDeclaredTokens(
+      node: TSESTree.ObjectExpression,
+      prefix: '$' | '--',
+    ): void {
+      for (const prop of node.properties) {
+        if (prop.type !== 'Property') continue;
+        const key = prop.computed
+          ? getStringValue(unwrapExpression(prop.key))
+          : getKeyName(prop.key);
+        if (key === null) continue;
+        const name =
+          prefix === '$' ? key : key.startsWith('--') ? '$' + key.slice(2) : '';
+        if (/^\$[^$]/.test(name)) fileCustomProperties.add(name);
       }
     }
 
@@ -69,7 +90,7 @@ export default createRule<[], MessageIds>({
       }
     }
 
-    return stringStyleValueListeners(ctx, checkValue, {
+    const listeners = stringStyleValueListeners(ctx, checkValue, {
       onStyleObject: collectLocalProperties,
       onProgramExit() {
         if (
@@ -91,5 +112,37 @@ export default createRule<[], MessageIds>({
         }
       },
     });
+
+    return {
+      ...listeners,
+      JSXAttribute(node: TSESTree.JSXAttribute) {
+        listeners.JSXAttribute(node);
+        if (node.name.type !== 'JSXIdentifier') return;
+        const name = node.name.name;
+        if (name !== 'tokens' && name !== 'style') return;
+        if (node.value?.type !== 'JSXExpressionContainer') return;
+        const value = unwrapExpression(node.value.expression);
+        if (value.type !== 'ObjectExpression') return;
+        collectDeclaredTokens(value, name === 'tokens' ? '$' : '--');
+      },
+      Property(node: TSESTree.Property) {
+        if (node.computed || getKeyName(node.key) !== 'tokens') return;
+        const value = unwrapExpression(node.value);
+        const call = node.parent.parent;
+        if (
+          value.type !== 'ObjectExpression' ||
+          call?.type !== 'CallExpression'
+        )
+          return;
+        const imp = ctx.isTastyCall(call);
+        if (
+          imp?.importedName === 'tasty' ||
+          (imp &&
+            ctx.config.styleFunctions?.[imp.importedName]?.kind === 'options')
+        ) {
+          collectDeclaredTokens(value, '$');
+        }
+      },
+    };
   },
 });

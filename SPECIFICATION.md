@@ -99,7 +99,8 @@ When the user enables typed linting (via `parserOptions.project` in their ESLint
 
 | Pattern | Detection |
 |---|---|
-| `const s: Styles = { ... }` | Variable with `Styles` type annotation |
+| `const s: Styles = { ... }` | Variable with `Styles` type annotation, whatever its name |
+| `const m: Record<K, Styles> = { a: { ... } }` | Values of a map of styles (also `{ [k: string]: Styles }`); the map itself is not a style object |
 | `obj satisfies Styles` | `satisfies` expression |
 | `fn(styles: Styles)` | Function parameter typed as `Styles` |
 | `<Component fill="..." />` | JSX prop typed as `StyleValue` |
@@ -636,7 +637,9 @@ Validates `$name` custom property references.
 2. **Existence** — warns when a `$token` is not found in any of:
    - Tasty's built-in custom properties: `$gap`, `$radius`, `$border-width`, `$outline-width`, `$transition`, `$sharp-radius`, `$bold-font-weight`, `$font-sans-fallback`, `$font-mono-fallback`
    - `config.tokens` (if set as an array)
-   - `$`-prefixed keys defined in the same styles object (e.g., a sibling `'$spacing': '...'` key)
+   - `$`-prefixed keys defined in any style object in the same file (e.g., a sibling `'$spacing': '...'` key)
+   - `$`-prefixed keys of a literal `tokens={{ ... }}` JSX prop or a `tokens` option of `tasty()` / a configured options factory in the same file
+   - `'--name'` keys of a literal inline `style={{ ... }}` object in the same file, which declare `$name`
    - `$`-prefixed keys in a `tastyStatic(':root', { ... })` call in the same file
    
    Disabled when `config.tokens` is `false`.
