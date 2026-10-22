@@ -515,6 +515,32 @@ export class TastyContext {
     }
   }
 
+  /**
+   * Whether the style object this node belongs to is declared on its own — a
+   * `const CELL_STYLES: Styles` or a value of a `Record<K, Styles>` — rather
+   * than handed to a call or prop. Such styles can be spread anywhere,
+   * including into a sub-element, so their root is not necessarily the
+   * component's root.
+   */
+  isSharedStyleObject(node: TSESTree.ObjectExpression): boolean {
+    const outermost = (inner: TSESTree.Node): TSESTree.Node => {
+      let wrapped = inner;
+      while (wrapped.parent && unwrapExpression(wrapped.parent) === inner) {
+        wrapped = wrapped.parent;
+      }
+      return wrapped;
+    };
+
+    let parent = outermost(this.getRootStyleObject(node)).parent;
+    if (
+      parent?.type === 'Property' &&
+      parent.parent.type === 'ObjectExpression'
+    ) {
+      parent = outermost(parent.parent).parent;
+    }
+    return parent?.type === 'VariableDeclarator';
+  }
+
   /** Include helper calls nested inside a real sub-element, but not variant names. */
   isInsideSubElement(node: TSESTree.Node): boolean {
     let current = node.parent;

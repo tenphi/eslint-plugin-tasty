@@ -1115,6 +1115,7 @@ Warns when a state mapping object doesn't have a `''` (default) **or** `_` (fall
 **Exceptions:**
 - When extending a component via `tasty(Base, { styles: { ... } })`, omitting `''` means "extend mode" (keep parent's default). This is intentional and should not warn. Detecting this requires checking the calling context.
 - Properties inside `variants` objects (variants don't need defaults).
+- A state map that spreads another (`{ ...BASE_STYLES.fill, hovered: '#blue' }`): the spread may carry the default.
 
 **Examples:**
 ```js

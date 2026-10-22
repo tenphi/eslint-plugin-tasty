@@ -75,6 +75,22 @@ tester.run('require-default-state', rule, {
         const view = <Card styles={{ fill: { 'hovered': '#blue' } }} />;
       `,
     },
+    // A spread may carry the default.
+    {
+      code: `
+        import type { Styles } from '@tenphi/tasty';
+        export const BASE_STYLES: Styles = {
+          fill: { '': '#clear', hovered: '#surface-2' },
+        };
+        export const CLEAR_STYLES: Styles = {
+          ...BASE_STYLES,
+          fill: {
+            ...(BASE_STYLES.fill as Record<string, string>),
+            'selected & disabled': '#surface-3',
+          },
+        };
+      `,
+    },
   ],
   invalid: [
     // State map with neither '' default nor '_' floor

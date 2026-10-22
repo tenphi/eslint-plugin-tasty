@@ -2,8 +2,11 @@ import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
 import { getKeyName, getStringValue } from '../utils.js';
-import { parseStateKey } from '../parsers/state-key-parser.js';
-import { replaceStringValue } from '../fix-utils.js';
+import {
+  getOwnUnwrapEdits,
+  parseStateKey,
+} from '../parsers/state-key-parser.js';
+import { replaceInStringValue } from '../fix-utils.js';
 
 type MessageIds = 'ownAtRoot';
 
@@ -30,6 +33,8 @@ export default createRule<[], MessageIds>({
       if (!ctx.isStyleObject(node)) return;
 
       if (ctx.isInsideSubElement(node)) return;
+      // Shared styles may be spread into a sub-element, where `@own` matters.
+      if (ctx.isSharedStyleObject(node)) return;
 
       for (const prop of node.properties) {
         if (prop.type !== 'Property' || prop.computed) continue;
@@ -58,12 +63,14 @@ export default createRule<[], MessageIds>({
               node: stateProp.key,
               messageId: 'ownAtRoot',
               fix(fixer) {
-                if (!stateKey.startsWith('@own(') || !stateKey.endsWith(')')) {
-                  return null;
-                }
-                const inner = stateKey.slice(5, -1);
-                if (!inner) return null;
-                return replaceStringValue(fixer, stateProp.key, inner);
+                const edits = getOwnUnwrapEdits(stateKey);
+                if (edits.length === 0) return null;
+                return replaceInStringValue(
+                  fixer,
+                  stateProp.key,
+                  edits,
+                  context.sourceCode,
+                );
               },
             });
           }

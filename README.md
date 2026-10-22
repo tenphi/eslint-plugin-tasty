@@ -189,8 +189,8 @@ for typing shared signatures.
 | `tasty/prefer-element-selector` | warn | Prefer element names such as `Primary > Search` over exact `data-element` attributes in sub-element `$` selectors (safely autofixable; [details](docs/rules/prefer-element-selector.md)) |
 | `tasty/static-no-dynamic-values` | error | Dynamic values in `tastyStatic()` |
 | `tasty/static-valid-selector` | error | Invalid selector in `tastyStatic(selector, ...)` |
-| `tasty/require-default-state` | error | Missing default (`''`) or fallback floor (`_`) key in state mappings (skipped for extending calls) |
-| `tasty/no-own-at-root` | warn | `@own()` used at root level where it is redundant |
+| `tasty/require-default-state` | error | Missing default (`''`) or fallback floor (`_`) key in state mappings (skipped for extending calls and maps that spread another) |
+| `tasty/no-own-at-root` | warn | `@own()` used at root level where it is redundant (not in shared style constants, which may be spread into a sub-element) |
 | `tasty/no-ignored-pseudo-element-state` | error | States Tasty ignores on a pseudo-element, such as `@own([open])` on `$: 'a::before'`: attributes, modifiers, classes, and tree-structural pseudo-classes ([details](docs/rules/no-ignored-pseudo-element-state.md)) |
 | `tasty/valid-default-state-order` | warn | Misplaced default (`''`) or redundant `''` when only `_` is present |
 | `tasty/prefer-shorthand-property` | warn | Use Tasty shorthand instead of native CSS properties (`backgroundColor` → `fill`, `paddingBlock` → `blockPadding`, etc.). Report-only warnings explain how to override one part through a token, with concrete min/max dimension examples. Extension warnings point at the base component and are skipped over bases you cannot edit (see `ownedSources`; [details](docs/rules/prefer-shorthand-property.md)) |
