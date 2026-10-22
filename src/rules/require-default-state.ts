@@ -41,6 +41,11 @@ export default createRule<[], MessageIds>({
 
         if (prop.value.type !== 'ObjectExpression') continue;
 
+        // A spread may bring the default with it (`...BASE_STYLES.fill`), and
+        // its source is often a cast member expression that cannot be read.
+        if (prop.value.properties.some((p) => p.type === 'SpreadElement'))
+          continue;
+
         // A '' default or a '_' fallback floor both provide a value in the
         // normal state, so either one satisfies the requirement.
         const hasDefault = prop.value.properties.some((p) => {

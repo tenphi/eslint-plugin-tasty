@@ -703,6 +703,38 @@ export function getStateNegationEdits(stateKey: string): StringEdit[] {
     });
 }
 
+/**
+ * Unwrap every `@own(...)` term of a key, for a scope where `@own` is the
+ * element itself. A term with operators inside keeps them grouped, so
+ * `@own(a | b) & c` becomes `(a | b) & c`, not `a | b & c`. Returns no edits
+ * when any term cannot be unwrapped safely, so a key is never half-rewritten.
+ */
+export function getOwnUnwrapEdits(stateKey: string): StringEdit[] {
+  if (!stateKey.includes('@own(')) return [];
+  if (checkBracketBalance(stateKey)) return [];
+  if (parseStateKey(stateKey).errors.length > 0) return [];
+
+  const { tokens } = tokenize(stateKey);
+  const edits: StringEdit[] = [];
+  for (const token of tokens) {
+    if (token.type !== 'STATE' || !token.value.startsWith('@own(')) continue;
+    const inner = token.value.slice(5, -1).trim();
+    // A comma is an OR only outside parentheses; it would not survive grouping.
+    if (!inner || findTopLevelComma(inner) !== -1) return [];
+
+    const innerTokens = tokenize(inner).tokens;
+    const single =
+      tokens.length === 1 ||
+      (innerTokens.length === 1 && innerTokens[0].value === inner);
+    edits.push({
+      start: token.offset,
+      end: token.offset + token.length,
+      replacement: single ? inner : `(${inner})`,
+    });
+  }
+  return edits;
+}
+
 export interface StateAtom {
   /** The atom as written: `hovered`, `:hover`, `[open]`, `@root(...)`. */
   value: string;
