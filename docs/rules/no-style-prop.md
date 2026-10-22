@@ -40,6 +40,8 @@ the plugin does not silently exempt library-provided values or enforce reasons.
 
 Recognition uses local `const` components created by imported `tasty()` or
 configured options factories, their `const` aliases/sub-elements, and components
-from configured `importSources`. List the design-system module in `importSources`
-for imported components. Native elements, unrelated components, shadowed bindings,
+from configured `importSources`. Exports of relative modules (`import { Panel } from './styled'`) count when they
+resolve to one of these, through re-exports too; following them needs the
+`typescript` package. List the design-system module
+in `importSources` for components imported from a package. Native elements, unrelated components, shadowed bindings,
 mutable aliases, and opaque spread bindings are excluded.

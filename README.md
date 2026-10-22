@@ -375,9 +375,11 @@ these props requires choosing the component's token/state/extension contract, so
 these rules provide guidance without automatic fixes.
 
 Recognition uses local `const` Tasty/configured-options factory results, their
-`const` aliases/sub-elements, and components imported from `importSources`. Add
-your design-system module to `importSources` to enable checks on imported
-components. Native elements, unrelated components, shadowed bindings, and mutable
+`const` aliases/sub-elements, and components imported from `importSources`.
+Exports of relative modules (`import { Panel } from './styled'`) count when they
+resolve to one of these, through re-exports too; following them needs the
+`typescript` package. Add your design-system package to `importSources` to enable checks
+on components imported from it. Native elements, unrelated components, shadowed bindings, and mutable
 aliases are excluded. Opaque spread bindings are not evaluated. Third-party
 styling integrations and edge-case instance overrides need an explicit local
 ignore with a reason, as described above.

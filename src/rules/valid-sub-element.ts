@@ -6,6 +6,18 @@ import { getKeyName, getStringValue, unwrapExpression } from '../utils.js';
 
 type MessageIds = 'subElementNotObject' | 'subElementTargetsRoot';
 
+/** Expressions whose result is visibly not an object. */
+const NON_OBJECT_EXPRESSIONS = new Set<string>([
+  'TemplateLiteral',
+  'ArrayExpression',
+  'ArrowFunctionExpression',
+  'FunctionExpression',
+  'ClassExpression',
+  'UnaryExpression',
+  'BinaryExpression',
+  'UpdateExpression',
+]);
+
 const LEGACY_PSEUDO_ELEMENTS = new Set([
   ':before',
   ':after',
@@ -116,6 +128,43 @@ export default createRule<[], MessageIds>({
       }
     }
 
+    /**
+     * The type to name in the report when a value can never be a style object,
+     * or `null` when it is `false` (disables the sub-element) or might be one.
+     * A `const` binding is followed to what it names; any other binding, member
+     * or call is opaque, and Tasty accepts a reference to a style object there.
+     */
+    function nonObjectType(
+      node: TSESTree.Node,
+      seen: Set<TSESTree.Node>,
+    ): string | null {
+      node = unwrapExpression(node);
+      if (node.type === 'Literal') {
+        return node.value === false ? null : typeof node.value;
+      }
+      if (node.type === 'Identifier') {
+        if (seen.has(node)) return null;
+        seen.add(node);
+        let scope: ReturnType<typeof context.sourceCode.getScope> | null =
+          context.sourceCode.getScope(node);
+        while (scope && !scope.set.has(node.name)) scope = scope.upper;
+        const variable = scope?.set.get(node.name);
+        const def = variable?.defs.length === 1 ? variable.defs[0] : undefined;
+        if (
+          def?.type !== 'Variable' ||
+          def.parent.kind !== 'const' ||
+          !def.node.init
+        ) {
+          return null;
+        }
+        const init = unwrapExpression(def.node.init);
+        return init.type === 'ObjectExpression'
+          ? null
+          : nonObjectType(init, seen);
+      }
+      return NON_OBJECT_EXPRESSIONS.has(node.type) ? node.type : null;
+    }
+
     // Recurse only through owned sub-elements. Some shared/JSX listeners match
     // just the root, and descriptor objects and state maps are not styles.
     function checkStyleObject(node: TSESTree.ObjectExpression) {
@@ -135,12 +184,8 @@ export default createRule<[], MessageIds>({
           checkAffix(key, value);
           checkStyleObject(value);
         } else {
-          if (value.type === 'Literal' && value.value === false) {
-            continue;
-          }
-
-          const valueType =
-            value.type === 'Literal' ? typeof value.value : value.type;
+          const valueType = nonObjectType(value, new Set());
+          if (valueType === null) continue;
 
           context.report({
             node: prop.value,

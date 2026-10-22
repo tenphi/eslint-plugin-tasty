@@ -14,6 +14,19 @@ writeFileSync(
   JSON.stringify({ tokens: ['$space'] }),
 );
 const filename = join(root, 'component.ts');
+const tsxFilename = join(root, 'component.tsx');
+
+/** A reference to `$progress` with a declaration elsewhere in the file. */
+function declared(declaration: string) {
+  return {
+    code: `
+        import { tasty } from '@tenphi/tasty';
+        const Progress = tasty({ styles: { width: '$progress' } });
+        ${declaration}
+      `,
+    filename: tsxFilename,
+  };
+}
 
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
@@ -31,6 +44,7 @@ const tester = new RuleTester({
   languageOptions: {
     ecmaVersion: 2024,
     sourceType: 'module',
+    parserOptions: { ecmaFeatures: { jsx: true } },
   },
 });
 
@@ -42,8 +56,38 @@ tester.run('valid-custom-property', rule, {
     style('transition', '$$radius 0.2s'),
     style('width', 'calc($gap * 2 + $border-width)'),
     style('fontFamily', '"Inter", $font-sans-fallback'),
+    // `tokens` props and options declare custom properties, as does a raw
+    // custom property in an inline `style`.
+    declared('<Progress tokens={{ $progress: `${percent}%` }} />;'),
+    declared(`<Progress tokens={{ ['$progress']: value } as Tokens} />;`),
+    declared(`<div style={{ '--progress': value }} />;`),
+    declared(
+      `tasty({ tokens: { $progress: '0%' }, styles: { fill: '#purple' } });`,
+    ),
+    {
+      code: `
+        import type { Styles } from '@tenphi/tasty';
+        export const CARD_STYLES: Styles = { $gap: '1x', padding: '$gap' };
+      `,
+      filename,
+    },
   ],
   invalid: [
+    ...[
+      // Only `$` keys of `tokens` and `--` keys of `style` declare anything.
+      `<Progress tokens={{ progress: value }} />;`,
+      `<Progress style={{ progress: value, $progress: value }} />;`,
+      `<Progress data={{ $progress: value }} />;`,
+      `notTasty({ tokens: { $progress: '0%' } });`,
+    ].map((declaration) => ({
+      ...declared(declaration),
+      errors: [
+        {
+          messageId: 'unknownProperty' as const,
+          data: { token: '$progress' },
+        },
+      ],
+    })),
     {
       ...style('gap', '$gapp'),
       errors: [{ messageId: 'unknownProperty' }],

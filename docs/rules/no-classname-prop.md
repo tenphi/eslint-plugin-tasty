@@ -48,6 +48,8 @@ only this rule for that line. The warning message includes this exception path;
 the plugin does not silently exempt library-provided values or enforce reasons.
 
 Recognition uses local `const` Tasty/configured-options factory results, their
-`const` aliases/sub-elements, and imports from `importSources`. Native elements,
+`const` aliases/sub-elements, and imports from `importSources`. Exports of relative modules (`import { Panel } from './styled'`) count when they
+resolve to one of these, through re-exports too; following them needs the
+`typescript` package. Native elements,
 unrelated components, type-only imports, shadowed bindings, mutable aliases, and
 opaque spread bindings are excluded.

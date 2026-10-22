@@ -10,6 +10,7 @@ import {
 } from './constants.js';
 import { getKeyName, unwrapExpression } from './utils.js';
 import { finishJSXAnalysis, jsxPropKind } from './type-aware-jsx.js';
+import { isModuleTastyComponent } from './module-components.js';
 
 /**
  * Every object is considered, then TastyContext gates it by its actual context.
@@ -48,9 +49,9 @@ export interface TastyImport {
  * Whether a type annotation names tasty's `Styles` anywhere inside it.
  *
  * Walks the annotation rather than matching only the outermost reference, so a
- * wrapped tasty type (`Styles | undefined`, `Record<string, Styles>`,
- * `{ root: Styles }`) is recognised while `CSSProperties` in the same positions is
- * not. Deliberately name-based: the plugin has no type checker, and requiring one
+ * wrapped tasty type (`Styles | undefined`, `Array<Styles>`) is recognised while
+ * `CSSProperties` in the same positions is not. Maps of styles are told apart
+ * first by `stylesAnnotationShape`. Deliberately name-based: the plugin has no type checker, and requiring one
  * would make every rule type-aware.
  */
 function referencesStylesType(node: TSESTree.TypeNode): boolean {
@@ -86,6 +87,61 @@ function referencesStylesType(node: TSESTree.TypeNode): boolean {
   }
 
   return false;
+}
+
+/** Utility types whose result has the same shape as their argument. */
+const SHAPE_PRESERVING_TYPES = new Set([
+  'Readonly',
+  'Partial',
+  'Required',
+  'NonNullable',
+]);
+
+/**
+ * What a `Styles`-bearing annotation declares: `'styles'` for a style object,
+ * `'map'` for an object whose *values* are style objects (`Record<K, Styles>`,
+ * `{ [k: string]: Styles }`, `{ root: Styles }`), `null` when `Styles` does not
+ * appear at all.
+ *
+ * The distinction matters for a map: its keys are variant or block names, so
+ * checking the map itself as a style object reports every one of them as an
+ * unknown property, while the style objects it holds go unchecked.
+ */
+function stylesAnnotationShape(
+  node: TSESTree.TypeNode,
+): 'styles' | 'map' | null {
+  if (node.type === 'TSUnionType' || node.type === 'TSIntersectionType') {
+    const shapes = node.types.map(stylesAnnotationShape);
+    if (shapes.includes('styles')) return 'styles';
+    return shapes.includes('map') ? 'map' : null;
+  }
+
+  if (node.type === 'TSTypeReference' && node.typeName.type === 'Identifier') {
+    const name = node.typeName.name;
+    const args = node.typeArguments?.params ?? [];
+
+    if (/^Styles$/i.test(name)) return 'styles';
+    if (name === 'Record' && args.length === 2) {
+      if (stylesAnnotationShape(args[1]) === 'styles') return 'map';
+    }
+    if (SHAPE_PRESERVING_TYPES.has(name) && args.length === 1) {
+      return stylesAnnotationShape(args[0]);
+    }
+  }
+
+  if (node.type === 'TSTypeLiteral') {
+    const holdsStyles = node.members.some(
+      (member) =>
+        (member.type === 'TSIndexSignature' ||
+          member.type === 'TSPropertySignature') &&
+        member.typeAnnotation !== undefined &&
+        stylesAnnotationShape(member.typeAnnotation.typeAnnotation) ===
+          'styles',
+    );
+    if (holdsStyles) return 'map';
+  }
+
+  return referencesStylesType(node) ? 'styles' : null;
 }
 
 /**
@@ -216,6 +272,7 @@ export class TastyContext {
   private imports = new Map<string, TastyImport>();
   private moduleSources = new Map<string, string>();
   private importSources: Set<string>;
+  private relativeComponents = new Map<string, boolean>();
 
   constructor(
     private context: RuleContext<string, unknown[]>,
@@ -330,13 +387,17 @@ export class TastyContext {
         if (variable) {
           return variable.defs.some((def) => {
             if (def.type === 'ImportBinding') {
-              return (
-                def.parent.type === 'ImportDeclaration' &&
-                def.parent.importKind !== 'type' &&
-                this.importSources.has(def.parent.source.value) &&
-                (def.node.type !== 'ImportSpecifier' ||
-                  def.node.importKind !== 'type')
-              );
+              if (
+                def.parent.type !== 'ImportDeclaration' ||
+                def.parent.importKind === 'type' ||
+                (def.node.type === 'ImportSpecifier' &&
+                  def.node.importKind === 'type')
+              ) {
+                return false;
+              }
+              const source = def.parent.source.value;
+              if (this.importSources.has(source)) return true;
+              return this.isRelativeTastyImport(source, def.node);
             }
             if (def.type !== 'Variable') return false;
             const declaration = def.node;
@@ -375,6 +436,46 @@ export class TastyContext {
       return false;
     };
     return resolve(node, name);
+  }
+
+  /**
+   * Whether a binding imported from a relative module names a Tasty component
+   * declared there — `import { Panel } from './styled'`. A namespace import has
+   * no single export to follow.
+   */
+  private isRelativeTastyImport(
+    source: string,
+    specifier: TSESTree.Node,
+  ): boolean {
+    if (
+      specifier.type !== 'ImportSpecifier' &&
+      specifier.type !== 'ImportDefaultSpecifier'
+    ) {
+      return false;
+    }
+    const exportName =
+      specifier.type === 'ImportDefaultSpecifier'
+        ? 'default'
+        : specifier.imported.type === 'Identifier'
+          ? specifier.imported.name
+          : specifier.imported.value;
+    const key = `${source}\0${exportName}`;
+    let result = this.relativeComponents.get(key);
+    if (result === undefined) {
+      result = isModuleTastyComponent(
+        this.context.filename,
+        source,
+        exportName,
+        {
+          importSources: this.importSources,
+          isComponentFactory: (name) =>
+            name === 'tasty' ||
+            this.config.styleFunctions?.[name]?.kind === 'options',
+        },
+      );
+      this.relativeComponents.set(key, result);
+    }
+    return result;
   }
 
   /**
@@ -551,15 +652,11 @@ export class TastyContext {
       init = (init as TSESTree.TSAsExpression).expression;
     }
 
-    if (init !== targetNode) return false;
-
-    const name = current.id.name;
-
-    if (/^[A-Z][A-Z0-9_]*$/.test(name)) return false;
-
-    // An explicit type annotation is authoritative, in both directions. The name
-    // heuristic below is a guess; a declared type is the author stating what the
-    // object is, so it wins.
+    // An explicit type annotation is authoritative, in both directions, and is
+    // read before anything about the name. The name heuristics below are a
+    // guess; a declared type is the author stating what the object is, so it
+    // wins — `const CARD_STYLES: Styles` is as much a style object as
+    // `const cardStyles: Styles`.
     //
     // This matters because the rewrites these rules offer are only valid *inside*
     // tasty: `#purple.05` and `$font-sans` are correct tasty declarations and
@@ -570,7 +667,25 @@ export class TastyContext {
     // the browser dropped the declaration.
     const annotated = this.stylesTypeAnnotation(current);
 
-    if (annotated !== null) return annotated;
+    // A map of style objects: its values are checked, never the map itself.
+    if (annotated === 'map') {
+      return (
+        init?.type === 'ObjectExpression' &&
+        init.properties.some(
+          (prop) =>
+            prop.type === 'Property' &&
+            unwrapExpression(prop.value) === targetNode,
+        )
+      );
+    }
+
+    if (init !== targetNode) return false;
+    if (annotated !== null) return annotated === 'styles';
+
+    const name = current.id.name;
+
+    // Unannotated constants are shared values, not style objects by name alone.
+    if (/^[A-Z][A-Z0-9_]*$/.test(name)) return false;
 
     // Only `styles` and `*Styles` count. The singular `style` is conventionally
     // a DOM inline-style object (`el.style`, `CSSProperties`, `setStyle(el, …)`)
@@ -640,9 +755,9 @@ export class TastyContext {
   }
 
   /**
-   * Verdict from the declared type: `true` tasty, `false` explicitly not, `null`
-   * when there is no annotation to go on and the caller should fall back to the
-   * name.
+   * Verdict from the declared type: `'styles'` the object is tasty, `'map'` its
+   * values are, `false` explicitly neither, `null` when there is no annotation to
+   * go on and the caller should fall back to the name.
    *
    * A `Styles` reference anywhere in the annotation counts, so wrappers like
    * `Styles | undefined` and `Record<string, Styles>` opt in — while
@@ -651,12 +766,12 @@ export class TastyContext {
    */
   private stylesTypeAnnotation(
     node: TSESTree.VariableDeclarator,
-  ): boolean | null {
+  ): 'styles' | 'map' | false | null {
     const annotation = node.id.typeAnnotation?.typeAnnotation;
 
     if (!annotation) return null;
 
-    return referencesStylesType(annotation);
+    return stylesAnnotationShape(annotation) ?? false;
   }
 
   private getTastyCallContext(

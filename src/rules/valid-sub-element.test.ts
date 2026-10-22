@@ -33,6 +33,18 @@ const rootError = (name = 'Heading', selector = '&:is(h1)') => ({
 
 tester.run('valid-sub-element', rule, {
   valid: [
+    // A binding to a style object is accepted, whether or not it can be read.
+    `
+      import { tasty, type Styles } from '@tenphi/tasty';
+      import { SHARED_STYLES } from './shared';
+      const ADD_STYLES: Styles = { fill: '#purple' };
+      const ALIAS = ADD_STYLES;
+      tasty({ styles: { Prefix: ADD_STYLES, Suffix: ALIAS, Icon: SHARED_STYLES, Body: theme.body, Footer: getStyles(), Off: false } });
+    `,
+    `
+      import type { Styles } from '@tenphi/tasty';
+      export const ITEM_STYLES: Styles = { Prefix: ADD_STYLES };
+    `,
     ...[
       'h1',
       '>h1',
@@ -169,6 +181,24 @@ tester.run('valid-sub-element', rule, {
         tasty({ styles: { Title: '#purple' } });
       `,
       errors: [{ messageId: 'subElementNotObject' }],
+    },
+    {
+      // A const binding is followed to the non-object it names.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        const TITLE = '#purple';
+        tasty({ styles: { Title: TITLE, Items: ['a'] } });
+      `,
+      errors: [
+        {
+          messageId: 'subElementNotObject',
+          data: { name: 'Title', type: 'string' },
+        },
+        {
+          messageId: 'subElementNotObject',
+          data: { name: 'Items', type: 'ArrayExpression' },
+        },
+      ],
     },
   ],
 });
