@@ -1,5 +1,15 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.8.2
+
+### Patch Changes
+
+- [#92](https://github.com/tenphi/eslint-plugin-tasty/pull/92) [`7328196`](https://github.com/tenphi/eslint-plugin-tasty/commit/7328196c4701161e6dd2e8c79892700503d1c12b) Thanks [@tenphi](https://github.com/tenphi)! - `no-style-prop`, `no-classname-prop`, `no-styles-prop` and the Tasty-component gate for JSX value rewrites recognize Tasty components imported from relative modules (`import { Panel } from './styled'`). The imported module is read the same syntactic way as the current file: a `tasty()` or configured options-factory result, a `const` alias of one, an import from `importSources`, a default export, or a re-export (`export { … } from`, `export * from`) that leads to one. Specifiers resolve with or without an extension, including `./styled.js` for `styled.ts` and directory `index` files. Reading the module needs the `typescript` package. Without it, imported components are not recognized, as before. Namespace imports (`<UI.Panel />`) and path aliases are not followed.
+
+- [#92](https://github.com/tenphi/eslint-plugin-tasty/pull/92) [`7328196`](https://github.com/tenphi/eslint-plugin-tasty/commit/7328196c4701161e6dd2e8c79892700503d1c12b) Thanks [@tenphi](https://github.com/tenphi)! - A `Styles` type annotation is read before the variable's name, so `export const CARD_STYLES: Styles = { … }` is now linted like `cardStyles: Styles`. Before, every SCREAMING_CASE constant was skipped, and the `$name` keys it declared were missing from `valid-custom-property`'s file set. An unannotated constant is still not matched on its name. A map of styles (`Record<K, Styles>`, `{ [key: string]: Styles }`, `{ root: Styles }`) is no longer checked as a style object itself: its values are, so variant names are not reported as unknown properties. `valid-sub-element` no longer reports a sub-element whose value is a binding (`Prefix: ADD_STYLES`): a `const` is followed to its value, and any other binding, member or call is accepted as a possible style object.
+
+- [#92](https://github.com/tenphi/eslint-plugin-tasty/pull/92) [`7328196`](https://github.com/tenphi/eslint-plugin-tasty/commit/7328196c4701161e6dd2e8c79892700503d1c12b) Thanks [@tenphi](https://github.com/tenphi)! - `valid-custom-property` accepts custom properties declared through `tokens` in the same file: `$name` keys of a literal `tokens={{ … }}` JSX prop or of the `tokens` option of `tasty()` (or a configured options factory), and `'--name'` keys of a literal inline `style={{ … }}`, which set the same property. Following `no-style-prop`'s advice to move `'--progress'` into `tokens={{ $progress: … }}` no longer leads to an unknown-property warning. The message now says to declare the property "in a styles object or 'tokens' prop in this file", since the check covers the whole file.
+
 ## 1.8.1
 
 ### Patch Changes
