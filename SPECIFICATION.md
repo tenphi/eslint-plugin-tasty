@@ -1412,6 +1412,15 @@ build-time `tastyStatic()` rule handles its own dynamic-value errors. At-rule
 definition objects (`@keyframes`, `@font-face`, etc.) are excluded because they
 may be shared JavaScript data rather than individual style values.
 
+Values fixed once the module has loaded are not reported, since Tasty generates
+their CSS once, exactly as for a literal: `undefined`, module-scope `const`
+bindings, enums and imports (and their members, including computed members with
+such keys), and templates, operators, conditionals and `mergeStyles(...)` calls
+built only from those. A `mergeStyles` object-literal argument is a style object
+of its own and is checked where it stands. Anything that reaches render-time
+scope (props, state, hook results, parameters, a local or `let` binding, any
+other call) is reported. The same test applies to computed keys.
+
 Tasty style values should be static and known at write time. Dynamic behavior should be achieved via modifiers (`mods` prop), tokens (`tokens` prop), or CSS custom properties.
 
 **Checks:**
