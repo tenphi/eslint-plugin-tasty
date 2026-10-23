@@ -1421,6 +1421,15 @@ of its own and is checked where it stands. Anything that reaches render-time
 scope (props, state, hook results, parameters, a local or `let` binding, any
 other call) is reported. The same test applies to computed keys.
 
+Style objects are found where they reach Tasty, not only where they are written
+in place: an object behind a conditional or logical operator
+(`mergeStyles(cond ? { … } : null, styles)`), and an object held in a
+render-scope variable that is read as styles (`const local = { … }` or
+`styles = { ...styles, … }`, then `styles={local}`, `mergeStyles(styles, local)`
+or `Icon: local`). This detection is shared by every rule. A render-scope
+`const` bound to an object literal is not itself reported where it is passed on,
+since its values are checked where it is written.
+
 Tasty style values should be static and known at write time. Dynamic behavior should be achieved via modifiers (`mods` prop), tokens (`tokens` prop), or CSS custom properties.
 
 **Checks:**

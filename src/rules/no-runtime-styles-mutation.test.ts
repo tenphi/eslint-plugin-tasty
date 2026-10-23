@@ -61,8 +61,94 @@ tester.run('no-runtime-styles-mutation', rule, {
         },
       });
     `,
+    // Objects that never reach a style position, and the test of a
+    // conditional, are not style objects.
+    `
+      import { mergeStyles, tasty } from '@tenphi/tasty';
+      const El = tasty({});
+      export function D({ size, styles }) {
+        const options = { fontSize: size };
+        track(options);
+        let config = { width: size };
+        config = { width: size * 2 };
+        const pick = ({ fill: size }) ? styles : null;
+        return <El styles={mergeStyles(styles, pick)} data={{ width: size }} />;
+      }
+    `,
   ],
   invalid: [
+    {
+      // Styles rebuilt by reassignment during render reach the element.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        const El = tasty({});
+        export function Icon({ size, stroke, styles }) {
+          if (size) {
+            styles = { ...styles, fontSize: size };
+          }
+          if (stroke) {
+            styles = { ...styles, '$stroke-width': stroke };
+          }
+          return <El styles={styles} />;
+        }
+      `,
+      errors: [
+        { messageId: 'dynamicStyleValue', data: { property: 'fontSize' } },
+        { messageId: 'dynamicStyleValue', data: { property: '$stroke-width' } },
+      ],
+    },
+    {
+      // An object behind a conditional or logical operator is still an
+      // argument of mergeStyles.
+      code: `
+        import { mergeStyles, tasty } from '@tenphi/tasty';
+        const El = tasty({});
+        export function Layout({ contentPadding, gap, inset, styles }) {
+          return (
+            <El
+              styles={mergeStyles(
+                contentPadding != null ? { '$content-padding': contentPadding } : null,
+                gap && { gap },
+                (styles ?? { inset }) as Styles,
+              )}
+            />
+          );
+        }
+      `,
+      errors: [
+        {
+          messageId: 'dynamicStyleValue',
+          data: { property: '$content-padding' },
+        },
+        { messageId: 'dynamicStyleValue', data: { property: 'gap' } },
+        { messageId: 'dynamicStyleValue', data: { property: 'inset' } },
+      ],
+    },
+    {
+      // A render-scope object passed on by name, as styles, a mergeStyles
+      // argument or a sub-element.
+      code: `
+        import { mergeStyles, tasty } from '@tenphi/tasty';
+        const El = tasty({});
+        export function A({ size, styles }) {
+          const local = { fontSize: size };
+          return <El styles={mergeStyles(styles, local)} />;
+        }
+        export function B({ size }) {
+          const local = { fontSize: size };
+          return <El styles={local} />;
+        }
+        export function C({ size }) {
+          const icon = { width: size };
+          return <El styles={{ Icon: icon }} />;
+        }
+      `,
+      errors: [
+        { messageId: 'dynamicStyleValue', data: { property: 'fontSize' } },
+        { messageId: 'dynamicStyleValue', data: { property: 'fontSize' } },
+        { messageId: 'dynamicStyleValue', data: { property: 'width' } },
+      ],
+    },
     {
       // Render-time scope is still reported: props, state, hook results,
       // parameters and local bindings.

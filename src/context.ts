@@ -194,11 +194,46 @@ function isNamedCssBlockMap(node: TSESTree.ObjectExpression): boolean {
 }
 
 /**
+ * The outermost expression an object is the result of through conditional and
+ * logical operators (and type wrappers): `cond ? { … } : null`, `cond && { … }`,
+ * `styles ?? { … }`. Whatever position that expression takes, the object may
+ * land in. The test of a conditional and the left of `&&` never become the
+ * value, so they are not followed.
+ */
+function conditionalFlowRoot(node: TSESTree.Node): TSESTree.Node {
+  let current = node;
+  // Matching unwraps type wrappers itself, so the root is the outermost
+  // operator, not a wrapper around it.
+  let root = node;
+  while (current.parent) {
+    const parent: TSESTree.Node = current.parent;
+    if (
+      (parent.type === 'TSAsExpression' ||
+        parent.type === 'TSSatisfiesExpression' ||
+        parent.type === 'TSNonNullExpression' ||
+        parent.type === 'TSTypeAssertion') &&
+      parent.expression === current
+    ) {
+      current = parent;
+    } else if (
+      (parent.type === 'ConditionalExpression' && parent.test !== current) ||
+      (parent.type === 'LogicalExpression' &&
+        (parent.right === current || parent.operator !== '&&'))
+    ) {
+      current = root = parent;
+    } else {
+      break;
+    }
+  }
+  return root;
+}
+
+/**
  * The component a `styles` JSX prop overrides — `<Card styles={…} />` -> `Card`.
  * A namespaced tag (`<UI.Card />`) resolves to its root object, since that is the
  * name an import can be matched against.
  */
-function jsxStylesPropTarget(node: TSESTree.ObjectExpression): string | null {
+function jsxStylesPropTarget(node: TSESTree.Node): string | null {
   let wrapped: TSESTree.Node = node;
   while (wrapped.parent && unwrapExpression(wrapped.parent) === node) {
     wrapped = wrapped.parent;
@@ -278,6 +313,7 @@ export class TastyContext {
   private moduleSources = new Map<string, string>();
   private importSources: Set<string>;
   private relativeComponents = new Map<string, boolean>();
+  private resolving = new Set<TSESTree.Node>();
 
   constructor(
     private context: RuleContext<string, unknown[]>,
@@ -615,21 +651,88 @@ export class TastyContext {
     return false;
   }
 
+  /**
+   * The style context of an object, or of any expression standing where a
+   * style object goes. Besides objects written in place, this covers an object
+   * that reaches a style position only through a conditional or logical
+   * operator (`mergeStyles(cond ? { … } : null, styles)`), and one held in a
+   * render-scope variable that is then passed on (`const local = { … }`,
+   * `styles = { ...styles, … }`, then `styles={local}`): Tasty receives each of
+   * them as styles all the same.
+   */
   getStyleContext(node: TSESTree.Node): StyleContext | null {
-    // Sub-element objects inherit their parent style object's context
-    if (node.type === 'ObjectExpression') {
-      const parent = this.getSubElementParent(node);
-      if (parent) {
-        const inherited = this.getStyleContext(parent);
-        if (inherited) return inherited;
+    // A binding can lead back into the object being resolved (`a = { X: a }`).
+    if (this.resolving.has(node)) return null;
+    this.resolving.add(node);
+    try {
+      if (node.type === 'ObjectExpression') {
+        const flow = conditionalFlowRoot(node);
+        if (flow !== node) return this.getStyleContext(flow);
       }
+      return (
+        this.getDirectStyleContext(node) ?? this.getBindingStyleContext(node)
+      );
+    } finally {
+      this.resolving.delete(node);
+    }
+  }
+
+  /**
+   * The context of a value held in a render-scope variable, taken from the
+   * first place the variable is read as styles. Module-scope bindings are
+   * shared values and are left to the declaration heuristics.
+   */
+  private getBindingStyleContext(node: TSESTree.Node): StyleContext | null {
+    let wrapped: TSESTree.Node = node;
+    while (wrapped.parent && unwrapExpression(wrapped.parent) === node) {
+      wrapped = wrapped.parent;
+    }
+    const holder = wrapped.parent;
+    let target: TSESTree.Identifier | null = null;
+    if (
+      holder?.type === 'VariableDeclarator' &&
+      holder.init === wrapped &&
+      holder.id.type === 'Identifier'
+    ) {
+      target = holder.id;
+    } else if (
+      holder?.type === 'AssignmentExpression' &&
+      holder.operator === '=' &&
+      holder.right === wrapped &&
+      holder.left.type === 'Identifier'
+    ) {
+      target = holder.left;
+    }
+    if (!target) return null;
+
+    let scope = this.context.sourceCode.getScope(target);
+    while (!scope.set.has(target.name) && scope.upper) scope = scope.upper;
+    const variable = scope.set.get(target.name);
+    if (!variable || scope.type === 'module' || scope.type === 'global') {
+      return null;
+    }
+
+    for (const reference of variable.references ?? []) {
+      if (!reference.isRead() || reference.identifier === target) continue;
+      const context = this.getStyleContext(reference.identifier);
+      if (context) return context;
+    }
+    return null;
+  }
+
+  private getDirectStyleContext(node: TSESTree.Node): StyleContext | null {
+    // Sub-element objects inherit their parent style object's context
+    const parent = this.getSubElementParent(node);
+    if (parent) {
+      const inherited = this.getStyleContext(parent);
+      if (inherited) return inherited;
     }
 
     // An object assigned to a `styles` key (or a `styles` JSX prop) is a style
     // object on its own terms — no enclosing tasty call or `styles`-ish variable
     // name required. Checked before the walk, which would otherwise climb past it
     // to an unrelated call or declaration and reject the whole thing.
-    if (node.type === 'ObjectExpression' && this.isStylesPropertyValue(node)) {
+    if (this.isStylesPropertyValue(node)) {
       // A `styles` prop is an override layer by construction: the component it
       // is handed to already carries its own styles and this object lands on
       // top of them. A Storybook `args.styles` is the same prop by another name,
@@ -1003,7 +1106,7 @@ export class TastyContext {
    * call or a `styles`-ish variable name. A bare `styles` key elsewhere is not —
    * see the selector list for why.
    */
-  isStylesPropertyValue(node: TSESTree.ObjectExpression): boolean {
+  isStylesPropertyValue(node: TSESTree.Node): boolean {
     let wrapped: TSESTree.Node = node;
     while (wrapped.parent && unwrapExpression(wrapped.parent) === node) {
       wrapped = wrapped.parent;
