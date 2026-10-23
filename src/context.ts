@@ -259,6 +259,7 @@ const TASTY_FUNCTION_NAMES = new Set([
   'tastyStatic',
   'useStyles',
   'useGlobalStyles',
+  'mergeStyles',
   'configure',
 ]);
 
@@ -632,6 +633,10 @@ export class TastyContext {
           }
         }
 
+        if (name === 'mergeStyles') {
+          return this.getMergeStylesContext(current, node);
+        }
+
         // Built-in signatures always take precedence over configured ones.
         const custom = this.config.styleFunctions?.[name];
         if (!TASTY_FUNCTION_NAMES.has(name) && custom) {
@@ -839,6 +844,29 @@ export class TastyContext {
     }
 
     return null;
+  }
+
+  /**
+   * Every object argument of `mergeStyles(base, ...overrides)` is a style
+   * object. The first is the base; each later one is layered on top, where a
+   * state map without `''` extends the one below it rather than replacing it.
+   */
+  private getMergeStylesContext(
+    call: TSESTree.CallExpression,
+    targetNode: TSESTree.Node,
+  ): StyleContext | null {
+    const index = call.arguments.findIndex(
+      (arg) => unwrapExpression(arg) === targetNode,
+    );
+    if (index === -1) return null;
+
+    return {
+      type: 'tasty',
+      isStaticCall: false,
+      isSelectorMode: false,
+      isExtending: index > 0,
+      baseComponent: null,
+    };
   }
 
   private getTastyStaticCallContext(

@@ -46,6 +46,7 @@ The plugin must detect style objects in the following locations:
 | `tastyStatic('selector', { ... })` | Second argument (selector mode) |
 | `useStyles({ ... })` | First argument |
 | `useGlobalStyles('selector', { ... })` | Second argument |
+| `mergeStyles({ ... }, { ... }, …)` | Every argument; the first is the base, later ones are partial overrides (state maps without `''` extend) |
 
 ### Import-aware detection
 

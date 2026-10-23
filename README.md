@@ -124,20 +124,20 @@ export default {
   styleFunctions: {
     defineComponent: { argument: 1, kind: 'options' },
     resolveComponentStyles: { argument: 1, kind: 'styles' },
-    mergeStyles: { argument: 'all', kind: 'styles', partial: true },
+    applyOverrides: { argument: 'all', kind: 'styles', partial: true },
   },
 } satisfies TastyValidationConfig;
 ```
 
 ```ts
-import { defineComponent as component, resolveComponentStyles, mergeStyles } from '@my-org/styling';
+import { defineComponent as component, resolveComponentStyles, applyOverrides } from '@my-org/styling';
 
 component('Card', {
   styles: { padding: '1x', Label: { color: '#text' } },
   variants: { compact: { padding: '0.5x' } },
 });
 resolveComponentStyles('Card', { padding: '1x' });
-mergeStyles(base, { fill: { hovered: '#active' } });
+applyOverrides(base, { fill: { hovered: '#active' } });
 ```
 
 | Option | Meaning |
@@ -157,7 +157,8 @@ For a fixed argument index, calls with a preceding spread argument are skipped
 because its length could move the object to a different parameter.
 
 Sub-elements inherit their containing style context. Built-in Tasty signatures
-take precedence and cannot be redefined. Config inheritance merges `styleFunctions`
+take precedence and cannot be redefined. `mergeStyles` is built in: its first
+object argument is a base style object and each later one is a partial override. Config inheritance merges `styleFunctions`
 by name, with the nearest config replacing the entire signature for that name.
 The `functions` setting above continues to describe functions inside style values;
 `styleFunctions` describes JavaScript calls. `StyleFunctionConfig` is also exported
@@ -284,7 +285,7 @@ const mergedStyles: Styles = mergeStyles(outerStyles, styles);
 
 For example, spreading `Label: { fill: '#accent' }` over
 `Label: { padding: '2x', fill: '#surface' }` loses `padding`; `mergeStyles`
-preserves it. State maps without a default key extend inherited entries, while
+preserves it. Its object arguments are linted like any other style object. State maps without a default key extend inherited entries, while
 maps with a `''` default deliberately replace them. This is a behavioral choice,
 so the rule provides no automatic rewrite. If shallow replacement is intentional,
 suppress the warning at the first spread with a reason. Single spreads and spreads
