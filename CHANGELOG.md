@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.8.5
+
+### Patch Changes
+
+- [#102](https://github.com/tenphi/eslint-plugin-tasty/pull/102) [`7c74bf0`](https://github.com/tenphi/eslint-plugin-tasty/commit/7c74bf0ee382a0c9901f141ae6ba147722178dc1) Thanks [@tenphi](https://github.com/tenphi)! - Object arguments of `mergeStyles(...)` imported from a Tasty import source are linted as style objects. `no-style-spread` recommends `mergeStyles` for composition, but following that advice took the overrides out of every rule: unknown tokens, misspelled properties and spreads inside the arguments all passed. The first argument is checked as a base style object; each later one as a partial override, so a state map without `''` there extends the one below it and `require-default-state` stays quiet, as `mergeStyles` merges it. A `styleFunctions.mergeStyles` entry in a tasty config is now superseded by this built-in signature.
+
 ## 1.8.4
 
 ### Patch Changes
