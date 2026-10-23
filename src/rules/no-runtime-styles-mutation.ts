@@ -92,7 +92,10 @@ export default createRule<[], MessageIds>({
       }
     }
 
-    /** A module-scope `const`, enum or import; `undefined` when not shadowed. */
+    /**
+     * A module-scope `const`, enum or import, or a render-scope `const` object;
+     * `undefined` when not shadowed.
+     */
     function isLoadTimeBinding(node: TSESTree.Identifier): boolean {
       let scope: ReturnType<typeof context.sourceCode.getScope> | null =
         context.sourceCode.getScope(node);
@@ -102,7 +105,17 @@ export default createRule<[], MessageIds>({
       if (!scope || !variable || variable.defs.length === 0) {
         return node.name === 'undefined';
       }
-      if (scope.type !== 'module' && scope.type !== 'global') return false;
+      if (scope.type !== 'module' && scope.type !== 'global') {
+        // A render-scope `const` object passed on as styles is a style object
+        // of its own; its values are checked where it is written.
+        return variable.defs.every(
+          (def) =>
+            def.type === 'Variable' &&
+            def.parent.kind === 'const' &&
+            def.node.init !== null &&
+            unwrapExpression(def.node.init).type === 'ObjectExpression',
+        );
+      }
 
       return variable.defs.every(
         (def) =>
