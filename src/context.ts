@@ -8,7 +8,11 @@ import {
   KNOWN_TASTY_PROPERTIES,
   SPECIAL_STYLE_KEYS,
 } from './constants.js';
-import { getKeyName, unwrapExpression } from './utils.js';
+import {
+  collectLocalStateAliases,
+  getKeyName,
+  unwrapExpression,
+} from './utils.js';
 import { finishJSXAnalysis, jsxPropKind } from './type-aware-jsx.js';
 import { isModuleTastyComponent } from './module-components.js';
 
@@ -488,7 +492,7 @@ export class TastyContext {
   }
 
   private getSubElementParent(
-    node: TSESTree.ObjectExpression,
+    node: TSESTree.Node,
   ): TSESTree.ObjectExpression | null {
     let wrapped: TSESTree.Node = node;
     while (wrapped.parent && unwrapExpression(wrapped.parent) === node) {
@@ -514,6 +518,55 @@ export class TastyContext {
       if (!parent || !this.isStyleObject(parent)) return current;
       current = parent;
     }
+  }
+
+  /** The `mergeStyles(...)` call this object is a direct argument of, if any. */
+  private getMergeStylesCall(
+    node: TSESTree.ObjectExpression,
+  ): TSESTree.CallExpression | null {
+    let wrapped: TSESTree.Node = node;
+    while (wrapped.parent && unwrapExpression(wrapped.parent) === node) {
+      wrapped = wrapped.parent;
+    }
+    const call = wrapped.parent;
+    return call?.type === 'CallExpression' &&
+      call.arguments.includes(wrapped as TSESTree.CallExpressionArgument) &&
+      this.isTastyCall(call)?.importedName === 'mergeStyles'
+      ? call
+      : null;
+  }
+
+  /**
+   * Local `@name` state aliases visible to a style object, the way Tasty
+   * resolves them: the object's own, then those of each enclosing sub-element
+   * up to the root. A `mergeStyles(...)` argument stands for the merged object,
+   * so every object argument of the call contributes, and a call that is a
+   * sub-element value sees the aliases of the styles it sits in.
+   */
+  getLocalStateAliases(node: TSESTree.ObjectExpression): string[] {
+    const aliases = new Set<string>();
+    let current: TSESTree.ObjectExpression | null = node;
+
+    while (current) {
+      const call = this.getMergeStylesCall(current);
+      const scope = call
+        ? call.arguments
+            .map((arg) => unwrapExpression(arg))
+            .filter(
+              (arg): arg is TSESTree.ObjectExpression =>
+                arg.type === 'ObjectExpression',
+            )
+        : [current];
+      for (const object of scope) {
+        for (const alias of collectLocalStateAliases(object))
+          aliases.add(alias);
+      }
+
+      const parent = this.getSubElementParent(call ?? current);
+      current = parent && this.isStyleObject(parent) ? parent : null;
+    }
+
+    return [...aliases];
   }
 
   /**

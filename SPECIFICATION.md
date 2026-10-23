@@ -1058,7 +1058,9 @@ padding: { '': '4x', '@drak': '2x' }
 padding: { '': '4x', 'hovered & @drak': '2x' }
 ```
 
-**Skipped:** when `config.states` is not set and the style object defines no local aliases.
+Local aliases are the `@name: '<state>'` keys Tasty would see for the object: its own, then those of each enclosing sub-element up to the root. A `mergeStyles(...)` argument stands for the merged object, so aliases from every object argument count, and a `mergeStyles` call used as a sub-element value also sees the styles it sits in.
+
+**Skipped:** when `config.states` is not set and no local aliases are visible.
 
 ---
 

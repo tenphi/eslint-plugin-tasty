@@ -288,8 +288,42 @@ tester.run('valid-value', rule, {
         tasty({ styles: { fill: 'red', border: '1bw solid RebeccaPurple' } });
       `,
     },
+    // Every display keyword, including the two-value syntax.
+    ...[
+      'grid-lanes',
+      'inline-grid-lanes',
+      'flow-root',
+      'inline-table',
+      'table-caption',
+      'table-header-group',
+      'ruby',
+      'ruby-text',
+      'block flex',
+      'inline grid',
+      'block flow-root',
+      'list-item block',
+      'inline flow list-item',
+    ].map((value) => ({
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { display: '${value}' } });
+      `,
+    })),
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { display: { '': 'grid', '@supports(display: grid-lanes)': 'grid-lanes' } } });
+      `,
+    },
   ],
   invalid: [
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { display: 'block flexbox' } });
+      `,
+      errors: [{ messageId: 'invalidMod' }],
+    },
     // Unbalanced parentheses
     {
       code: `

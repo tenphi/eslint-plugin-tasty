@@ -83,3 +83,96 @@ describe('mergeStyles() arguments', () => {
     expect(check(code)).toEqual([]);
   });
 });
+
+describe('local state aliases around mergeStyles()', () => {
+  const linter = new Linter();
+  // `states` there lists `@mobile`, so both alias rules are active.
+  const filename = resolve('test/fixtures/style-functions/component.ts');
+  const config = [
+    {
+      files: ['**/*.ts'],
+      languageOptions: { parser },
+      plugins: { tasty: plugin },
+      rules: {
+        'tasty/no-unknown-state-alias': 'error',
+        'tasty/valid-state-key': 'error',
+      },
+    },
+  ] as never;
+
+  function check(code: string) {
+    return linter
+      .verify(code, config, { filename })
+      .map(({ ruleId, message }) => `${ruleId}: ${message}`);
+  }
+
+  it('sees the enclosing styles from a sub-element mergeStyles() call', () => {
+    expect(
+      check(`
+        import { mergeStyles, tasty } from '@tenphi/tasty';
+        const BASE = { display: 'grid' };
+        export const A = tasty({
+          styles: {
+            '@native-row': ':has(> a)',
+            padding: { '': '1x', '@native-row': 0 },
+            Icon: mergeStyles(BASE, {
+              pointerEvents: { '': 'auto', '@native-row': 'none' },
+              Glyph: { fill: { '': '#white', '@native-row': '#black' } },
+            }),
+          },
+        });
+      `),
+    ).toEqual([]);
+  });
+
+  it('merges the aliases of every argument', () => {
+    expect(
+      check(`
+        import { mergeStyles, tasty } from '@tenphi/tasty';
+        tasty({
+          styles: mergeStyles(
+            { '@pinned': ':has(> [data-pinned])' },
+            { fill: { '': '#white', '@pinned': '#black' } },
+          ),
+        });
+      `),
+    ).toEqual([]);
+  });
+
+  it('sees aliases of enclosing sub-elements, as Tasty does', () => {
+    expect(
+      check(`
+        import { tasty } from '@tenphi/tasty';
+        tasty({
+          styles: {
+            Row: {
+              '@pinned': ':has(> [data-pinned])',
+              Cell: { fill: { '': '#white', '@pinned': '#black' } },
+            },
+          },
+        });
+      `),
+    ).toEqual([]);
+  });
+
+  it('still reports aliases defined only in a sibling or another call', () => {
+    expect(
+      check(`
+        import { mergeStyles, tasty } from '@tenphi/tasty';
+        tasty({
+          styles: {
+            Row: { '@pinned': ':has(> [data-pinned])' },
+            Cell: { fill: { '': '#white', '@pinned': '#black' } },
+            Icon: mergeStyles(base, { fill: { '': '#white', '@other': '#black' } }),
+          },
+        });
+        mergeStyles({ '@other': ':hover' }, {});
+      `).map((line) => line.split(':')[0]),
+    ).toEqual([
+      'tasty/no-unknown-state-alias',
+      'tasty/valid-state-key',
+      'tasty/no-unknown-state-alias',
+      'tasty/valid-state-key',
+    ]);
+  });
+});
