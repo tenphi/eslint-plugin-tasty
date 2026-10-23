@@ -1,12 +1,7 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
-import {
-  getKeyName,
-  getStringValue,
-  isKnownStateAlias,
-  collectLocalStateAliases,
-} from '../utils.js';
+import { getKeyName, getStringValue, isKnownStateAlias } from '../utils.js';
 import { parseStateKey } from '../parsers/state-key-parser.js';
 
 type MessageIds = 'unknownAlias';
@@ -63,8 +58,7 @@ export default createRule<[], MessageIds>({
     function handleStyleObject(node: TSESTree.ObjectExpression) {
       if (!ctx.isStyleObject(node)) return;
 
-      const rootObj = ctx.getRootStyleObject(node);
-      const localAliases = collectLocalStateAliases(rootObj);
+      const localAliases = ctx.getLocalStateAliases(node);
 
       // Skip if no states configured and no local aliases
       if (ctx.config.states.length === 0 && localAliases.length === 0) return;

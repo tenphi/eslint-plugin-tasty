@@ -1,11 +1,7 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 import { createRule } from '../create-rule.js';
 import { TastyContext, styleObjectListeners } from '../context.js';
-import {
-  getKeyName,
-  getStringValue,
-  collectLocalStateAliases,
-} from '../utils.js';
+import { getKeyName, getStringValue } from '../utils.js';
 import { parseStateKey } from '../parsers/state-key-parser.js';
 import type { StateKeyParserOptions } from '../parsers/state-key-parser.js';
 
@@ -72,8 +68,7 @@ export default createRule<[], MessageIds>({
     function handleStyleObject(node: TSESTree.ObjectExpression) {
       if (!ctx.isStyleObject(node)) return;
 
-      const rootObj = ctx.getRootStyleObject(node);
-      const localAliases = collectLocalStateAliases(rootObj);
+      const localAliases = ctx.getLocalStateAliases(node);
 
       for (const prop of node.properties) {
         if (prop.type !== 'Property' || prop.computed) continue;

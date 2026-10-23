@@ -88,6 +88,52 @@ const PASSTHROUGH: PropertyExpectation = {
   acceptsMods: true,
 };
 
+/**
+ * Every `display` keyword, one word at a time: values are checked word by
+ * word, so the two-value syntax (`block flex`, `inline flow-root`,
+ * `list-item block`) is covered by its outside, inside and `list-item` words.
+ * `grid-lanes` is CSS Grid Level 3 masonry.
+ */
+const DISPLAY_MODS = [
+  // <display-outside>
+  'block',
+  'inline',
+  'run-in',
+  // <display-inside>
+  'flow',
+  'flow-root',
+  'table',
+  'flex',
+  'grid',
+  'grid-lanes',
+  'ruby',
+  'math',
+  // <display-listitem>
+  'list-item',
+  // <display-internal>
+  'table-row-group',
+  'table-header-group',
+  'table-footer-group',
+  'table-row',
+  'table-cell',
+  'table-column-group',
+  'table-column',
+  'table-caption',
+  'ruby-base',
+  'ruby-text',
+  'ruby-base-container',
+  'ruby-text-container',
+  // <display-box>
+  'contents',
+  'none',
+  // <display-legacy>
+  'inline-block',
+  'inline-table',
+  'inline-flex',
+  'inline-grid',
+  'inline-grid-lanes',
+];
+
 export const PROPERTY_EXPECTATIONS: Record<string, PropertyExpectation> = {
   fill: { acceptsColor: true, acceptsMods: ['none', 'transparent'] },
   color: { acceptsColor: true, acceptsMods: ['none', 'transparent'] },
@@ -170,24 +216,7 @@ export const PROPERTY_EXPECTATIONS: Record<string, PropertyExpectation> = {
   tabSize: VALUE_ONLY,
 
   flow: { acceptsColor: false, acceptsMods: FLOW_MODS },
-  display: {
-    acceptsColor: false,
-    acceptsMods: [
-      'block',
-      'inline',
-      'inline-block',
-      'flex',
-      'inline-flex',
-      'grid',
-      'inline-grid',
-      'none',
-      'contents',
-      'table',
-      'table-row',
-      'table-cell',
-      'list-item',
-    ],
-  },
+  display: { acceptsColor: false, acceptsMods: DISPLAY_MODS },
   overflow: { acceptsColor: false, acceptsMods: OVERFLOW_MODS },
   position: { acceptsColor: false, acceptsMods: POSITION_MODS },
 };
