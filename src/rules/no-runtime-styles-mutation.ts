@@ -25,6 +25,93 @@ export default createRule<[], MessageIds>({
   create(context) {
     const ctx = new TastyContext(context);
 
+    /**
+     * Whether a value is fixed once the module has loaded, so Tasty generates
+     * its CSS once, exactly as for a literal: literals and `undefined`, module
+     * `const` bindings and imports (and their members), and templates,
+     * operators and `mergeStyles(...)` calls built only from those. Anything
+     * that reaches render-time scope — props, state, hook results, parameters,
+     * a local `let` — is not.
+     */
+    function isLoadTimeValue(node: TSESTree.Node): boolean {
+      const value = unwrapExpression(node);
+      if (isStaticValue(value)) return true;
+
+      switch (value.type) {
+        case 'Identifier':
+          return isLoadTimeBinding(value);
+        case 'ChainExpression':
+          return isLoadTimeValue(value.expression);
+        case 'MemberExpression':
+          return (
+            isLoadTimeValue(value.object) &&
+            (!value.computed || isLoadTimeValue(value.property))
+          );
+        case 'TemplateLiteral':
+          return value.expressions.every(isLoadTimeValue);
+        case 'UnaryExpression':
+          return value.operator !== 'delete' && isLoadTimeValue(value.argument);
+        case 'BinaryExpression':
+        case 'LogicalExpression':
+          return (
+            value.left.type !== 'PrivateIdentifier' &&
+            isLoadTimeValue(value.left) &&
+            isLoadTimeValue(value.right)
+          );
+        case 'ConditionalExpression':
+          return (
+            isLoadTimeValue(value.test) &&
+            isLoadTimeValue(value.consequent) &&
+            isLoadTimeValue(value.alternate)
+          );
+        case 'ArrayExpression':
+          return value.elements.every(
+            (element) =>
+              element === null ||
+              isLoadTimeValue(
+                element.type === 'SpreadElement' ? element.argument : element,
+              ),
+          );
+        case 'CallExpression':
+          // Object-literal arguments are style objects of their own, and this
+          // rule checks their values where they stand.
+          return (
+            ctx.isTastyCall(value)?.importedName === 'mergeStyles' &&
+            value.arguments.every((arg) => {
+              const argument = unwrapExpression(
+                arg.type === 'SpreadElement' ? arg.argument : arg,
+              );
+              return (
+                argument.type === 'ObjectExpression' ||
+                isLoadTimeValue(argument)
+              );
+            })
+          );
+        default:
+          return false;
+      }
+    }
+
+    /** A module-scope `const`, enum or import; `undefined` when not shadowed. */
+    function isLoadTimeBinding(node: TSESTree.Identifier): boolean {
+      let scope: ReturnType<typeof context.sourceCode.getScope> | null =
+        context.sourceCode.getScope(node);
+      while (scope && !scope.set.has(node.name)) scope = scope.upper;
+      const variable = scope?.set.get(node.name);
+
+      if (!scope || !variable || variable.defs.length === 0) {
+        return node.name === 'undefined';
+      }
+      if (scope.type !== 'module' && scope.type !== 'global') return false;
+
+      return variable.defs.every(
+        (def) =>
+          def.type === 'ImportBinding' ||
+          def.type === 'TSEnumName' ||
+          (def.type === 'Variable' && def.parent.kind === 'const'),
+      );
+    }
+
     function checkValue(
       node: TSESTree.Node,
       property: string,
@@ -41,7 +128,7 @@ export default createRule<[], MessageIds>({
             checkValue(element, property);
           }
         }
-      } else if (!isStaticValue(value)) {
+      } else if (!isLoadTimeValue(value)) {
         context.report({
           node: value,
           messageId: 'dynamicStyleValue',
@@ -69,7 +156,7 @@ export default createRule<[], MessageIds>({
             ? parentProperty
             : (key ?? parentProperty);
 
-        if (prop.computed) {
+        if (prop.computed && !isLoadTimeValue(prop.key)) {
           context.report({
             node: prop.key,
             messageId: 'dynamicStyleKey',
