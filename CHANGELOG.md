@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.8.7
+
+### Patch Changes
+
+- [#109](https://github.com/tenphi/eslint-plugin-tasty/pull/109) [`5200879`](https://github.com/tenphi/eslint-plugin-tasty/commit/5200879b192171aaaa3695d9c2815fb2e3e1df84) Thanks [@tenphi](https://github.com/tenphi)! - `no-runtime-styles-mutation` reports only values that can change between renders. Values fixed once the module has loaded generate their CSS once, like a literal, so they are no longer reported: `undefined`, module-scope `const` bindings, enums and imports and their members (`THEMES.special.color`), and templates, operators, conditionals and `mergeStyles(...)` calls built only from those (`` `${WIDTH}px` ``, `Icon: mergeStyles(BASE, { gridArea: 'icon' })`). Computed keys get the same test. Props, state, hook results, function parameters, local or `let` bindings and other calls are still reported, as in `mergeStyles(BASE, props.styles)` inside a component.
+
 ## 1.8.6
 
 ### Patch Changes
