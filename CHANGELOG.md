@@ -1,5 +1,13 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.8.6
+
+### Patch Changes
+
+- [#106](https://github.com/tenphi/eslint-plugin-tasty/pull/106) [`5511ca7`](https://github.com/tenphi/eslint-plugin-tasty/commit/5511ca7d3a5edaa884ada015ad462dc563c1c3e1) Thanks [@tenphi](https://github.com/tenphi)! - `valid-value` accepts every CSS `display` keyword. Its list stopped at 13 values, so `grid-lanes` (CSS masonry), `flow-root`, `inline-table`, the rest of the table and ruby families, and the two-value syntax (`block flex`, `inline flow-root`, `list-item block`) were reported as invalid modifiers. The list now covers the outside, inside, list-item, internal, box and legacy keywords of CSS Display, plus `grid-lanes` / `inline-grid-lanes`. A misspelled keyword is still reported.
+
+- [#106](https://github.com/tenphi/eslint-plugin-tasty/pull/106) [`5511ca7`](https://github.com/tenphi/eslint-plugin-tasty/commit/5511ca7d3a5edaa884ada015ad462dc563c1c3e1) Thanks [@tenphi](https://github.com/tenphi)! - `no-unknown-state-alias` and `valid-state-key` see local `@name` state aliases the way Tasty resolves them. A `mergeStyles(...)` call used as a sub-element value (`Icon: mergeStyles(BASE, { … })`) was checked without the aliases of the styles around it, so an alias defined on the root was reported as unknown. Its arguments now see the enclosing styles' aliases, aliases from every object argument of the same `mergeStyles` call count, and a sub-element also sees aliases defined on the sub-elements that contain it, as Tasty's renderer does.
+
 ## 1.8.5
 
 ### Patch Changes
