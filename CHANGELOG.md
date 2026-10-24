@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.9.0
+
+### Minor Changes
+
+- [#115](https://github.com/tenphi/eslint-plugin-tasty/pull/115) [`0accac8`](https://github.com/tenphi/eslint-plugin-tasty/commit/0accac8478ff1aaa8d3e35b02c759d974dd54472) Thanks [@tenphi](https://github.com/tenphi)! - Add a `mergeFunctions` linter setting (`settings.tasty.mergeFunctions`) that names project helpers wrapping `mergeStyles`, such as `mergeStyleLayers`. Their object arguments are now linted like `mergeStyles` arguments: the first is the base and later ones are partial overrides, including objects behind a conditional or held in a render-scope variable.
+
 ## 1.8.8
 
 ### Patch Changes
