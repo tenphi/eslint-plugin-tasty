@@ -561,7 +561,7 @@ const Box = tasty({});
         protectedComponents: [
           {
             source: '@my-org/ui',
-            exclude: ['Text'],
+            exclude: ['Text', 'Button.Group'],
             allowedStyleProps: ['position', 'dimension'],
           },
         ],
@@ -577,6 +577,8 @@ import { Button as Reexported } from './ui';
 <Button fill="#danger" styles={{ fill: '#danger' }} />;
 <Reexported inputStyles={{}} />;
 <Text color="#text" />;
+<Button.Group gap="1x" />;
+<Button.Split gap="1x" />;
 tasty(Button, { variants: {} });
 `,
     );
@@ -586,7 +588,7 @@ tasty(Button, { variants: {} });
     );
     assert.deepEqual(
       run('protected.tsx'),
-      { status: 0, rules: Array(4).fill('no-protected-restyle') },
+      { status: 0, rules: Array(5).fill('no-protected-restyle') },
       `${linter.name}: no-protected-restyle follows protectedComponents`,
     );
     console.log(

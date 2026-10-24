@@ -12,9 +12,16 @@ export interface StyleFunctionConfig {
 export interface ProtectedComponentConfig {
   /** Package the components are imported from. `*` matches any run of characters. */
   source: string;
-  /** Exported names to protect, `*` matching any run of characters. Defaults to every export. */
+  /**
+   * Exported names to protect, `*` matching any run of characters. Defaults to
+   * every export. A name with a dot is a member path, such as `Button.Split` or
+   * `Menu.*`, and wins over an entry that matches only the export.
+   */
   include?: string[];
-  /** Exported names to leave out, such as layout and typography primitives. */
+  /**
+   * Exported names or member paths to leave out, such as layout and typography
+   * primitives, or a separate component attached as `Button.Group`.
+   */
   exclude?: string[];
   /**
    * Style props that place or size the root and stay allowed: `'position'` and

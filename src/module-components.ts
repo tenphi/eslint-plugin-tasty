@@ -305,8 +305,23 @@ export interface ModuleExportOrigin {
   source: string;
   /** The name the package exports it under. */
   name: string;
+  /** Members read off that export: `['Group']` for `Button.Group`. */
+  members: string[];
   /** Whether a component factory call, such as `tasty(Button)`, wraps it. */
   wrapped: boolean;
+}
+
+/**
+ * An origin with more members read off it. A factory wrapper's members are its
+ * own sub-elements, not the wrapped component's, so they lead nowhere.
+ */
+export function withMembers(
+  origin: ModuleExportOrigin | null,
+  members: string[],
+): ModuleExportOrigin | null {
+  if (!origin || members.length === 0) return origin;
+  if (origin.wrapped) return null;
+  return { ...origin, members: [...origin.members, ...members] };
 }
 
 export interface ModuleOriginOptions extends ModuleComponentOptions {
@@ -317,7 +332,7 @@ export interface ModuleOriginOptions extends ModuleComponentOptions {
 /**
  * Follow `exportName` of the module `specifier` (relative to `fromFile`) to the
  * package import it comes from: through re-exports, `const` aliases, namespace
- * members (`UI.Button` is `Button`, `Text.Strong` is `Text`), and factory
+ * members (`UI.Button` is `Button`), member reads (`Button.Group`), and factory
  * wrappers whose first argument is the component they extend.
  */
 export function resolveModuleExportOrigin(
@@ -339,41 +354,47 @@ export function resolveModuleExportOrigin(
   if (!info) return null;
   const T = getTypeScript()!;
 
+  /** `members` are read off the binding, so a namespace's first one is the export. */
   const fromImport = (
     binding: ImportBinding,
-    member?: string,
+    members: string[] = [],
   ): ModuleExportOrigin | null => {
-    const name = binding.imported === '*' ? member : binding.imported;
+    const namespace = binding.imported === '*';
+    const name = namespace ? members[0] : binding.imported;
+    const rest = namespace ? members.slice(1) : members;
     if (name === undefined) return null;
     if (!binding.source.startsWith('.')) {
-      return { source: binding.source, name, wrapped: false };
+      return { source: binding.source, name, members: rest, wrapped: false };
     }
-    return resolveModuleExportOrigin(
-      filename,
-      binding.source,
-      name,
-      options,
-      visited,
+    return withMembers(
+      resolveModuleExportOrigin(
+        filename,
+        binding.source,
+        name,
+        options,
+        visited,
+      ),
+      rest,
     );
   };
 
   const seenLocals = new Set<string>();
   const fromLocal = (
     name: string,
-    member?: string,
+    members: string[] = [],
   ): ModuleExportOrigin | null => {
-    const seen = `${name}\0${member ?? ''}`;
+    const seen = [name, ...members].join('.');
     if (seenLocals.has(seen)) return null;
     seenLocals.add(seen);
     const init = info.constants.get(name);
-    if (init) return fromExpression(init, member);
+    if (init) return fromExpression(init, members);
     const binding = info.imports.get(name);
-    return binding ? fromImport(binding, member) : null;
+    return binding ? fromImport(binding, members) : null;
   };
 
   const fromExpression = (
     node: ts.Expression,
-    member?: string,
+    members: string[] = [],
   ): ModuleExportOrigin | null => {
     while (
       T.isParenthesizedExpression(node) ||
@@ -384,18 +405,18 @@ export function resolveModuleExportOrigin(
     ) {
       node = node.expression;
     }
-    if (T.isIdentifier(node)) return fromLocal(node.text, member);
+    if (T.isIdentifier(node)) return fromLocal(node.text, members);
     if (T.isPropertyAccessExpression(node)) {
       let root: ts.Expression = node;
-      let first = member;
+      const path = [...members];
       while (T.isPropertyAccessExpression(root)) {
-        first = root.name.text;
+        path.unshift(root.name.text);
         root = root.expression;
       }
-      return T.isIdentifier(root) ? fromLocal(root.text, first) : null;
+      return T.isIdentifier(root) ? fromLocal(root.text, path) : null;
     }
     if (
-      member === undefined &&
+      members.length === 0 &&
       T.isCallExpression(node) &&
       T.isIdentifier(node.expression)
     ) {
@@ -435,7 +456,7 @@ export function resolveModuleExportOrigin(
           visited,
         )
       : options.isOriginSource(source)
-        ? { source, name: exportName, wrapped: false }
+        ? { source, name: exportName, members: [], wrapped: false }
         : null;
     if (origin) return origin;
   }

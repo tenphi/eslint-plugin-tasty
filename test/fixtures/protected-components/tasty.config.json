@@ -4,9 +4,15 @@
   "protectedComponents": [
     {
       "source": "@my-org/ui",
-      "exclude": ["Block", "Text", "*Icon"],
+      "exclude": ["Block", "Text", "*Icon", "ButtonGroup", "Button.Group"],
       "allowedStyleProps": ["position", "dimension", "hide"]
     },
-    { "source": "@my-org/strict-*" }
+    { "source": "@my-org/strict-*" },
+    {
+      "source": "@my-org/ui",
+      "include": ["Button.Split", "Menu.*"],
+      "exclude": ["Menu.Section"],
+      "allowedStyleProps": ["direction"]
+    }
   ]
 }

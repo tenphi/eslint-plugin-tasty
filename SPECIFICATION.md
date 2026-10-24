@@ -221,9 +221,12 @@ interface TastyValidationConfig {
 interface ProtectedComponentConfig {
   /** Package the components are imported from; `*` matches any run of characters. */
   source: string;
-  /** Exported names to protect. Defaults to every export. */
+  /**
+   * Exported names to protect. Defaults to every export. A name with a dot is a
+   * member path (`Button.Split`, `Menu.*`).
+   */
   include?: string[];
-  /** Exported names to leave open, such as layout primitives or `*Icon`. */
+  /** Exported names or member paths to leave open, such as `*Icon` or `Button.Group`. */
   exclude?: string[];
   /**
    * Style props that place or size the root and stay allowed. `'position'` and
@@ -1404,9 +1407,13 @@ it. A JSX tag or `tasty()` base resolves to the name its source exports it
 under: named, default and namespace imports (`UI.Button` is `Button`, and
 `Text.Strong` follows `Text`), `const` aliases, `tasty(Base, …)` wrappers, and
 relative modules through their re-exports, wrappers and `export *` from a
-protected source. The first entry whose `source`, `include` and `exclude` match
-decides; its `allowedStyleProps` expands `'position'` and `'dimension'` to
-Tasty's `POSITION_STYLES` and `DIMENSION_STYLES`.
+protected source. Members read off the export are kept as a path
+(`Button.Group.Item`). Patterns with a dot name a member path: for each prefix of
+the path, longest first, the first entry whose dotted `exclude` or `include`
+matches decides (excluded leaves it open). Otherwise the first entry whose
+undotted `include` and `exclude` fit the export name decides. The entry's
+`allowedStyleProps` expands `'position'` and `'dimension'` to Tasty's
+`POSITION_STYLES` and `DIMENSION_STYLES`.
 
 On a protected component it reports:
 
