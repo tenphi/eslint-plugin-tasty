@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.12.0
+
+### Minor Changes
+
+- [#126](https://github.com/tenphi/eslint-plugin-tasty/pull/126) [`c9f136a`](https://github.com/tenphi/eslint-plugin-tasty/commit/c9f136a7b915f41775886f39d7bd5bdf6361688e) Thanks [@tenphi](https://github.com/tenphi)! - `protectedComponents` entries can name a sub-component by its member path, such as `'Button.Group'` or `'Menu.*'`, in `include` or `exclude`. An entry that names a member path decides for it before an entry that matches only the export it hangs off. A separate component attached for convenience, such as a layout-primitive `Button.Group`, can then stay open while `Button` keeps its contract. The longest named path wins, so `'Button.Group'` also covers `Button.Group.Item`. Aliases, namespace imports, `const` aliases and relative re-exports of a member (`export const SplitButton = Button.Split`) resolve to the same path.
+
 ## 1.11.0
 
 ### Minor Changes
