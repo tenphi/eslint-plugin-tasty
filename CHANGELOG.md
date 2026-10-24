@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.9.1
+
+### Patch Changes
+
+- [#118](https://github.com/tenphi/eslint-plugin-tasty/pull/118) [`aa0d701`](https://github.com/tenphi/eslint-plugin-tasty/commit/aa0d7011c89360eac6e318875f8131980c6d38b3) Thanks [@tenphi](https://github.com/tenphi)! - `valid-sub-element` accepts a `null` sub-element, such as the reset in `mergeStyles(base, { Title: null })`, like it accepts `false`. Its report now names the value readably ("not a string", "not an array") instead of "not a object".
+
 ## 1.9.0
 
 ### Minor Changes
