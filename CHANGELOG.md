@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.10.0
+
+### Minor Changes
+
+- [#120](https://github.com/tenphi/eslint-plugin-tasty/pull/120) [`236a719`](https://github.com/tenphi/eslint-plugin-tasty/commit/236a7199f5c72c477128e2cf165bcd023da4a821) Thanks [@tenphi](https://github.com/tenphi)! - `no-style-prop` gains an `elements` option: `'components'` reports `style` on every component and `'all'` on native elements too (default `'tasty'`, unchanged). With it, a project can remove `style` from `react/forbid-component-props` and `react/forbid-dom-props`, so a `style` exception names one rule and no longer hides the other props those rules forbid on the same line.
+
 ## 1.9.1
 
 ### Patch Changes
