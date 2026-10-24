@@ -1168,7 +1168,7 @@ Validates sub-element values and the scope of their `$` selector affixes.
 
 **Rules:**
 1. Sub-element keys must start with an uppercase letter: `Title`, `Content`, `Icon`.
-2. The value must be a style object (not a string or number).
+2. The value must be a style object (not a string or number). `false` and `null` disable the sub-element, and in a later `mergeStyles` layer or a `styles` prop they remove the one below; `undefined` leaves it unchanged. Neither is reported.
 3. Nested sub-elements inside sub-elements are valid (e.g., `Title: { Icon: { ... } }`).
 4. A `$` affix such as `&:is(h1)` that selects the root element is an error.
    Root conditions belong in property state maps; use `$: 'h1'` for descendant
