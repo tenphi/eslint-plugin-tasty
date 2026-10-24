@@ -6,16 +6,16 @@ import { getKeyName, getStringValue, unwrapExpression } from '../utils.js';
 
 type MessageIds = 'subElementNotObject' | 'subElementTargetsRoot';
 
-/** Expressions whose result is visibly not an object. */
-const NON_OBJECT_EXPRESSIONS = new Set<string>([
-  'TemplateLiteral',
-  'ArrayExpression',
-  'ArrowFunctionExpression',
-  'FunctionExpression',
-  'ClassExpression',
-  'UnaryExpression',
-  'BinaryExpression',
-  'UpdateExpression',
+/** Expressions whose result is visibly not an object, as named in a report. */
+const NON_OBJECT_EXPRESSIONS = new Map<string, string>([
+  ['TemplateLiteral', 'a string'],
+  ['ArrayExpression', 'an array'],
+  ['ArrowFunctionExpression', 'a function'],
+  ['FunctionExpression', 'a function'],
+  ['ClassExpression', 'a class'],
+  ['UnaryExpression', 'a primitive value'],
+  ['BinaryExpression', 'a primitive value'],
+  ['UpdateExpression', 'a number'],
 ]);
 
 const LEGACY_PSEUDO_ELEMENTS = new Set([
@@ -98,7 +98,7 @@ export default createRule<[], MessageIds>({
     },
     messages: {
       subElementNotObject:
-        "Sub-element '{{name}}' value must be a style object, not a {{type}}.",
+        "Sub-element '{{name}}' value must be a style object, not {{type}}.",
       subElementTargetsRoot:
         "Sub-element '{{name}}' selector '{{selector}}' styles the containing element instead of a sub-element. Use property state maps in that containing scope, or a descendant '$' selector such as 'h1'. Pseudo-elements such as '&::before' are allowed.",
     },
@@ -129,8 +129,10 @@ export default createRule<[], MessageIds>({
     }
 
     /**
-     * The type to name in the report when a value can never be a style object,
-     * or `null` when it is `false` (disables the sub-element) or might be one.
+     * What to name in the report when a value can never be a style object, or
+     * `null` when it might be one or is `false` or `null`. Both disable the
+     * sub-element, and in a later `mergeStyles` layer or a `styles` prop they
+     * remove the one below; `undefined` (`void 0`) leaves it as it is.
      * A `const` binding is followed to what it names; any other binding, member
      * or call is opaque, and Tasty accepts a reference to a style object there.
      */
@@ -140,7 +142,12 @@ export default createRule<[], MessageIds>({
     ): string | null {
       node = unwrapExpression(node);
       if (node.type === 'Literal') {
-        return node.value === false ? null : typeof node.value;
+        if ('regex' in node && node.regex) return 'a regular expression';
+        if (node.value === false || node.value === null) return null;
+        return `a ${typeof node.value}`;
+      }
+      if (node.type === 'UnaryExpression' && node.operator === 'void') {
+        return null;
       }
       if (node.type === 'Identifier') {
         if (seen.has(node)) return null;
@@ -162,7 +169,7 @@ export default createRule<[], MessageIds>({
           ? null
           : nonObjectType(init, seen);
       }
-      return NON_OBJECT_EXPRESSIONS.has(node.type) ? node.type : null;
+      return NON_OBJECT_EXPRESSIONS.get(node.type) ?? null;
     }
 
     // Recurse only through owned sub-elements. Some shared/JSX listeners match

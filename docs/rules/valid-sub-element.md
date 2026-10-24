@@ -1,6 +1,8 @@
 # tasty/valid-sub-element
 
-Sub-element values must be style objects, or `false` to disable the sub-element.
+Sub-element values must be style objects, or `false` or `null` to disable the
+sub-element. In a later `mergeStyles` layer or a `styles` prop, either one
+removes the sub-element styles below it.
 Their `$` selectors must select inner elements or pseudo-elements, rather than
 reuse the sub-element mechanism to style the component root. Both recommended
 and strict presets enable this rule as an error.

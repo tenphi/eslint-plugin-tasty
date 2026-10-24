@@ -114,6 +114,18 @@ tester.run('valid-sub-element', rule, {
         }});
       `,
     },
+    // `null` disables a sub-element like `false`, and resets it in a later layer.
+    ...[
+      `import { tasty } from '@tenphi/tasty'; tasty({ styles: { Title: null } });`,
+      `import { tasty } from '@tenphi/tasty'; tasty(Base, { styles: { Title: null, Icon: void 0 } });`,
+      `import { mergeStyles } from '@tenphi/tasty'; mergeStyles({ Title: { color: '#dark' } }, { Title: null });`,
+      `const node = <Card styles={{ Title: null }} />;`,
+      `import { tasty } from '@tenphi/tasty'; const NONE = null; tasty({ styles: { Title: NONE as null } });`,
+    ].map((code) => ({ code })),
+    {
+      code: `import { mergeStyleLayers } from './styles'; mergeStyleLayers({ Title: { color: null } }, { Title: null });`,
+      settings: { tasty: { mergeFunctions: ['mergeStyleLayers'] } },
+    },
   ],
   invalid: [
     ...[
@@ -192,13 +204,30 @@ tester.run('valid-sub-element', rule, {
       errors: [
         {
           messageId: 'subElementNotObject',
-          data: { name: 'Title', type: 'string' },
+          data: { name: 'Title', type: 'a string' },
         },
         {
           messageId: 'subElementNotObject',
-          data: { name: 'Items', type: 'ArrayExpression' },
+          data: { name: 'Items', type: 'an array' },
         },
       ],
     },
+    ...Object.entries({
+      true: 'a boolean',
+      '0': 'a number',
+      '10n': 'a bigint',
+      '/x/': 'a regular expression',
+      '`#purple`': 'a string',
+      '() => ({})': 'a function',
+      '-1': 'a primitive value',
+    }).map(([value, type]) => ({
+      code: `import { tasty } from '@tenphi/tasty'; tasty({ styles: { Title: ${value} } });`,
+      errors: [
+        {
+          messageId: 'subElementNotObject' as const,
+          data: { name: 'Title', type },
+        },
+      ],
+    })),
   ],
 });
