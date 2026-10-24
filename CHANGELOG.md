@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.11.0
+
+### Minor Changes
+
+- [#123](https://github.com/tenphi/eslint-plugin-tasty/pull/123) [`2502009`](https://github.com/tenphi/eslint-plugin-tasty/commit/2502009da4a29bb1cfa6c06b32d0b6081d499a27) Thanks [@tenphi](https://github.com/tenphi)! - Add `tasty/no-protected-restyle` and the `protectedComponents` config key. A design system lists, in its `tasty.config.*`, the components consumers should customize through their props instead of restyling, and consumers inherit the list through `extends`. On those components the rule reports instance `styles` and `*Styles` props, appearance style props outside `allowedStyleProps`, and `tasty()` wrappers that restyle them. It follows aliases, namespace members, `tasty()` wrappers and relative re-exports. It is a warning in both presets and does nothing until a config lists protected components.
+
 ## 1.10.0
 
 ### Minor Changes
