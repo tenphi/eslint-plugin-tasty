@@ -12,6 +12,7 @@ import {
   collectLocalStateAliases,
   getKeyName,
   unwrapExpression,
+  wildcardPattern,
 } from './utils.js';
 import { finishJSXAnalysis, jsxPropKind } from './type-aware-jsx.js';
 import { isModuleTastyComponent } from './module-components.js';
@@ -286,13 +287,6 @@ function isInRepoSource(source: string): boolean {
   );
 }
 
-/** Matches a source against an `ownedSources` pattern, where `*` is any run of characters. */
-function matchesSourcePattern(pattern: string, source: string): boolean {
-  const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-  return new RegExp(`^${escaped.replace(/\\\*/g, '.*')}$`).test(source);
-}
-
 /** `settings.tasty.mergeFunctions`: project helpers with `mergeStyles` semantics. */
 function readMergeFunctions(
   context: RuleContext<string, unknown[]>,
@@ -395,6 +389,11 @@ export class TastyContext {
     return this.imports.get(localName);
   }
 
+  /** The built-in and configured `importSources`. */
+  get trackedSources(): ReadonlySet<string> {
+    return this.importSources;
+  }
+
   /**
    * Whether the base component an extension layer sits on top of lives in a file
    * this project can edit — so a rule can decide whether pointing the author at
@@ -414,7 +413,7 @@ export class TastyContext {
     // `ownedSources` is optional on the public `ResolvedConfig`, so a config
     // built by a consumer rather than by `loadConfig` may not carry it.
     return (this.config.ownedSources ?? []).some((pattern) =>
-      matchesSourcePattern(pattern, source),
+      wildcardPattern(pattern).test(source),
     );
   }
 

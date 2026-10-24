@@ -209,6 +209,28 @@ interface TastyValidationConfig {
    * @example ['@my-org/*']
    */
   ownedSources?: string[];
+
+  /**
+   * Design-system components consumers should customize through their props
+   * instead of restyling, read by `tasty/no-protected-restyle`. Entries from an
+   * extended config come first; `false` drops them.
+   */
+  protectedComponents?: false | ProtectedComponentConfig[];
+}
+
+interface ProtectedComponentConfig {
+  /** Package the components are imported from; `*` matches any run of characters. */
+  source: string;
+  /** Exported names to protect. Defaults to every export. */
+  include?: string[];
+  /** Exported names to leave open, such as layout primitives or `*Icon`. */
+  exclude?: string[];
+  /**
+   * Style props that place or size the root and stay allowed. `'position'` and
+   * `'dimension'` stand for Tasty's `POSITION_STYLES` and `DIMENSION_STYLES`;
+   * anything else is a property name. Defaults to none.
+   */
+  allowedStyleProps?: string[];
 }
 ```
 
@@ -218,6 +240,7 @@ interface TastyValidationConfig {
 - Added `recipes` field — validates `recipe` property values.
 - Added `importSources` field — recognizes custom re-exports of tasty.
 - Added `ownedSources` field — marks which base components are this project's to edit.
+- Added `protectedComponents` field — lists the design-system components consumers should not restyle.
 - Kept `extends` for config composition.
 - Removed `presetDescriptions` and `stateDescriptions` — those are IDE tooltip features, not relevant for lint diagnostics.
 
@@ -1372,6 +1395,37 @@ See the [style](docs/rules/no-style-prop.md),
 [className](docs/rules/no-classname-prop.md), and
 [styles](docs/rules/no-styles-prop.md) rule guides for migration examples.
 
+#### `tasty/no-protected-restyle`
+
+**Severity:** warn (default)
+
+Reads `protectedComponents` from the resolved config and does nothing without
+it. A JSX tag or `tasty()` base resolves to the name its source exports it
+under: named, default and namespace imports (`UI.Button` is `Button`, and
+`Text.Strong` follows `Text`), `const` aliases, `tasty(Base, …)` wrappers, and
+relative modules through their re-exports, wrappers and `export *` from a
+protected source. The first entry whose `source`, `include` and `exclude` match
+decides; its `allowedStyleProps` expands `'position'` and `'dimension'` to
+Tasty's `POSITION_STYLES` and `DIMENSION_STYLES`.
+
+On a protected component it reports:
+
+1. JSX `styles`, unless it is an inline object whose every key is an allowed
+   style prop, and every `*Styles` prop, including keys of inline object spreads.
+2. JSX style props (a Tasty style property or a `config.styles` entry) outside
+   `allowedStyleProps`. Plain CSS property names are excluded because some of
+   them (`size`, `orientation`) are common semantic props. With `typeAwareJSX`,
+   a prop the component types as its own is skipped. Callbacks and JSX values
+   are never style values.
+3. `tasty(Protected, { … })` options with `variants`, `styles` (as above), or
+   `*Styles` and style props among the default props. Wrapper options such as
+   `tokens`, `mods`, `styleProps` and `variant` pass.
+
+A design system's own source imports its components by relative path, which
+does not match `source`. Messages name the component, and the protected export
+behind an alias or wrapper; overrides take a reasoned disable comment. See the
+[rule guide](docs/rules/no-protected-restyle.md).
+
 ---
 
 #### `tasty/no-important`
@@ -1603,6 +1657,7 @@ The plugin should export preset configurations:
   'tasty/no-style-prop': 'warn',
   'tasty/no-classname-prop': 'warn',
   'tasty/no-styles-prop': 'warn',
+  'tasty/no-protected-restyle': 'warn',
   'tasty/no-ignored-pseudo-element-state': 'error',
 }
 
@@ -1679,6 +1734,7 @@ Use the TypeScript type checker to resolve types. Any object expression whose ty
 | `no-style-prop` | Low | P3 |
 | `no-classname-prop` | Low | P3 |
 | `no-styles-prop` | Low | P3 |
+| `no-protected-restyle` | Medium-High | P3 |
 | `no-important` | Low | P1 |
 | `consistent-token-usage` | Medium | P3 |
 | `no-runtime-styles-mutation` | High | P3 |

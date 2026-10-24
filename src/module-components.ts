@@ -298,3 +298,146 @@ export function isModuleTastyComponent(
     isModuleTastyComponent(filename, source, exportName, options, visited),
   );
 }
+
+/** The package import an export of a relative module comes from. */
+export interface ModuleExportOrigin {
+  /** The package specifier, as written in the import. */
+  source: string;
+  /** The name the package exports it under. */
+  name: string;
+  /** Whether a component factory call, such as `tasty(Button)`, wraps it. */
+  wrapped: boolean;
+}
+
+export interface ModuleOriginOptions extends ModuleComponentOptions {
+  /** Whether `export * from source` may provide the name being followed. */
+  isOriginSource(source: string): boolean;
+}
+
+/**
+ * Follow `exportName` of the module `specifier` (relative to `fromFile`) to the
+ * package import it comes from: through re-exports, `const` aliases, namespace
+ * members (`UI.Button` is `Button`, `Text.Strong` is `Text`), and factory
+ * wrappers whose first argument is the component they extend.
+ */
+export function resolveModuleExportOrigin(
+  fromFile: string,
+  specifier: string,
+  exportName: string,
+  options: ModuleOriginOptions,
+  visited = new Set<string>(),
+): ModuleExportOrigin | null {
+  if (!specifier.startsWith('.')) return null;
+  const filename = resolveRelativeModule(fromFile, specifier);
+  if (filename === null) return null;
+
+  const key = `${filename}\0${exportName}`;
+  if (visited.has(key)) return null;
+  visited.add(key);
+
+  const info = readModule(filename);
+  if (!info) return null;
+  const T = getTypeScript()!;
+
+  const fromImport = (
+    binding: ImportBinding,
+    member?: string,
+  ): ModuleExportOrigin | null => {
+    const name = binding.imported === '*' ? member : binding.imported;
+    if (name === undefined) return null;
+    if (!binding.source.startsWith('.')) {
+      return { source: binding.source, name, wrapped: false };
+    }
+    return resolveModuleExportOrigin(
+      filename,
+      binding.source,
+      name,
+      options,
+      visited,
+    );
+  };
+
+  const seenLocals = new Set<string>();
+  const fromLocal = (
+    name: string,
+    member?: string,
+  ): ModuleExportOrigin | null => {
+    const seen = `${name}\0${member ?? ''}`;
+    if (seenLocals.has(seen)) return null;
+    seenLocals.add(seen);
+    const init = info.constants.get(name);
+    if (init) return fromExpression(init, member);
+    const binding = info.imports.get(name);
+    return binding ? fromImport(binding, member) : null;
+  };
+
+  const fromExpression = (
+    node: ts.Expression,
+    member?: string,
+  ): ModuleExportOrigin | null => {
+    while (
+      T.isParenthesizedExpression(node) ||
+      T.isAsExpression(node) ||
+      T.isSatisfiesExpression(node) ||
+      T.isNonNullExpression(node) ||
+      T.isTypeAssertionExpression(node)
+    ) {
+      node = node.expression;
+    }
+    if (T.isIdentifier(node)) return fromLocal(node.text, member);
+    if (T.isPropertyAccessExpression(node)) {
+      let root: ts.Expression = node;
+      let first = member;
+      while (T.isPropertyAccessExpression(root)) {
+        first = root.name.text;
+        root = root.expression;
+      }
+      return T.isIdentifier(root) ? fromLocal(root.text, first) : null;
+    }
+    if (
+      member === undefined &&
+      T.isCallExpression(node) &&
+      T.isIdentifier(node.expression)
+    ) {
+      const binding = info.imports.get(node.expression.text);
+      const base = node.arguments[0];
+      if (
+        !binding ||
+        !options.importSources.has(binding.source) ||
+        !options.isComponentFactory(binding.imported) ||
+        !base ||
+        T.isObjectLiteralExpression(base)
+      ) {
+        return null;
+      }
+      const origin = fromExpression(base);
+      return origin && { ...origin, wrapped: true };
+    }
+    return null;
+  };
+
+  const local = info.exports.get(exportName);
+  if (local !== undefined) return fromLocal(local);
+  if (exportName === 'default' && info.defaultExpression) {
+    return fromExpression(info.defaultExpression);
+  }
+  const reexport = info.reexports.get(exportName);
+  if (reexport) return fromImport(reexport);
+  if (exportName === 'default') return null;
+
+  for (const source of info.starSources) {
+    const origin = source.startsWith('.')
+      ? resolveModuleExportOrigin(
+          filename,
+          source,
+          exportName,
+          options,
+          visited,
+        )
+      : options.isOriginSource(source)
+        ? { source, name: exportName, wrapped: false }
+        : null;
+    if (origin) return origin;
+  }
+  return null;
+}

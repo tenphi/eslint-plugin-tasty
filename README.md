@@ -106,6 +106,10 @@ file and relative, absolute, `~`, `#` or `@/` imports count as yours already —
 list a scope here only for a design system you publish from your own monorepo
 (`*` matches any run of characters).
 
+A design system can also list the components consumers should customize through
+their props instead of restyling, in `protectedComponents`; consumers inherit the
+list through `extends`. See [`tasty/no-protected-restyle`](docs/rules/no-protected-restyle.md).
+
 > `functions` was called `funcs` before v1. The old spelling is still read as a
 > deprecated alias.
 
@@ -230,6 +234,7 @@ not matched.
 | `tasty/no-style-prop` | warn | `style` on recognized Tasty components; use token references and the `tokens` prop. The `elements` option covers every component or element, so it can replace React's `style` restriction ([details](docs/rules/no-style-prop.md)) |
 | `tasty/no-classname-prop` | warn | `className` on recognized Tasty components; keep styling in Tasty or use `data-element` for sub-elements ([details](docs/rules/no-classname-prop.md)) |
 | `tasty/no-styles-prop` | warn | Instance `styles` on recognized Tasty components; use `tokens`, `mods`, exposed props/variants, or `tasty(Component, { styles })` ([details](docs/rules/no-styles-prop.md)) |
+| `tasty/no-protected-restyle` | warn | Restyling a design system's `protectedComponents`: instance `styles` and `*Styles`, appearance style props, and `tasty()` wrappers that restyle them, followed through aliases, wrappers and relative re-exports. Inactive without the config ([details](docs/rules/no-protected-restyle.md)) |
 | `tasty/consistent-token-usage` | warn | Nonzero raw pixel lengths, including compounds, expressions and numeric inputs to enhanced length handlers |
 | `tasty/prefer-auto-calc` | warn | `calc(...)` instead of Tasty auto-calc `(...)` |
 | `tasty/prefer-state-negation` | warn | Top-level `:not(...)` in state keys instead of the `!` prefix (autofixable; nested CSS selectors stay intact) |
@@ -418,6 +423,10 @@ on components imported from it. Native elements, unrelated components, shadowed 
 aliases are excluded. Opaque spread bindings are not evaluated. Third-party
 styling integrations and edge-case instance overrides need an explicit local
 ignore with a reason, as described above.
+
+A design system can go further and protect its components from restyling: see
+[`tasty/no-protected-restyle`](docs/rules/no-protected-restyle.md), which reads
+`protectedComponents` from `tasty.config.*`.
 
 ## Value validation in JSX
 

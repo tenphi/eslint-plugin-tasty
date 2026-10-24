@@ -23,6 +23,13 @@ export function unwrapExpression(node: TSESTree.Node): TSESTree.Node {
   return current;
 }
 
+/** A whole-string pattern in which `*` matches any run of characters. */
+export function wildcardPattern(pattern: string): RegExp {
+  const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  return new RegExp(`^${escaped.replace(/\\\*/g, '.*')}$`);
+}
+
 /**
  * Gets the string value of a property key node.
  */

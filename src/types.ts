@@ -8,6 +8,22 @@ export interface StyleFunctionConfig {
   partial?: boolean;
 }
 
+/** Design-system components whose look is a contract, for `no-protected-restyle`. */
+export interface ProtectedComponentConfig {
+  /** Package the components are imported from. `*` matches any run of characters. */
+  source: string;
+  /** Exported names to protect, `*` matching any run of characters. Defaults to every export. */
+  include?: string[];
+  /** Exported names to leave out, such as layout and typography primitives. */
+  exclude?: string[];
+  /**
+   * Style props that place or size the root and stay allowed: `'position'` and
+   * `'dimension'` stand for Tasty's `POSITION_STYLES` and `DIMENSION_STYLES`,
+   * anything else is a property name.
+   */
+  allowedStyleProps?: string[];
+}
+
 export interface TastyValidationConfig {
   extends?: string;
   tokens?: false | string[];
@@ -39,6 +55,11 @@ export interface TastyValidationConfig {
    * of characters, so `@my-org/*` covers every package under the scope.
    */
   ownedSources?: string[];
+  /**
+   * Components a consumer should customize through their props rather than
+   * restyle. Entries from an extended config come first; `false` drops them.
+   */
+  protectedComponents?: false | ProtectedComponentConfig[];
 }
 
 export interface ResolvedConfig {
@@ -60,4 +81,6 @@ export interface ResolvedConfig {
   ownedSources?: string[];
   /** Optional for compatibility with existing consumer-built configs. */
   styleFunctions?: Record<string, StyleFunctionConfig>;
+  /** Optional for compatibility with existing consumer-built configs. */
+  protectedComponents?: ProtectedComponentConfig[];
 }
