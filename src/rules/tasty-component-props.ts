@@ -1,45 +1,29 @@
-import type { JSONSchema4 } from '@typescript-eslint/utils/json-schema';
 import type { TSESTree } from '@typescript-eslint/utils';
 import type { TastyContext } from '../context.js';
 import { getKeyName, unwrapExpression } from '../utils.js';
 
-export type PropRuleOptions = [{ alsoDisabledBy?: string[] }];
+/**
+ * What a JSX element is, for prop rules: a recognized Tasty component, any
+ * other component (capitalized or member tag), or a native element.
+ */
+export type JSXElementKind = 'tasty' | 'component' | 'element';
 
 /**
- * React's `forbid-component-props` commonly forbids the same prop on every
- * component, Tasty ones included. A reasoned exception written for it already
- * acknowledges the usage, so it covers the Tasty rule too, and the line needs
- * one directive instead of two.
+ * Inspect explicit props and inline object spreads on every JSX element without
+ * evaluating spread bindings. `kinds` limits which elements are classified and
+ * checked, so a Tasty-only rule never runs component recognition elsewhere.
  */
-export const PROP_RULE_DEFAULT_OPTIONS: PropRuleOptions = [
-  { alsoDisabledBy: ['react/forbid-component-props'] },
-];
-
-export const PROP_RULE_SCHEMA: JSONSchema4[] = [
-  {
-    type: 'object',
-    properties: {
-      alsoDisabledBy: {
-        type: 'array',
-        items: { type: 'string' },
-        uniqueItems: true,
-      },
-    },
-    additionalProperties: false,
-  },
-];
-
-/** Inspect explicit props and inline object spreads without evaluating spread bindings. */
-export function tastyComponentPropListeners(
+export function jsxPropListeners(
   ctx: TastyContext,
-  check: (name: string, node: TSESTree.Node) => void,
+  kinds: ReadonlySet<JSXElementKind>,
+  check: (name: string, node: TSESTree.Node, kind: JSXElementKind) => void,
 ) {
-  function visitSpread(node: TSESTree.Node): void {
+  function visitSpread(node: TSESTree.Node, kind: JSXElementKind): void {
     node = unwrapExpression(node);
     if (node.type !== 'ObjectExpression') return;
     for (const prop of node.properties) {
       if (prop.type === 'SpreadElement') {
-        visitSpread(prop.argument);
+        visitSpread(prop.argument, kind);
       } else {
         const name = prop.computed
           ? getKeyName(unwrapExpression(prop.key))
@@ -49,10 +33,25 @@ export function tastyComponentPropListeners(
           name !== null &&
           (!prop.computed || unwrapExpression(prop.key).type === 'Literal')
         ) {
-          check(name, prop);
+          check(name, prop, kind);
         }
       }
     }
+  }
+
+  function classify(node: TSESTree.JSXOpeningElement): JSXElementKind | null {
+    let name = node.name;
+    while (name.type === 'JSXMemberExpression') name = name.object;
+    // `<svg:rect>` and lowercase tags are native; `<motion.div>` is a component.
+    if (
+      name.type !== 'JSXIdentifier' ||
+      (node.name.type === 'JSXIdentifier' && !/^[A-Z]/.test(name.name))
+    ) {
+      return kinds.has('element') ? 'element' : null;
+    }
+    if (kinds.has('tasty') && ctx.isTastyJSXComponent(node, name.name))
+      return 'tasty';
+    return kinds.has('component') ? 'component' : null;
   }
 
   return {
@@ -60,18 +59,24 @@ export function tastyComponentPropListeners(
       ctx.trackImport(node);
     },
     JSXOpeningElement(node: TSESTree.JSXOpeningElement) {
-      let name = node.name;
-      while (name.type === 'JSXMemberExpression') name = name.object;
-      if (name.type !== 'JSXIdentifier') return;
-      if (node.name.type === 'JSXIdentifier' && !/^[A-Z]/.test(name.name))
-        return;
-      if (!ctx.isTastyJSXComponent(node, name.name)) return;
+      const kind = classify(node);
+      if (!kind) return;
       for (const attribute of node.attributes) {
         if (attribute.type === 'JSXSpreadAttribute')
-          visitSpread(attribute.argument);
+          visitSpread(attribute.argument, kind);
         else if (attribute.name.type === 'JSXIdentifier')
-          check(attribute.name.name, attribute);
+          check(attribute.name.name, attribute, kind);
       }
     },
   };
+}
+
+const TASTY_ONLY = new Set<JSXElementKind>(['tasty']);
+
+/** Inspect explicit props and inline object spreads on recognized Tasty components. */
+export function tastyComponentPropListeners(
+  ctx: TastyContext,
+  check: (name: string, node: TSESTree.Node) => void,
+) {
+  return jsxPropListeners(ctx, TASTY_ONLY, (name, node) => check(name, node));
 }

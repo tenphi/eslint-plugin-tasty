@@ -1353,14 +1353,14 @@ convention; the plugin does not enforce directive descriptions. Syntax,
 configuration, state-order, and static-extraction checks retain correctness
 guidance.
 
-`tasty/no-style-prop` and `tasty/no-classname-prop` take one option,
-`alsoDisabledBy` (default `['react/forbid-component-props']`): rules whose
-ESLint or Oxlint disable directives also silence them. React's rule reports the
-same attribute when it forbids that prop on components, so its reasoned exception
-already acknowledges the usage. A `-next-line`, `-line` or block `disable`
-directive naming a listed rule (or no rule) suppresses the report on an attribute
-or spread property it covers, with the linters' own placement semantics; block
-directives count only in block comments, and a later `enable` ends them.
+`tasty/no-style-prop` takes an `elements` option: `'tasty'` (default) checks
+recognized Tasty components only, `'components'` adds every other capitalized or
+member tag, and `'all'` adds native elements (lowercase, custom-element and
+namespaced tags). Non-Tasty elements get a separate `noInlineStyle` message that
+points at `tasty()` elements and `tasty(Component, { styles })` wrappers. The
+wider settings let a project remove `style` from `react/forbid-component-props`
+and `react/forbid-dom-props`, whose disable directives cover every prop they
+forbid, so a `style` exception names one rule and hides nothing else.
 
 | Rule | Replacement guidance |
 |---|---|

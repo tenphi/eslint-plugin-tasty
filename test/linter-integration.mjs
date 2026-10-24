@@ -114,7 +114,7 @@ export default [{ files: ['**/*.{ts,tsx}'], languageOptions: { parser, parserOpt
       }),
     diagnostics: (result) =>
       result.diagnostics.map((diagnostic) =>
-        diagnostic.code.replace(/^tasty[(/]([^)]*)\)?$/, '$1'),
+        diagnostic.code.replace(/^tasty[(/]/, '').replace(/\)$/, ''),
       ),
     fix: '--fix-suggestions',
   },
@@ -529,37 +529,30 @@ mergeStyleLayers(styles, input ? { Input: { paddding: '1x' } } : null);
       { status: 1, rules: ['known-property'] },
       `${linter.name}: mergeFunctions lints the helper's object arguments`,
     );
-    if (linter.name === 'oxlint') {
-      // Oxlint ships react/forbid-component-props, which overlaps both rules.
-      writeFileSync(
-        join(dir, 'shared-exception.tsx'),
-        `import { tasty } from '@tenphi/tasty';
+    writeFileSync(
+      join(dir, 'inline-style.tsx'),
+      `import { tasty } from '@tenphi/tasty';
 const Box = tasty({});
-// eslint-disable-next-line react/forbid-component-props -- adapter
 <Box style={value} />;
-<>{/* oxlint-disable-next-line react/forbid-component-props -- adapter */}
-<Box className="x" /></>;
-<Box style={value} />;
+<Other style={value} />;
+<div style={value} />;
 `,
-      );
+    );
+    for (const [elements, count] of [
+      [undefined, 1],
+      ['components', 2],
+      ['all', 3],
+    ]) {
       writeFileSync(
         join(dir, linter.configName),
-        JSON.stringify({
-          ...JSON.parse(
-            linter.config({
-              'tasty/no-style-prop': 'warn',
-              'tasty/no-classname-prop': 'warn',
-              'react/forbid-component-props': 'warn',
-            }),
-          ),
-          plugins: ['react'],
+        linter.config({
+          'tasty/no-style-prop': elements ? ['warn', { elements }] : 'warn',
         }),
       );
-      // Only the last, unexcepted usage reports, once from each rule.
       assert.deepEqual(
-        run('shared-exception.tsx').rules,
-        ['no-style-prop', 'react(forbid-component-props)'],
-        `${linter.name}: a React exception covers the overlapping Tasty rule`,
+        run('inline-style.tsx'),
+        { status: 0, rules: Array(count).fill('no-style-prop') },
+        `${linter.name}: no-style-prop elements ${elements ?? 'default'}`,
       );
     }
     console.log(

@@ -1,14 +1,22 @@
 import { createRule } from '../create-rule.js';
 import { TastyContext } from '../context.js';
-import { isDisabledFor } from '../disable-directives.js';
 import {
-  PROP_RULE_DEFAULT_OPTIONS,
-  PROP_RULE_SCHEMA,
-  type PropRuleOptions,
-  tastyComponentPropListeners,
+  type JSXElementKind,
+  jsxPropListeners,
 } from './tasty-component-props.js';
 
-export default createRule<PropRuleOptions, 'noStyleProp'>({
+type Elements = 'tasty' | 'components' | 'all';
+
+const KINDS: Record<Elements, ReadonlySet<JSXElementKind>> = {
+  tasty: new Set(['tasty']),
+  components: new Set(['tasty', 'component']),
+  all: new Set(['tasty', 'component', 'element']),
+};
+
+export default createRule<
+  [{ elements?: Elements }],
+  'noStyleProp' | 'noInlineStyle'
+>({
   name: 'no-style-prop',
   meta: {
     type: 'suggestion',
@@ -18,19 +26,28 @@ export default createRule<PropRuleOptions, 'noStyleProp'>({
     messages: {
       noStyleProp:
         "Avoid the 'style' prop on Tasty components. Define styles with token references and pass dynamic values through 'tokens' (e.g. tokens={{ $size: value }}). If a third-party library requires inline styles, explicitly disable tasty/no-style-prop for this usage with an ESLint comment and a reason.",
+      noInlineStyle:
+        "Avoid the 'style' prop. Move these styles into Tasty: render a tasty() element, or wrap the component with tasty(Component, { styles }), using token references and passing dynamic values through 'tokens'. If a third-party library requires inline styles, explicitly disable tasty/no-style-prop for this usage with an ESLint comment and a reason.",
     },
-    schema: PROP_RULE_SCHEMA,
+    schema: [
+      {
+        type: 'object',
+        properties: {
+          elements: { type: 'string', enum: ['tasty', 'components', 'all'] },
+        },
+        additionalProperties: false,
+      },
+    ],
   },
-  defaultOptions: PROP_RULE_DEFAULT_OPTIONS,
-  create(context, [{ alsoDisabledBy = [] }]) {
+  defaultOptions: [{ elements: 'tasty' }],
+  create(context, [{ elements = 'tasty' }]) {
     const ctx = new TastyContext(context);
-    const overlapping = new Set(alsoDisabledBy);
-    return tastyComponentPropListeners(ctx, (name, node) => {
-      if (
-        name === 'style' &&
-        !isDisabledFor(context.sourceCode, node, overlapping)
-      )
-        context.report({ node, messageId: 'noStyleProp' });
+    return jsxPropListeners(ctx, KINDS[elements], (name, node, kind) => {
+      if (name !== 'style') return;
+      context.report({
+        node,
+        messageId: kind === 'tasty' ? 'noStyleProp' : 'noInlineStyle',
+      });
     });
   },
 });
