@@ -41,14 +41,47 @@ export default {
 | Key | Meaning |
 | --- | --- |
 | `source` | The package the components are imported from. `*` matches any run of characters. |
-| `include` | Exported names to protect. Defaults to every export. |
-| `exclude` | Exported names to leave open, usually layout and typography primitives. `*` matches any run of characters, so `*Icon` covers every icon. |
+| `include` | Exported names or member paths to protect. Defaults to every export. |
+| `exclude` | Exported names or member paths to leave open, usually layout and typography primitives. `*` matches any run of characters, so `*Icon` covers every icon. |
 | `allowedStyleProps` | Style props that place or size the root and stay allowed. `'position'` and `'dimension'` stand for Tasty's `POSITION_STYLES` (`gridArea`, `margin`, `inset`, `zIndex`, …) and `DIMENSION_STYLES` (`width`, `height`, `flex`, …); anything else is a property name. Defaults to none. |
 
 A component matches the first entry whose `source`, `include` and `exclude` fit
 it, so a second entry for the same source can give a few components their own
 `allowedStyleProps`. Entries from an extended config come first; a config can
 add its own, or set `protectedComponents: false` to drop the inherited ones.
+
+### Sub-components
+
+A sub-component such as `<Button.Primary>` follows the entry of the export it
+hangs off, which suits one that shares its parent's contract. Some are separate
+components attached for convenience, though: `Button.Group` may be a layout
+primitive. A name with a dot in `include` or `exclude` is a member path
+(`'Button.Group'`, `'Menu.*'`), and an entry that names a component's member
+path decides for it before any entry that matches only its export:
+
+```ts
+protectedComponents: [
+  {
+    source: '@my-org/ui',
+    exclude: ['Space', 'ButtonGroup', 'Button.Group'],
+    allowedStyleProps: ['position', 'dimension'],
+  },
+  // `Button.Split` gets its own allowance; `Button` and `Button.Primary` don't.
+  { source: '@my-org/ui', include: ['Button.Split'], allowedStyleProps: ['direction'] },
+],
+```
+
+```tsx
+<Button.Group gap="1x" flow="row" />; // passes: Button.Group is excluded
+<Button.Split direction="column" />; // passes
+<Button gap="1x" />; // reported: Button keeps its contract
+```
+
+The longest named path wins, so `'Button.Group'` also covers
+`<Button.Group.Item>`, and the first entry that names a path decides it:
+excluding the path leaves it open, including it protects it with that entry's
+`allowedStyleProps`. Patterns without a dot, `*` included, only ever match the
+export name.
 
 For `extends: '@my-org/ui'` to find the list, the package has to publish its
 `tasty.config.*` at the package root.
@@ -115,7 +148,8 @@ A component resolves to the name its source exports it under, so:
 - an aliased import (`import { Button as UIButton }`) still counts;
 - a namespace member (`<UI.Button>`) is `Button`;
 - a sub-component (`<Text.Strong>`) follows `Text`, so excluding `Text` leaves
-  `Text.Strong` open too;
+  `Text.Strong` open too, unless an entry names the member path (see
+  [Sub-components](#sub-components));
 - `const` aliases and `tasty()` wrappers are followed, within the file and
   across relative imports, along with relative re-exports and `export *` from a
   protected source. Following relative modules needs the `typescript` package.

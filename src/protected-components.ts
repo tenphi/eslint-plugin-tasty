@@ -6,12 +6,17 @@ import { DIMENSION_STYLES, POSITION_STYLES } from './constants.js';
 import {
   type ModuleExportOrigin,
   resolveModuleExportOrigin,
+  withMembers,
 } from './module-components.js';
 import { unwrapExpression, wildcardPattern } from './utils.js';
 
 /** A component resolved to a `protectedComponents` entry. */
 export interface ProtectedComponent {
-  /** The name its source exports it under: `Button` for `<UI.Button>` or an alias. */
+  /**
+   * The name it is protected under: the export name (`Button` for `<UI.Button>`,
+   * an alias or `<Button.Split>`), or the member path an entry names, such as
+   * `Button.Group`.
+   */
   name: string;
   source: string;
   /** Whether a `tasty()` wrapper sits between the reference and the export. */
@@ -19,11 +24,21 @@ export interface ProtectedComponent {
   allowedStyleProps: ReadonlySet<string>;
 }
 
+interface Pattern {
+  regex: RegExp;
+  /** Names a member path, such as `Button.Group` or `Button.*`. */
+  member: boolean;
+}
+
 interface Entry {
   source: RegExp;
-  include: RegExp[];
-  exclude: RegExp[];
+  include: Pattern[];
+  exclude: Pattern[];
   allowedStyleProps: ReadonlySet<string>;
+}
+
+function namePattern(pattern: string): Pattern {
+  return { regex: wildcardPattern(pattern), member: pattern.includes('.') };
 }
 
 const STYLE_PROP_GROUPS = new Map<string, readonly string[]>([
@@ -64,8 +79,8 @@ function readEntries(config: ResolvedConfig): Entry[] {
     };
     return {
       source: wildcardPattern(entry.source as string),
-      include: strings('include').map(wildcardPattern),
-      exclude: strings('exclude').map(wildcardPattern),
+      include: strings('include').map(namePattern),
+      exclude: strings('exclude').map(namePattern),
       allowedStyleProps: new Set(
         strings('allowedStyleProps').flatMap(
           (name) => STYLE_PROP_GROUPS.get(name) ?? [name],
@@ -85,10 +100,10 @@ function importedName(specifier: TSESTree.ImportSpecifier): string {
 
 /**
  * Resolves JSX tags and `tasty()` bases to the `protectedComponents` entry they
- * name, by the name their source exports them under. Aliases, namespace members
- * (`UI.Button`, and `Text.Strong` as `Text`), `const` aliases, `tasty()`
- * wrappers and relative re-exports are followed; relative modules need the
- * `typescript` package, as for other cross-file recognition.
+ * name, by the name their source exports them under plus any members read off
+ * it (`Button.Group`). Aliases, namespace members (`UI.Button`), `const`
+ * aliases, `tasty()` wrappers and relative re-exports are followed; relative
+ * modules need the `typescript` package, as for other cross-file recognition.
  */
 export class ProtectedComponents {
   private entries: Entry[];
@@ -125,70 +140,96 @@ export class ProtectedComponents {
     // `<button>` is a native element whatever a `button` binding holds.
     if (name.type === 'JSXIdentifier' && !/^[A-Z]/.test(name.name)) return null;
     let root = name;
-    let member: string | undefined;
+    const members: string[] = [];
     while (root.type === 'JSXMemberExpression') {
-      member = root.property.name;
+      members.unshift(root.property.name);
       root = root.object;
     }
     if (root.type !== 'JSXIdentifier') return null;
-    return this.match(this.resolveBinding(root, root.name, member, new Set()));
+    return this.match(this.resolveBinding(root, root.name, members, new Set()));
   }
 
   /** The protected component an expression, such as a `tasty()` base, refers to. */
   resolveExpression(node: TSESTree.Node): ProtectedComponent | null {
-    return this.match(this.origin(node, undefined, new Set()));
+    return this.match(this.origin(node, [], new Set()));
   }
 
+  /**
+   * The most specific name decides: an entry that names a member path
+   * (`Button.Group`, `Button.*`) in `include` or `exclude` wins over one that
+   * matches only the export, so a sub-component that is a separate component
+   * can follow its own entry. Longer paths are tried first.
+   */
   private match(origin: ModuleExportOrigin | null): ProtectedComponent | null {
     if (!origin) return null;
-    const entry = this.entries.find(
-      (candidate) =>
-        candidate.source.test(origin.source) &&
-        candidate.include.some((pattern) => pattern.test(origin.name)) &&
-        !candidate.exclude.some((pattern) => pattern.test(origin.name)),
+    const entries = this.entries.filter((entry) =>
+      entry.source.test(origin.source),
     );
-    return entry
-      ? { ...origin, allowedStyleProps: entry.allowedStyleProps }
-      : null;
+    const protect = (name: string, entry: Entry): ProtectedComponent => ({
+      name,
+      source: origin.source,
+      wrapped: origin.wrapped,
+      allowedStyleProps: entry.allowedStyleProps,
+    });
+
+    const parts = [origin.name, ...origin.members];
+    for (let length = parts.length; length > 1; length--) {
+      const path = parts.slice(0, length).join('.');
+      const names = (patterns: Pattern[]) =>
+        patterns.some((pattern) => pattern.member && pattern.regex.test(path));
+      for (const entry of entries) {
+        if (names(entry.exclude)) return null;
+        if (names(entry.include)) return protect(path, entry);
+      }
+    }
+
+    const matches = (patterns: Pattern[]) =>
+      patterns.some(
+        (pattern) => !pattern.member && pattern.regex.test(origin.name),
+      );
+    const entry = entries.find(
+      (candidate) => matches(candidate.include) && !matches(candidate.exclude),
+    );
+    return entry ? protect(origin.name, entry) : null;
   }
 
   private origin(
     node: TSESTree.Node,
-    member: string | undefined,
+    members: string[],
     visited: Set<TSESTree.Node>,
   ): ModuleExportOrigin | null {
     const value = unwrapExpression(node);
     if (value.type === 'Identifier') {
-      return this.resolveBinding(value, value.name, member, visited);
+      return this.resolveBinding(value, value.name, members, visited);
     }
     if (value.type === 'MemberExpression') {
       let root: TSESTree.Node = value;
-      let first = member;
+      const path = [...members];
       while (root.type === 'MemberExpression') {
         if (root.computed || root.property.type !== 'Identifier') return null;
-        first = root.property.name;
+        path.unshift(root.property.name);
         root = unwrapExpression(root.object);
       }
       return root.type === 'Identifier'
-        ? this.resolveBinding(root, root.name, first, visited)
+        ? this.resolveBinding(root, root.name, path, visited)
         : null;
     }
     if (
-      member === undefined &&
+      members.length === 0 &&
       value.type === 'CallExpression' &&
       this.isWrapperCall(value)
     ) {
-      const origin = this.origin(value.arguments[0], undefined, visited);
+      const origin = this.origin(value.arguments[0], [], visited);
       return origin && { ...origin, wrapped: true };
     }
     return null;
   }
 
-  /** `member` is the first property read off the binding, as in `UI.Button`. */
+  /** `members` are the properties read off the binding, as in `UI.Button.Group`. */
   private resolveBinding(
     reference: TSESTree.Node,
     localName: string,
-    member: string | undefined,
+    members: string[],
     visited: Set<TSESTree.Node>,
   ): ModuleExportOrigin | null {
     let scope: Scope.Scope | null = this.context.sourceCode.getScope(reference);
@@ -201,17 +242,17 @@ export class ProtectedComponents {
       cache = new Map();
       this.bindings.set(variable, cache);
     }
-    const key = member ?? '';
+    const key = members.join('.');
     if (cache.has(key)) return cache.get(key)!;
 
-    const result = this.resolveDefinition(variable.defs[0], member, visited);
+    const result = this.resolveDefinition(variable.defs[0], members, visited);
     cache.set(key, result);
     return result;
   }
 
   private resolveDefinition(
     def: Scope.Definition,
-    member: string | undefined,
+    members: string[],
     visited: Set<TSESTree.Node>,
   ): ModuleExportOrigin | null {
     if (def.type === 'ImportBinding') {
@@ -223,8 +264,10 @@ export class ProtectedComponents {
       }
       const specifier = def.node;
       let name: string | undefined;
-      if (specifier.type === 'ImportNamespaceSpecifier') name = member;
-      else if (specifier.type === 'ImportDefaultSpecifier') name = 'default';
+      let rest = members;
+      if (specifier.type === 'ImportNamespaceSpecifier') {
+        [name, ...rest] = members;
+      } else if (specifier.type === 'ImportDefaultSpecifier') name = 'default';
       else if (specifier.type === 'ImportSpecifier') {
         if (specifier.importKind === 'type') return null;
         name = importedName(specifier);
@@ -232,8 +275,10 @@ export class ProtectedComponents {
       if (name === undefined) return null;
 
       const source = def.parent.source.value;
-      if (!source.startsWith('.')) return { source, name, wrapped: false };
-      return this.moduleOrigin(source, name);
+      if (!source.startsWith('.')) {
+        return { source, name, members: rest, wrapped: false };
+      }
+      return withMembers(this.moduleOrigin(source, name), rest);
     }
 
     if (
@@ -246,7 +291,7 @@ export class ProtectedComponents {
       return null;
     }
     visited.add(def.node);
-    return this.origin(def.node.init, member, visited);
+    return this.origin(def.node.init, members, visited);
   }
 
   private moduleOrigin(

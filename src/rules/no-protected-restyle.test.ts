@@ -92,6 +92,21 @@ tasty(Button, options);
 tasty(Text, { styles: { color: '#text' } });
 tasty({ styles: { fill: '#danger' } });`,
     ),
+    // An entry that names a member path decides for it before its base's entry,
+    // including deeper members, aliases and wrappers of it.
+    tsx(`import * as UI from '@my-org/ui';
+import { tasty } from '@tenphi/tasty';
+import { Button, ButtonGroup, Menu } from '@my-org/ui';
+const Group = Button.Group;
+const Spaced = tasty(Button.Group, { styles: { gap: '2x' } });
+<ButtonGroup gap="1x" flow="row" />;
+<Button.Group gap="1x" flow="row" />;
+<UI.Button.Group gap="1x" />;
+<Group placeContent="end" />;
+<Button.Group.Item fill="#danger" />;
+<Button.Split direction="column" />;
+<Menu.Item direction="row" />;
+<Menu.Section fill="#danger" />;`),
     // Without protectedComponents, the rule has nothing to check.
     {
       code: `import { Button } from '@my-org/ui';\n<Button styles={{ fill: '#danger' }} />;`,
@@ -215,6 +230,28 @@ import Copy from './wrappers';
         prop('fill', "'AliasedCard' (based on 'Card')"),
         prop('fill', "'Dialog'", "'@my-org/strict-ui'"),
         prop('fill', "'Copy' (based on 'Button')"),
+      ],
+    },
+    {
+      // A named member follows its own entry; other members follow the base.
+      ...tsx(`import { tasty } from '@tenphi/tasty';
+import { Button, Menu } from '@my-org/ui';
+import { SplitButton } from './wrappers';
+<Button.Split fill="#danger" direction="column" />;
+<Button.Primary direction="column" />;
+<Button gap="1x" />;
+<Menu.Item fill="#danger" />;
+<Menu fill="#danger" />;
+<SplitButton fill="#danger" />;
+tasty(Button.Split, { fill: '#danger' });`),
+      errors: [
+        prop('fill', "'Button.Split'"),
+        prop('direction', "'Button.Primary' (based on 'Button')"),
+        prop('gap'),
+        prop('fill', "'Menu.Item'"),
+        prop('fill', "'Menu'"),
+        prop('fill', "'SplitButton' (based on 'Button.Split')"),
+        wrapper('fill', "'Button.Split'"),
       ],
     },
     {
