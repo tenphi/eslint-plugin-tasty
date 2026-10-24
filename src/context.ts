@@ -293,6 +293,26 @@ function matchesSourcePattern(pattern: string, source: string): boolean {
   return new RegExp(`^${escaped.replace(/\\\*/g, '.*')}$`).test(source);
 }
 
+/** `settings.tasty.mergeFunctions`: project helpers with `mergeStyles` semantics. */
+function readMergeFunctions(
+  context: RuleContext<string, unknown[]>,
+): ReadonlySet<string> {
+  const settings = context.settings?.tasty as
+    | { mergeFunctions?: unknown }
+    | undefined;
+  const option = settings?.mergeFunctions;
+  if (option === undefined) return new Set();
+  if (
+    !Array.isArray(option) ||
+    option.some((name) => typeof name !== 'string')
+  ) {
+    throw new Error(
+      'tasty: mergeFunctions must be an array of function names.',
+    );
+  }
+  return new Set(option);
+}
+
 const TASTY_FUNCTION_NAMES = new Set([
   'tasty',
   'tastyStatic',
@@ -312,6 +332,7 @@ export class TastyContext {
   private imports = new Map<string, TastyImport>();
   private moduleSources = new Map<string, string>();
   private importSources: Set<string>;
+  private mergeFunctions: ReadonlySet<string>;
   private relativeComponents = new Map<string, boolean>();
   private resolving = new Set<TSESTree.Node>();
 
@@ -324,6 +345,7 @@ export class TastyContext {
       ...DEFAULT_IMPORT_SOURCES,
       ...this.config.importSources,
     ]);
+    this.mergeFunctions = readMergeFunctions(context);
   }
 
   trackImport(node: TSESTree.ImportDeclaration): void {
@@ -416,6 +438,52 @@ export class TastyContext {
       scope = scope.upper;
     }
     return undefined;
+  }
+
+  /**
+   * `mergeStyles(...)`, or a call to a project helper named in
+   * `settings.tasty.mergeFunctions`. A helper matches by its imported name, so
+   * an aliased import still counts, or by the name it is declared under in this
+   * file; a parameter of the same name shadows it.
+   */
+  isMergeStylesCall(node: TSESTree.CallExpression): boolean {
+    if (this.isTastyCall(node)?.importedName === 'mergeStyles') return true;
+    if (this.mergeFunctions.size === 0) return false;
+
+    const callee = unwrapExpression(node.callee);
+    if (callee.type !== 'Identifier') return false;
+
+    let scope = this.context.sourceCode.getScope(callee);
+    while (scope) {
+      const variable = scope.set.get(callee.name);
+      if (variable) {
+        return variable.defs.some((def) => {
+          if (def.type === 'FunctionName' || def.type === 'Variable') {
+            return this.mergeFunctions.has(callee.name);
+          }
+          if (
+            def.type !== 'ImportBinding' ||
+            def.parent.type !== 'ImportDeclaration' ||
+            def.parent.importKind === 'type'
+          ) {
+            return false;
+          }
+          if (def.node.type === 'ImportDefaultSpecifier') {
+            return this.mergeFunctions.has(callee.name);
+          }
+          if (def.node.type !== 'ImportSpecifier') return false;
+          if (def.node.importKind === 'type') return false;
+          const imported = def.node.imported;
+          return this.mergeFunctions.has(
+            imported.type === 'Identifier' ? imported.name : imported.value,
+          );
+        });
+      }
+      if (!scope.upper) break;
+      scope = scope.upper;
+    }
+    // An undeclared global, such as an auto-imported helper.
+    return this.mergeFunctions.has(callee.name);
   }
 
   /** Local factory results, const aliases, and configured component imports. */
@@ -556,7 +624,10 @@ export class TastyContext {
     }
   }
 
-  /** The `mergeStyles(...)` call this object is a direct argument of, if any. */
+  /**
+   * The `mergeStyles(...)` call, or configured merge helper call, this object
+   * is a direct argument of, if any.
+   */
   private getMergeStylesCall(
     node: TSESTree.ObjectExpression,
   ): TSESTree.CallExpression | null {
@@ -567,7 +638,7 @@ export class TastyContext {
     const call = wrapped.parent;
     return call?.type === 'CallExpression' &&
       call.arguments.includes(wrapped as TSESTree.CallExpressionArgument) &&
-      this.isTastyCall(call)?.importedName === 'mergeStyles'
+      this.isMergeStylesCall(call)
       ? call
       : null;
   }
@@ -751,6 +822,10 @@ export class TastyContext {
 
     while (current) {
       if (current.type === 'CallExpression') {
+        if (this.isMergeStylesCall(current)) {
+          return this.getMergeStylesContext(current, node);
+        }
+
         const imp = this.isTastyCall(current);
         if (!imp) return null;
 
@@ -787,10 +862,6 @@ export class TastyContext {
               baseComponent: null,
             };
           }
-        }
-
-        if (name === 'mergeStyles') {
-          return this.getMergeStylesContext(current, node);
         }
 
         // Built-in signatures always take precedence over configured ones.

@@ -76,7 +76,7 @@ export default createRule<[], MessageIds>({
           // Object-literal arguments are style objects of their own, and this
           // rule checks their values where they stand.
           return (
-            ctx.isTastyCall(value)?.importedName === 'mergeStyles' &&
+            ctx.isMergeStylesCall(value) &&
             value.arguments.every((arg) => {
               const argument = unwrapExpression(
                 arg.type === 'SpreadElement' ? arg.argument : arg,

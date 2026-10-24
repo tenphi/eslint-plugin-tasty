@@ -176,3 +176,100 @@ describe('local state aliases around mergeStyles()', () => {
     ]);
   });
 });
+
+describe('settings.tasty.mergeFunctions', () => {
+  const linter = new Linter();
+  const filename = resolve('test/fixtures/style-values/component.tsx');
+  const rules = [
+    'known-property',
+    'require-default-state',
+    'no-runtime-styles-mutation',
+  ];
+
+  function check(code: string, mergeFunctions?: unknown) {
+    const config = [
+      {
+        files: ['**/*.tsx'],
+        languageOptions: {
+          parser,
+          parserOptions: { ecmaFeatures: { jsx: true } },
+        },
+        plugins: { tasty: plugin },
+        settings: { tasty: { mergeFunctions } },
+        rules: Object.fromEntries(
+          rules.map((rule) => [`tasty/${rule}`, 'warn']),
+        ),
+      },
+    ] as never;
+    return linter
+      .verify(code, config, { filename })
+      .map(({ ruleId, messageId }) => `${ruleId}:${messageId}`);
+  }
+
+  const helper = `
+    import { mergeStyleLayers } from '../../utils/styles';
+    function InlineInput({ styles, inputStyles, size }) {
+      const mergedStyles = mergeStyleLayers(
+        styles,
+        inputStyles ? { Input: { paddding: '1x', fontSize: size } } : null,
+      );
+      return <Element styles={mergedStyles} />;
+    }
+  `;
+
+  it('leaves project helpers alone by default', () => {
+    expect(check(helper)).toEqual([]);
+  });
+
+  it('lints the object arguments of a listed helper, like mergeStyles', () => {
+    expect(check(helper, ['mergeStyleLayers'])).toEqual([
+      'tasty/known-property:unknownProperty',
+      'tasty/no-runtime-styles-mutation:dynamicStyleValue',
+    ]);
+  });
+
+  it('treats only the first argument as the base', () => {
+    expect(
+      check(
+        `
+          import { mergeStyleLayers } from './styles';
+          mergeStyleLayers({ fill: { hovered: '#surface' } }, { fill: { pressed: '#surface' } });
+        `,
+        ['mergeStyleLayers'],
+      ),
+    ).toEqual(['tasty/require-default-state:missingDefaultState']);
+  });
+
+  it.each(
+    Object.entries({
+      'an aliased import': `import { mergeStyleLayers as merge } from './styles'; merge(base, { colour: '#surface' });`,
+      'a default import': `import mergeStyleLayers from './styles'; mergeStyleLayers(base, { colour: '#surface' });`,
+      'a local declaration': `function mergeStyleLayers(...layers) { return layers; } mergeStyleLayers(base, { colour: '#surface' });`,
+      'a local const': `const mergeStyleLayers = (...layers) => layers; mergeStyleLayers(base, { colour: '#surface' });`,
+    }),
+  )('recognizes %s', (_, code) => {
+    expect(check(code, ['mergeStyleLayers'])).toEqual([
+      'tasty/known-property:unknownProperty',
+    ]);
+  });
+
+  it.each(
+    Object.entries({
+      'an unlisted helper': `import { mergeOther } from './styles'; mergeOther(base, { colour: '#surface' });`,
+      'a shadowing parameter': `import { mergeStyleLayers } from './styles'; function f(mergeStyleLayers) { mergeStyleLayers(base, { colour: '#surface' }); }`,
+      'a type-only import': `import type { mergeStyleLayers } from './styles'; mergeStyleLayers(base, { colour: '#surface' });`,
+      'a nested non-argument object': `import { mergeStyleLayers } from './styles'; mergeStyleLayers(base, pick({ colour: '#surface' }));`,
+    }),
+  )('ignores %s', (_, code) => {
+    expect(check(code, ['mergeStyleLayers'])).toEqual([]);
+  });
+
+  it.each([['mergeStyleLayers'], [['mergeStyleLayers', 1]], [{}]])(
+    'rejects an invalid setting: %j',
+    (mergeFunctions) => {
+      expect(() =>
+        check(`mergeStyleLayers(base, {});`, mergeFunctions),
+      ).toThrow('tasty: mergeFunctions must be an array of function names.');
+    },
+  );
+});

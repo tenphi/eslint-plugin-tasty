@@ -164,6 +164,34 @@ The `functions` setting above continues to describe functions inside style value
 `styleFunctions` describes JavaScript calls. `StyleFunctionConfig` is also exported
 for typing shared signatures.
 
+### Project merge helpers
+
+A project helper that wraps `mergeStyles`, often imported from a relative path,
+can get the same checks. List it in `mergeFunctions` in the **linter config**
+(ESLint or Oxlint `settings`), not `tasty.config.*`:
+
+```js
+settings: {
+  tasty: {
+    mergeFunctions: ['mergeStyleLayers'],
+  },
+},
+```
+
+```tsx
+import { mergeStyleLayers } from '../../utils/styles';
+
+mergeStyleLayers(styles, inputStyles ? { Input: inputStyles } : null);
+```
+
+Each object argument of a listed helper is then linted like a `mergeStyles`
+argument: the first is the base, later ones are partial overrides, including
+objects behind a conditional or held in a render-scope variable. A helper matches
+by its imported name, from any module (so named import aliases work), or by the
+name it is declared or default-imported under in the file. A parameter of the
+same name shadows it, and member calls such as `utils.mergeStyleLayers(...)` are
+not matched.
+
 ## Rules
 
 ### Recommended
