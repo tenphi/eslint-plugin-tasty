@@ -529,6 +529,32 @@ mergeStyleLayers(styles, input ? { Input: { paddding: '1x' } } : null);
       { status: 1, rules: ['known-property'] },
       `${linter.name}: mergeFunctions lints the helper's object arguments`,
     );
+    writeFileSync(
+      join(dir, 'inline-style.tsx'),
+      `import { tasty } from '@tenphi/tasty';
+const Box = tasty({});
+<Box style={value} />;
+<Other style={value} />;
+<div style={value} />;
+`,
+    );
+    for (const [elements, count] of [
+      [undefined, 1],
+      ['components', 2],
+      ['all', 3],
+    ]) {
+      writeFileSync(
+        join(dir, linter.configName),
+        linter.config({
+          'tasty/no-style-prop': elements ? ['warn', { elements }] : 'warn',
+        }),
+      );
+      assert.deepEqual(
+        run('inline-style.tsx'),
+        { status: 0, rules: Array(count).fill('no-style-prop') },
+        `${linter.name}: no-style-prop elements ${elements ?? 'default'}`,
+      );
+    }
     console.log(
       `${linter.name}: custom calls, import boundaries, diagnostics, fixes, full presets, JSX value policies, and component prop guidance passed`,
     );

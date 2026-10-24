@@ -295,3 +295,89 @@ describe('components imported from relative modules', () => {
     });
   }
 });
+
+describe('no-style-prop elements option', () => {
+  function lint(code: string, options?: object) {
+    const config = [
+      {
+        files: ['**/*.tsx'],
+        languageOptions: {
+          parser,
+          parserOptions: { ecmaFeatures: { jsx: true } },
+        },
+        plugins: { tasty: plugin },
+        rules: {
+          'tasty/no-style-prop': options ? ['warn', options] : 'warn',
+          'tasty/no-classname-prop': 'warn',
+        },
+      },
+    ] as never;
+    return linter.verify(local + code, config, { filename });
+  }
+
+  function ids(code: string, options?: object) {
+    return lint(code, options).map((message) => message.messageId);
+  }
+
+  const elements = {
+    tasty: `<Box style={value} />;`,
+    component: `<Other style={value} />;`,
+    member: `<UI.Panel style={value} />;`,
+    lowercaseMember: `<motion.div style={value} />;`,
+    native: `<div style={value} />;`,
+    custom: `<my-element style={value} />;`,
+    namespaced: `<svg:rect style={value} />;`,
+    spread: `<div {...{ style: value }} />;`,
+  };
+
+  it.each(
+    Object.entries({
+      tasty: ['tasty'],
+      components: ['tasty', 'component', 'member', 'lowercaseMember'],
+      all: Object.keys(elements),
+    }),
+  )('elements: %s reports style on %j', (option, reported) => {
+    for (const [name, code] of Object.entries(elements)) {
+      const expected = reported.includes(name)
+        ? [name === 'tasty' ? 'noStyleProp' : 'noInlineStyle']
+        : [];
+      expect(ids(code, { elements: option }), name).toEqual(expected);
+    }
+  });
+
+  it('defaults to Tasty components', () => {
+    expect(ids(Object.values(elements).join('\n'))).toEqual(['noStyleProp']);
+  });
+
+  it('points other elements at Tasty and the exception path', () => {
+    const [message] = lint(elements.native, { elements: 'all' });
+    for (const text of [
+      'tasty(Component, { styles })',
+      "'tokens'",
+      'explicitly disable tasty/no-style-prop',
+      'with an ESLint comment and a reason',
+    ])
+      expect(message.message).toContain(text);
+  });
+
+  it('leaves opaque spreads and other props alone', () => {
+    expect(
+      ids(`<div {...props} className="x" />;\n<Other className="x" />;`, {
+        elements: 'all',
+      }),
+    ).toEqual([]);
+  });
+
+  it('is suppressed by a directive naming only this rule', () => {
+    expect(
+      ids(
+        `// eslint-disable-next-line tasty/no-style-prop -- positioning library\n<Other style={value} />;\n<div style={value} />;`,
+        { elements: 'all' },
+      ),
+    ).toEqual(['noInlineStyle']);
+  });
+
+  it('rejects an unknown value', () => {
+    expect(() => lint(elements.native, { elements: 'dom' })).toThrow();
+  });
+});

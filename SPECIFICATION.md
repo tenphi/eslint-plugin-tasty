@@ -1353,6 +1353,15 @@ convention; the plugin does not enforce directive descriptions. Syntax,
 configuration, state-order, and static-extraction checks retain correctness
 guidance.
 
+`tasty/no-style-prop` takes an `elements` option: `'tasty'` (default) checks
+recognized Tasty components only, `'components'` adds every other capitalized or
+member tag, and `'all'` adds native elements (lowercase, custom-element and
+namespaced tags). Non-Tasty elements get a separate `noInlineStyle` message that
+points at `tasty()` elements and `tasty(Component, { styles })` wrappers. The
+wider settings let a project remove `style` from `react/forbid-component-props`
+and `react/forbid-dom-props`, whose disable directives cover every prop they
+forbid, so a `style` exception names one rule and hides nothing else.
+
 | Rule | Replacement guidance |
 |---|---|
 | `tasty/no-style-prop` | Declare token references in component styles and pass dynamic values through `tokens`. |

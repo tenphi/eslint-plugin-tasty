@@ -227,7 +227,7 @@ not matched.
 | `tasty/no-raw-transition-duration` | warn | Hardcoded `transition` duration (`fill 0.2s`) in Tasty styles or a local `tasty()` component's `transition` prop. Suggests a configured duration token or the implicit per-name timing; zero and delays are left alone |
 | `tasty/no-runtime-styles-mutation` | warn | Render-time JavaScript in Tasty style values (props, state, hook results, parameters, local bindings, calls, computed keys); use states and tokens instead. Module-scope constants, imports, `undefined` and static `mergeStyles(...)` calls are fixed at load and allowed |
 | `tasty/no-style-spread` | warn | Object or array spreads inside runtime Tasty styles; recommends `mergeStyles` for multiple root spreads; intentional spreads need a per-line suppression and reason |
-| `tasty/no-style-prop` | warn | `style` on recognized Tasty components; use token references and the `tokens` prop ([details](docs/rules/no-style-prop.md)) |
+| `tasty/no-style-prop` | warn | `style` on recognized Tasty components; use token references and the `tokens` prop. The `elements` option covers every component or element, so it can replace React's `style` restriction ([details](docs/rules/no-style-prop.md)) |
 | `tasty/no-classname-prop` | warn | `className` on recognized Tasty components; keep styling in Tasty or use `data-element` for sub-elements ([details](docs/rules/no-classname-prop.md)) |
 | `tasty/no-styles-prop` | warn | Instance `styles` on recognized Tasty components; use `tokens`, `mods`, exposed props/variants, or `tasty(Component, { styles })` ([details](docs/rules/no-styles-prop.md)) |
 | `tasty/consistent-token-usage` | warn | Nonzero raw pixel lengths, including compounds, expressions and numeric inputs to enhanced length handlers |
@@ -383,6 +383,12 @@ usages still report. In multiline JSX, target the line containing the reported
 attribute or spread property. JSX child comments can use
 `{/* eslint-disable-next-line tasty/no-classname-prop -- library requires this class */}`
 immediately above the affected element when the attribute is on that next line.
+
+If `react/forbid-component-props` or `react/forbid-dom-props` also forbids
+`style`, a `style` exception has to name both rules, and the React part hides
+every other prop that rule forbids on the line. Set `tasty/no-style-prop`'s
+`elements` option and remove `style` from the React rules, so one precise rule
+handles it; see [replacing React's `style` restriction](docs/rules/no-style-prop.md#replacing-reacts-style-restriction).
 
 Suppression uses ESLint's normal directives. The plugin does not enforce comment
 reasons or infer exceptions automatically. A warning severity alone does not mean
