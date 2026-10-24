@@ -38,6 +38,32 @@ Place the directive immediately before the reported attribute line. It suppresse
 only this rule for that line. The warning message includes this exception path;
 the plugin does not silently exempt library-provided values or enforce reasons.
 
+## Shared with `react/forbid-component-props`
+
+Projects often forbid `style` on every component with React's
+`react/forbid-component-props`, which reports the same attribute on Tasty
+components. A disable directive for that rule also covers this one, so a single
+exception acknowledges both:
+
+```tsx
+// eslint-disable-next-line react/forbid-component-props -- positioning library supplies these inline styles
+<Progress style={positioningStyles} />
+```
+
+`-next-line`, `-line` and block `disable`/`enable` directives count, in ESLint's
+`eslint-` or Oxlint's `oxlint-` spelling, wherever they would cover the reported
+attribute. A directive for this rule alone still leaves the React rule reporting.
+
+### Options
+
+```js
+'tasty/no-style-prop': ['warn', { alsoDisabledBy: ['react/forbid-component-props'] }],
+```
+
+`alsoDisabledBy` lists the rules whose disable directives also silence this
+rule. It defaults to `['react/forbid-component-props']`; set it to `[]` to
+require a directive naming `tasty/no-style-prop` itself.
+
 Recognition uses local `const` components created by imported `tasty()` or
 configured options factories, their `const` aliases/sub-elements, and components
 from configured `importSources`. Exports of relative modules (`import { Panel } from './styled'`) count when they

@@ -384,6 +384,11 @@ attribute or spread property. JSX child comments can use
 `{/* eslint-disable-next-line tasty/no-classname-prop -- library requires this class */}`
 immediately above the affected element when the attribute is on that next line.
 
+`tasty/no-style-prop` and `tasty/no-classname-prop` overlap with React's
+`react/forbid-component-props` when that rule forbids `style` or `className`. A
+directive for the React rule covers the Tasty rule as well, so one exception is
+enough; the `alsoDisabledBy` option lists which rules count.
+
 Suppression uses ESLint's normal directives. The plugin does not enforce comment
 reasons or infer exceptions automatically. A warning severity alone does not mean
 the value is valid: checks for unknown names, malformed syntax, state order, and

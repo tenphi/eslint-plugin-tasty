@@ -1,3 +1,4 @@
+import type { TSESTree } from '@typescript-eslint/utils';
 import { Linter } from 'eslint';
 import parser from '@typescript-eslint/parser';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -292,6 +293,141 @@ describe('components imported from relative modules', () => {
   })) {
     it(`ignores a ${name}`, () => {
       expect(warnings(source)).toEqual([]);
+    });
+  }
+});
+
+describe('exceptions shared with react/forbid-component-props', () => {
+  // Directives must name defined rules, so the unrelated ones report nothing.
+  const quiet = { meta: {}, create: () => ({}) };
+  const custom = { rules: { 'no-inline-props': quiet } };
+  // Stands in for eslint-plugin-react's rule forbidding these props on components.
+  const react = {
+    rules: {
+      'no-danger': quiet,
+      'forbid-component-props': {
+        meta: { messages: { forbidden: 'Prop {{name}} is forbidden.' } },
+        create: (context: { report: (descriptor: object) => void }) => ({
+          JSXAttribute(node: TSESTree.JSXAttribute) {
+            const element = node.parent as TSESTree.JSXOpeningElement;
+            if (
+              element.name.type === 'JSXIdentifier' &&
+              /^[a-z]/.test(element.name.name)
+            )
+              return;
+            const name = node.name.name;
+            if (name === 'style' || name === 'className')
+              context.report({
+                node,
+                messageId: 'forbidden',
+                data: { name },
+              });
+          },
+        }),
+      },
+    },
+  };
+
+  function lint(code: string, rule: string, options?: object) {
+    const config = [
+      {
+        files: ['**/*.tsx'],
+        languageOptions: {
+          parser,
+          parserOptions: { ecmaFeatures: { jsx: true } },
+        },
+        plugins: { tasty: plugin, react, custom },
+        rules: {
+          'react/forbid-component-props': 'warn',
+          'react/no-danger': 'warn',
+          'custom/no-inline-props': 'warn',
+          [`tasty/${rule}`]: options ? ['warn', options] : 'warn',
+        },
+      },
+    ] as never;
+    // Unused-directive notices (no rule id) are ESLint's, not these rules'.
+    return linter
+      .verify(code, config, { filename })
+      .filter((message) => message.ruleId)
+      .map((message) => `${message.line}:${message.ruleId}`)
+      .sort();
+  }
+
+  for (const [rule, prop] of [
+    ['no-style-prop', 'style'],
+    ['no-classname-prop', 'className'],
+  ] as const) {
+    describe(rule, () => {
+      const line = local.split('\n').length;
+
+      it('reports through both rules without an exception', () => {
+        expect(lint(local + `<Box ${prop}={value} />;`, rule)).toEqual([
+          `${line}:react/forbid-component-props`,
+          `${line}:tasty/${rule}`,
+        ]);
+      });
+
+      for (const [name, snippet] of Object.entries({
+        'next-line comment': `// eslint-disable-next-line react/forbid-component-props -- adapter\n<Box ${prop}={value} />;`,
+        'JSX child comment': `<>{/* eslint-disable-next-line react/forbid-component-props -- adapter */}\n<Box ${prop}={value} /></>;`,
+        'same-line comment': `<Box ${prop}={value} />; // eslint-disable-line react/forbid-component-props -- adapter`,
+        'directive listing several rules': `// eslint-disable-next-line react/no-danger, react/forbid-component-props -- adapter\n<Box ${prop}={value} />;`,
+        'block disable': `/* eslint-disable react/forbid-component-props -- adapter */\n<Box ${prop}={value} />;`,
+      })) {
+        it(`a React exception in a ${name} covers it too`, () => {
+          expect(lint(local + snippet, rule)).toEqual([]);
+        });
+      }
+
+      it('covers only the usage the directive covers', () => {
+        const source =
+          local +
+          `// eslint-disable-next-line react/forbid-component-props -- adapter\n<Box ${prop}={value} />;\n` +
+          `/* eslint-disable react/forbid-component-props */\n<Box ${prop}={value} />;\n/* eslint-enable react/forbid-component-props */\n` +
+          `<Box ${prop}={value} />;`;
+        const last = source.split('\n').length;
+        expect(lint(source, rule)).toEqual([
+          `${last}:react/forbid-component-props`,
+          `${last}:tasty/${rule}`,
+        ]);
+      });
+
+      it('ignores directives for unrelated rules and line-comment block directives', () => {
+        const source =
+          local +
+          `// eslint-disable react/forbid-component-props\n` +
+          `// eslint-disable-next-line react/no-danger -- unrelated\n<Box ${prop}={value} />;`;
+        const last = source.split('\n').length;
+        expect(lint(source, rule)).toContain(`${last}:tasty/${rule}`);
+      });
+
+      it('accepts an Oxlint directive', () => {
+        expect(
+          lint(
+            local +
+              `// oxlint-disable-next-line react/forbid-component-props -- adapter\n<Box ${prop}={value} />;`,
+            rule,
+          ),
+        ).toEqual([`${line + 1}:react/forbid-component-props`]);
+      });
+
+      it('lists the covering rules in alsoDisabledBy', () => {
+        const source =
+          local +
+          `// eslint-disable-next-line react/forbid-component-props -- adapter\n<Box ${prop}={value} />;\n` +
+          `// eslint-disable-next-line custom/no-inline-props -- adapter\n<Box ${prop}={value} />;`;
+        expect(lint(source, rule, { alsoDisabledBy: [] })).toEqual([
+          `${line + 1}:tasty/${rule}`,
+          `${line + 3}:react/forbid-component-props`,
+          `${line + 3}:tasty/${rule}`,
+        ]);
+        expect(
+          lint(source, rule, { alsoDisabledBy: ['custom/no-inline-props'] }),
+        ).toEqual([
+          `${line + 1}:tasty/${rule}`,
+          `${line + 3}:react/forbid-component-props`,
+        ]);
+      });
     });
   }
 });

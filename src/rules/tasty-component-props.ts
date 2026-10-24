@@ -1,6 +1,33 @@
+import type { JSONSchema4 } from '@typescript-eslint/utils/json-schema';
 import type { TSESTree } from '@typescript-eslint/utils';
 import type { TastyContext } from '../context.js';
 import { getKeyName, unwrapExpression } from '../utils.js';
+
+export type PropRuleOptions = [{ alsoDisabledBy?: string[] }];
+
+/**
+ * React's `forbid-component-props` commonly forbids the same prop on every
+ * component, Tasty ones included. A reasoned exception written for it already
+ * acknowledges the usage, so it covers the Tasty rule too, and the line needs
+ * one directive instead of two.
+ */
+export const PROP_RULE_DEFAULT_OPTIONS: PropRuleOptions = [
+  { alsoDisabledBy: ['react/forbid-component-props'] },
+];
+
+export const PROP_RULE_SCHEMA: JSONSchema4[] = [
+  {
+    type: 'object',
+    properties: {
+      alsoDisabledBy: {
+        type: 'array',
+        items: { type: 'string' },
+        uniqueItems: true,
+      },
+    },
+    additionalProperties: false,
+  },
+];
 
 /** Inspect explicit props and inline object spreads without evaluating spread bindings. */
 export function tastyComponentPropListeners(
