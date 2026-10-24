@@ -508,6 +508,27 @@ const styles: Styles = { position: 'after' };
         `${linter.name}: multiple files share the project without sharing attribute offsets`,
       );
     }
+    writeFileSync(
+      join(dir, 'merge-helper.ts'),
+      `import { mergeStyleLayers } from './utils/styles';
+mergeStyleLayers(styles, input ? { Input: { paddding: '1x' } } : null);
+`,
+    );
+    writeFileSync(join(dir, linter.configName), linter.config(rules));
+    assert.deepEqual(
+      run('merge-helper.ts'),
+      { status: 0, rules: [] },
+      `${linter.name}: project merge helpers are opaque by default`,
+    );
+    writeFileSync(
+      join(dir, linter.configName),
+      linter.config(rules, { tasty: { mergeFunctions: ['mergeStyleLayers'] } }),
+    );
+    assert.deepEqual(
+      run('merge-helper.ts'),
+      { status: 1, rules: ['known-property'] },
+      `${linter.name}: mergeFunctions lints the helper's object arguments`,
+    );
     console.log(
       `${linter.name}: custom calls, import boundaries, diagnostics, fixes, full presets, JSX value policies, and component prop guidance passed`,
     );

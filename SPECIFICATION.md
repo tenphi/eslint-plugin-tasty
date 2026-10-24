@@ -47,6 +47,9 @@ The plugin must detect style objects in the following locations:
 | `useStyles({ ... })` | First argument |
 | `useGlobalStyles('selector', { ... })` | Second argument |
 | `mergeStyles({ ... }, { ... }, …)` | Every argument; the first is the base, later ones are partial overrides (state maps without `''` extend) |
+| `helper({ ... }, { ... }, …)` | Same as `mergeStyles`, for a helper named in the linter's `settings.tasty.mergeFunctions` |
+
+`settings.tasty.mergeFunctions` is a list of function names with `mergeStyles` semantics, for project helpers that wrap it. A call matches when its callee is an identifier bound to an import whose imported name is listed (from any module), to a default import, function or variable declared under a listed name, or to no declaration at all. A parameter of the same name shadows it; member calls are not matched. Anything but an array of strings is a configuration error. Every place that treats a `mergeStyles` call specially (style contexts, local state aliases, `no-runtime-styles-mutation`'s load-time values) treats a listed helper the same way.
 
 ### Import-aware detection
 
