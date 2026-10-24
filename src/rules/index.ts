@@ -28,6 +28,7 @@ export { default as noRawMotionDuration } from './no-raw-motion-duration.js';
 export { default as noStylesProp } from './no-styles-prop.js';
 export { default as noStyleProp } from './no-style-prop.js';
 export { default as noClassNameProp } from './no-classname-prop.js';
+export { default as noProtectedRestyle } from './no-protected-restyle.js';
 export { default as consistentTokenUsage } from './consistent-token-usage.js';
 export { default as noRuntimeStylesMutation } from './no-runtime-styles-mutation.js';
 export { default as noStyleSpread } from './no-style-spread.js';

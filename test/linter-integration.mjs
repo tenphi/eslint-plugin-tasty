@@ -555,6 +555,40 @@ const Box = tasty({});
         `${linter.name}: no-style-prop elements ${elements ?? 'default'}`,
       );
     }
+    writeFileSync(
+      join(dir, 'tasty.config.json'),
+      JSON.stringify({
+        protectedComponents: [
+          {
+            source: '@my-org/ui',
+            exclude: ['Text'],
+            allowedStyleProps: ['position', 'dimension'],
+          },
+        ],
+      }),
+    );
+    writeFileSync(join(dir, 'ui.ts'), `export { Button } from '@my-org/ui';\n`);
+    writeFileSync(
+      join(dir, 'protected.tsx'),
+      `import { tasty } from '@tenphi/tasty';
+import { Button, Text } from '@my-org/ui';
+import { Button as Reexported } from './ui';
+<Button width="100%" styles={{ gridArea: 'actions' }} type="primary" />;
+<Button fill="#danger" styles={{ fill: '#danger' }} />;
+<Reexported inputStyles={{}} />;
+<Text color="#text" />;
+tasty(Button, { variants: {} });
+`,
+    );
+    writeFileSync(
+      join(dir, linter.configName),
+      linter.config({ 'tasty/no-protected-restyle': 'warn' }),
+    );
+    assert.deepEqual(
+      run('protected.tsx'),
+      { status: 0, rules: Array(4).fill('no-protected-restyle') },
+      `${linter.name}: no-protected-restyle follows protectedComponents`,
+    );
     console.log(
       `${linter.name}: custom calls, import boundaries, diagnostics, fixes, full presets, JSX value policies, and component prop guidance passed`,
     );

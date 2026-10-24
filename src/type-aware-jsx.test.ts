@@ -549,3 +549,24 @@ it('avoids TypeScript project analysis for opaque JSX values', () => {
     ),
   ).toEqual([]);
 });
+
+it('lets no-protected-restyle skip semantic props that share a style name', () => {
+  const tsconfig = JSON.parse(readFileSync(join(dir, 'tsconfig.json'), 'utf8'));
+  tsconfig.compilerOptions.paths['@my-org/ui'] = ['./components.tsx'];
+  writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify(tsconfig));
+  writeFileSync(
+    join(dir, 'tasty.config.json'),
+    JSON.stringify({ protectedComponents: [{ source: '@my-org/ui' }] }),
+  );
+  const code = `import { TabDropIndicator, Box } from '@my-org/ui';
+    <TabDropIndicator position="after" />;
+    <Box position="absolute" fill="#danger" />;`;
+  const active = { 'tasty/no-protected-restyle': 'error' } as const;
+  // Each message starts with the reported prop: "'fill' restyles ...".
+  const props = (typeAwareJSX: boolean) =>
+    lint(code, typeAwareJSX, active).map(
+      (message) => message.message.split("'")[1],
+    );
+  expect(props(true)).toEqual(['position', 'fill']);
+  expect(props(false)).toEqual(['position', 'position', 'fill']);
+});

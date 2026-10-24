@@ -65,6 +65,42 @@ export const LOGICAL_STYLES = [
   ...LOGICAL_BORDER_STYLES,
 ] as const;
 
+/** Tasty's `POSITION_STYLES`: style props that place an element. */
+export const POSITION_STYLES = [
+  'gridArea',
+  'order',
+  'gridColumn',
+  'gridRow',
+  'placeSelf',
+  'alignSelf',
+  'justifySelf',
+  'zIndex',
+  'margin',
+  'blockMargin',
+  'inlineMargin',
+  'inset',
+  'blockInset',
+  'inlineInset',
+  'position',
+  'scrollMargin',
+  'blockScrollMargin',
+  'inlineScrollMargin',
+  'scrollPadding',
+  'blockScrollPadding',
+  'inlineScrollPadding',
+] as const;
+
+/** Tasty's `DIMENSION_STYLES`: style props that size an element. */
+export const DIMENSION_STYLES = [
+  'width',
+  'height',
+  ...LOGICAL_SIZE_STYLES,
+  'flexBasis',
+  'flexGrow',
+  'flexShrink',
+  'flex',
+] as const;
+
 /**
  * Built-in tasty style properties that are always valid as style keys.
  */

@@ -8,22 +8,25 @@ import { getKeyName, unwrapExpression } from '../utils.js';
  */
 export type JSXElementKind = 'tasty' | 'component' | 'element';
 
+/** An explicit JSX attribute, or a key of an inline object spread. */
+export type JSXPropNode = TSESTree.JSXAttribute | TSESTree.Property;
+
 /**
- * Inspect explicit props and inline object spreads on every JSX element without
- * evaluating spread bindings. `kinds` limits which elements are classified and
- * checked, so a Tasty-only rule never runs component recognition elsewhere.
+ * Inspect explicit props and inline object spreads on JSX elements without
+ * evaluating spread bindings. `classify` picks the elements to check and what
+ * the check is told about each; `null` skips the element.
  */
-export function jsxPropListeners(
+export function jsxElementPropListeners<T>(
   ctx: TastyContext,
-  kinds: ReadonlySet<JSXElementKind>,
-  check: (name: string, node: TSESTree.Node, kind: JSXElementKind) => void,
+  classify: (node: TSESTree.JSXOpeningElement) => T | null,
+  check: (name: string, node: JSXPropNode, target: T) => void,
 ) {
-  function visitSpread(node: TSESTree.Node, kind: JSXElementKind): void {
+  function visitSpread(node: TSESTree.Node, target: T): void {
     node = unwrapExpression(node);
     if (node.type !== 'ObjectExpression') return;
     for (const prop of node.properties) {
       if (prop.type === 'SpreadElement') {
-        visitSpread(prop.argument, kind);
+        visitSpread(prop.argument, target);
       } else {
         const name = prop.computed
           ? getKeyName(unwrapExpression(prop.key))
@@ -33,12 +36,39 @@ export function jsxPropListeners(
           name !== null &&
           (!prop.computed || unwrapExpression(prop.key).type === 'Literal')
         ) {
-          check(name, prop, kind);
+          check(name, prop, target);
         }
       }
     }
   }
 
+  return {
+    ImportDeclaration(node: TSESTree.ImportDeclaration) {
+      ctx.trackImport(node);
+    },
+    JSXOpeningElement(node: TSESTree.JSXOpeningElement) {
+      const target = classify(node);
+      if (target === null) return;
+      for (const attribute of node.attributes) {
+        if (attribute.type === 'JSXSpreadAttribute')
+          visitSpread(attribute.argument, target);
+        else if (attribute.name.type === 'JSXIdentifier')
+          check(attribute.name.name, attribute, target);
+      }
+    },
+  };
+}
+
+/**
+ * Inspect explicit props and inline object spreads on every JSX element without
+ * evaluating spread bindings. `kinds` limits which elements are classified and
+ * checked, so a Tasty-only rule never runs component recognition elsewhere.
+ */
+export function jsxPropListeners(
+  ctx: TastyContext,
+  kinds: ReadonlySet<JSXElementKind>,
+  check: (name: string, node: JSXPropNode, kind: JSXElementKind) => void,
+) {
   function classify(node: TSESTree.JSXOpeningElement): JSXElementKind | null {
     let name = node.name;
     while (name.type === 'JSXMemberExpression') name = name.object;
@@ -54,21 +84,7 @@ export function jsxPropListeners(
     return kinds.has('component') ? 'component' : null;
   }
 
-  return {
-    ImportDeclaration(node: TSESTree.ImportDeclaration) {
-      ctx.trackImport(node);
-    },
-    JSXOpeningElement(node: TSESTree.JSXOpeningElement) {
-      const kind = classify(node);
-      if (!kind) return;
-      for (const attribute of node.attributes) {
-        if (attribute.type === 'JSXSpreadAttribute')
-          visitSpread(attribute.argument, kind);
-        else if (attribute.name.type === 'JSXIdentifier')
-          check(attribute.name.name, attribute, kind);
-      }
-    },
-  };
+  return jsxElementPropListeners(ctx, classify, check);
 }
 
 const TASTY_ONLY = new Set<JSXElementKind>(['tasty']);
@@ -76,7 +92,7 @@ const TASTY_ONLY = new Set<JSXElementKind>(['tasty']);
 /** Inspect explicit props and inline object spreads on recognized Tasty components. */
 export function tastyComponentPropListeners(
   ctx: TastyContext,
-  check: (name: string, node: TSESTree.Node) => void,
+  check: (name: string, node: JSXPropNode) => void,
 ) {
   return jsxPropListeners(ctx, TASTY_ONLY, (name, node) => check(name, node));
 }

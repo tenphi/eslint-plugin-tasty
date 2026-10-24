@@ -33,6 +33,7 @@ export const recommended: TSESLint.SharedConfig.RulesRecord = {
   'tasty/no-style-prop': 'warn',
   'tasty/no-classname-prop': 'warn',
   'tasty/no-styles-prop': 'warn',
+  'tasty/no-protected-restyle': 'warn',
   'tasty/consistent-token-usage': 'warn',
   'tasty/prefer-auto-calc': 'warn',
   'tasty/prefer-state-negation': 'warn',

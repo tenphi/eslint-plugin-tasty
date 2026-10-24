@@ -1,0 +1,12 @@
+{
+  "importSources": ["@my-org/ui"],
+  "styles": ["glaze"],
+  "protectedComponents": [
+    {
+      "source": "@my-org/ui",
+      "exclude": ["Block", "Text", "*Icon"],
+      "allowedStyleProps": ["position", "dimension", "hide"]
+    },
+    { "source": "@my-org/strict-*" }
+  ]
+}

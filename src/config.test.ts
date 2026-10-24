@@ -59,3 +59,35 @@ describe('styleFunctions configuration', () => {
     });
   });
 });
+
+describe('protectedComponents configuration', () => {
+  const ui = { source: '@my-org/ui', exclude: ['Text'] };
+  const icons = { source: '@my-org/icons', allowedStyleProps: ['position'] };
+
+  it('defaults to an empty list', () => {
+    expect(
+      loadConfig(join(project(), 'component.ts')).protectedComponents,
+    ).toEqual([]);
+  });
+
+  it('appends entries along the extends chain, and false drops inherited ones', () => {
+    const root = project();
+    mkdirSync(join(root, 'src'));
+    writeConfig(join(root, 'base.json'), { protectedComponents: [ui] });
+    writeConfig(join(root, 'tasty.config.json'), {
+      extends: './base.json',
+      protectedComponents: [icons],
+    });
+    expect(loadConfig(join(root, 'component.ts')).protectedComponents).toEqual([
+      ui,
+      icons,
+    ]);
+
+    writeConfig(join(root, 'src/tasty.config.json'), {
+      protectedComponents: false,
+    });
+    expect(
+      loadConfig(join(root, 'src/component.ts')).protectedComponents,
+    ).toEqual([]);
+  });
+});

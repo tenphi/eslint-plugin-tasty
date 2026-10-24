@@ -34,6 +34,7 @@ const ruleMap: Record<string, TSESLint.RuleModule<string, unknown[]>> = {
   'no-styles-prop': rules.noStylesProp,
   'no-style-prop': rules.noStyleProp,
   'no-classname-prop': rules.noClassNameProp,
+  'no-protected-restyle': rules.noProtectedRestyle,
   'consistent-token-usage': rules.consistentTokenUsage,
   'no-runtime-styles-mutation': rules.noRuntimeStylesMutation,
   'no-style-spread': rules.noStyleSpread,
@@ -92,4 +93,5 @@ export type {
   TastyValidationConfig,
   ResolvedConfig,
   StyleFunctionConfig,
+  ProtectedComponentConfig,
 } from './types.js';

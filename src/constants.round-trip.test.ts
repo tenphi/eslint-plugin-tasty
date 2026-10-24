@@ -4,8 +4,10 @@ import { renderStyles } from '@tenphi/tasty';
 import {
   BOOLEAN_TRUE_PROPERTIES,
   COLOR_BEARING_PROPERTIES,
+  DIMENSION_STYLES,
   KNOWN_CSS_PROPERTIES,
   KNOWN_TASTY_PROPERTIES,
+  POSITION_STYLES,
   PROPERTIES_WITHOUT_COLOR_TOKEN_EXPANSION,
   PROPERTIES_WITHOUT_CUSTOM_PROPERTY_EXPANSION,
   SHORTHAND_MAPPING,
@@ -205,6 +207,11 @@ describe('tasty public style lists', () => {
       .sort();
 
     expect(unrecognised).toEqual([]);
+  });
+
+  it('matches the copies that allowedStyleProps groups expand to', () => {
+    expect(POSITION_STYLES).toEqual(exported.POSITION_STYLES);
+    expect(DIMENSION_STYLES).toEqual(exported.DIMENSION_STYLES);
   });
 });
 
