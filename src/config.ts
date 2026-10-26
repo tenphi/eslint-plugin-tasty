@@ -382,16 +382,7 @@ function mergeConfigs(
   const result: TastyValidationConfig = { ...parent };
 
   const arrayKeys = [
-    'tokens',
-    'units',
-    'functions',
-    'funcs',
-    'states',
-    'presets',
-    'recipes',
-    'styles',
-    'importSources',
-    'ownedSources',
+    ...(Object.keys(LIST_KEYS) as (keyof typeof LIST_KEYS)[]),
     'protectedComponents',
   ] as const;
 
