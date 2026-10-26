@@ -594,8 +594,44 @@ tasty(Button, { variants: {} });
       { status: 0, rules: Array(5).fill('no-protected-restyle') },
       `${linter.name}: no-protected-restyle follows protectedComponents`,
     );
+    // A config that needs a newer plugin fails the run with a message naming it;
+    // an unknown key is a warning on stderr.
+    writeFileSync(
+      join(dir, 'tasty.config.json'),
+      JSON.stringify({ requires: '>=99.0.0' }),
+    );
+    writeFileSync(
+      join(dir, linter.configName),
+      linter.config({ 'tasty/known-property': 'error' }),
+    );
+    const outdated = spawnSync(
+      process.execPath,
+      [linter.bin, '--config', join(dir, linter.configName), 'valid.ts'],
+      { cwd: dir, encoding: 'utf8', timeout: 30_000 },
+    );
+    assert.notEqual(outdated.status, 0, `${linter.name}: requires fails the run`);
+    assert.match(
+      outdated.stdout + outdated.stderr,
+      /tasty\.config\.json requires @tenphi\/eslint-plugin-tasty >=99\.0\.0, but \d+\.\d+\.\d+\S* is installed/,
+      `${linter.name}: requires names the config, range and version`,
+    );
+    writeFileSync(
+      join(dir, 'tasty.config.json'),
+      JSON.stringify({ protectedComponent: [] }),
+    );
+    const unknown = spawnSync(
+      process.execPath,
+      [linter.bin, '--config', join(dir, linter.configName), 'valid.ts'],
+      { cwd: dir, encoding: 'utf8', timeout: 30_000 },
+    );
+    assert.equal(unknown.status, 0, `${linter.name}: unknown keys only warn`);
+    assert.match(
+      unknown.stderr + unknown.stdout,
+      /ignoring unknown key 'protectedComponent'/,
+      `${linter.name}: unknown keys are listed`,
+    );
     console.log(
-      `${linter.name}: custom calls, import boundaries, diagnostics, fixes, full presets, JSX value policies, and component prop guidance passed`,
+      `${linter.name}: custom calls, import boundaries, diagnostics, fixes, full presets, JSX value policies, component prop guidance, and the config contract passed`,
     );
   } finally {
     rmSync(dir, { recursive: true, force: true });

@@ -146,6 +146,15 @@ interface TastyValidationConfig {
   extends?: string;
 
   /**
+   * The `@tenphi/eslint-plugin-tasty` versions this config needs, as a semver
+   * range. Every config in the `extends` chain may declare one; linting fails
+   * when the installed plugin does not satisfy them all. Prereleases count, so
+   * a snapshot of the next release satisfies a range of the current one.
+   * @example '>=1.13.0'
+   */
+  requires?: string;
+
+  /**
    * Valid token names for validation and autocomplete.
    * Use # prefix for colors, $ prefix for custom properties.
    * Set to `false` to disable token validation entirely.
@@ -216,6 +225,10 @@ interface TastyValidationConfig {
    * extended config come first; `false` drops them.
    */
   protectedComponents?: false | ProtectedComponentConfig[];
+
+  /** Read by the Tasty VS Code extension, which shares the file; ignored here. */
+  presetDescriptions?: Record<string, string>;
+  stateDescriptions?: Record<string, string>;
 }
 
 interface ProtectedComponentConfig {
@@ -244,8 +257,9 @@ interface ProtectedComponentConfig {
 - Added `importSources` field — recognizes custom re-exports of tasty.
 - Added `ownedSources` field — marks which base components are this project's to edit.
 - Added `protectedComponents` field — lists the design-system components consumers should not restyle.
+- Added `requires` field — the plugin versions a config needs.
 - Kept `extends` for config composition.
-- Removed `presetDescriptions` and `stateDescriptions` — those are IDE tooltip features, not relevant for lint diagnostics.
+- `presetDescriptions` and `stateDescriptions` are accepted but ignored — those are IDE tooltip features, not relevant for lint diagnostics.
 
 ### Config resolution
 
@@ -255,6 +269,17 @@ interface ProtectedComponentConfig {
    - **Package name** (anything else): resolved via `require.resolve()` / Node module resolution. The package should export a `TastyValidationConfig` as its default export, or provide a `tasty.config` entry in its `exports` map.
 3. `extends` chains are followed recursively (a parent config can also extend another).
 4. Arrays are concatenated (deduped). `false` overrides parent arrays. Objects are shallow-merged.
+
+### Config contract
+
+Problems in a config file are reported rather than dropped:
+
+- **`requires` not met** — the run fails with `tasty: <file> requires @tenphi/eslint-plugin-tasty <range>, but <version> is installed.` A `requires` that is not a valid semver range fails the same way.
+- **Unknown keys** — a warning on stderr, once per config file, lists the keys the plugin does not read, such as a typo or a key from a newer plugin. They are ignored.
+- **`extends` resolving to nothing** — a non-string value, a package that cannot be resolved, or a package without a `tasty.config.*` at its root is a warning, and the `extends` is ignored. A relative or absolute path that is not a file fails the run.
+- **A config that is not an object** — a warning, and the file is ignored.
+
+Warnings go to `console.warn` with an `[eslint-plugin-tasty]` prefix, since neither linter has a channel for problems that belong to no linted file.
 
 ### Config reloading
 

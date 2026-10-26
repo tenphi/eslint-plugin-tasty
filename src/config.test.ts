@@ -1,9 +1,16 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { loadConfig } from './config.js';
 import type { TastyValidationConfig } from './types.js';
+import { version } from './version.js';
 
 const roots: string[] = [];
 function project() {
@@ -12,14 +19,19 @@ function project() {
   writeFileSync(join(root, 'package.json'), '{}');
   return root;
 }
-function writeConfig(path: string, config: TastyValidationConfig) {
+function writeConfig(path: string, config: TastyValidationConfig | unknown) {
   writeFileSync(path, JSON.stringify(config));
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const root of roots.splice(0))
     rmSync(root, { recursive: true, force: true });
 });
+
+function warnings() {
+  return vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+}
 
 describe('styleFunctions configuration', () => {
   it('defaults to an empty map', () => {
@@ -89,5 +101,112 @@ describe('protectedComponents configuration', () => {
     expect(
       loadConfig(join(root, 'src/component.ts')).protectedComponents,
     ).toEqual([]);
+  });
+});
+
+describe('requires', () => {
+  it('loads a config whose range the installed plugin satisfies', () => {
+    const root = project();
+    writeConfig(join(root, 'tasty.config.json'), {
+      requires: `>=${version}`,
+      tokens: ['#brand'],
+    });
+    expect(loadConfig(join(root, 'component.ts')).tokens).toEqual(['#brand']);
+  });
+
+  it('fails naming the config, the range and the installed version', () => {
+    const root = project();
+    const path = join(root, 'tasty.config.json');
+    writeConfig(path, { requires: '>=99.0.0' });
+    expect(() => loadConfig(join(root, 'component.ts'))).toThrow(
+      `tasty: ${path} requires @tenphi/eslint-plugin-tasty >=99.0.0, but ${version} is installed. Upgrade the plugin.`,
+    );
+  });
+
+  it('checks every config in the extends chain', () => {
+    const root = project();
+    const base = join(root, 'base.json');
+    writeConfig(base, { requires: '^0.1.0' });
+    writeConfig(join(root, 'tasty.config.json'), {
+      extends: './base.json',
+      requires: `>=${version}`,
+    });
+    expect(() => loadConfig(join(root, 'component.ts'))).toThrow(
+      `tasty: ${base} requires @tenphi/eslint-plugin-tasty ^0.1.0`,
+    );
+  });
+
+  it('rejects a value that is not a semver range', () => {
+    for (const requires of ['soon', 113, ['>=1.0.0']]) {
+      const root = project();
+      writeConfig(join(root, 'tasty.config.json'), { requires });
+      expect(() => loadConfig(join(root, 'component.ts'))).toThrow(
+        "'requires' must be a semver range",
+      );
+    }
+  });
+});
+
+describe('config warnings', () => {
+  it('lists unknown keys once per config, but not the VS Code extension keys', () => {
+    const warn = warnings();
+    const root = project();
+    const path = join(root, 'tasty.config.json');
+    writeConfig(path, {
+      tokens: ['#brand'],
+      protectedComponent: [],
+      futureKey: true,
+      presetDescriptions: { h1: 'Heading' },
+      stateDescriptions: { '@dark': 'Dark theme' },
+    });
+    expect(loadConfig(join(root, 'component.ts')).tokens).toEqual(['#brand']);
+    expect(warn.mock.calls).toEqual([
+      [
+        `[eslint-plugin-tasty] ${path}: ignoring unknown keys 'protectedComponent', 'futureKey'. Check the spelling, or upgrade @tenphi/eslint-plugin-tasty (${version} is installed) if the config was written for a newer version.`,
+      ],
+    ]);
+
+    // A reload of the same config says nothing new.
+    utimesSync(path, new Date(), new Date(Date.now() + 1000));
+    loadConfig(join(root, 'component.ts'));
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('warns when extends names nothing usable, and ignores it', () => {
+    const warn = warnings();
+    const cases: [unknown, string][] = [
+      [['./base.json'], `not ["./base.json"]`],
+      ['@my-org/missing', "names '@my-org/missing', which cannot be resolved"],
+      ['@my-org/plain', "names '@my-org/plain', which has no tasty.config.*"],
+    ];
+    for (const [target, message] of cases) {
+      const root = project();
+      const pkg = join(root, 'node_modules/@my-org/plain');
+      mkdirSync(pkg, { recursive: true });
+      writeFileSync(join(pkg, 'package.json'), '{}');
+      writeConfig(join(root, 'tasty.config.json'), {
+        extends: target,
+        tokens: ['#brand'],
+      });
+      expect(loadConfig(join(root, 'component.ts')).tokens).toEqual(['#brand']);
+      expect(warn.mock.lastCall?.[0]).toContain(message);
+    }
+    expect(warn).toHaveBeenCalledTimes(cases.length);
+  });
+
+  it('fails when a relative extends is not a file', () => {
+    const root = project();
+    writeConfig(join(root, 'tasty.config.json'), { extends: './missing.json' });
+    expect(() => loadConfig(join(root, 'component.ts'))).toThrow(
+      `'extends' points to ${join(root, 'missing.json')}, which is not a file.`,
+    );
+  });
+
+  it('ignores a config that is not an object', () => {
+    const warn = warnings();
+    const root = project();
+    writeConfig(join(root, 'tasty.config.json'), ['#brand']);
+    expect(loadConfig(join(root, 'component.ts')).tokens).toEqual([]);
+    expect(warn.mock.lastCall?.[0]).toContain('the config must be an object');
   });
 });

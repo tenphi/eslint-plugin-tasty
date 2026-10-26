@@ -2,9 +2,11 @@ import { existsSync, readFileSync, statSync } from 'fs';
 import { dirname, join, resolve } from 'path';
 
 import { createJiti } from 'jiti';
+import semver from 'semver';
 
 import type { ResolvedConfig, TastyValidationConfig } from './types.js';
 import { DEFAULT_IMPORT_SOURCES } from './constants.js';
+import { version as pluginVersion } from './version.js';
 
 const CONFIG_FILENAMES = [
   'tasty.config.ts',
@@ -19,6 +21,64 @@ interface CachedConfig {
 }
 
 const configCache = new Map<string, CachedConfig>();
+
+/** Every key a config may carry. Anything else is a typo or from a newer plugin. */
+const KNOWN_KEYS = new Set<string>([
+  'extends',
+  'requires',
+  'tokens',
+  'units',
+  'functions',
+  'funcs',
+  'states',
+  'presets',
+  'recipes',
+  'styles',
+  'importSources',
+  'ownedSources',
+  'styleFunctions',
+  'protectedComponents',
+  // The Tasty VS Code extension reads these from the same file.
+  'presetDescriptions',
+  'stateDescriptions',
+]);
+
+const warnings = new Set<string>();
+
+/** A config problem worth a message but not a failed run, said once per process. */
+function warnOnce(message: string): void {
+  if (warnings.has(message)) return;
+  warnings.add(message);
+  console.warn(`[eslint-plugin-tasty] ${message}`);
+}
+
+/** Fails the run when the installed plugin is outside the config's `requires`. */
+function checkRequires(config: TastyValidationConfig, configPath: string) {
+  const range: unknown = config.requires;
+  if (range === undefined) return;
+  if (typeof range !== 'string' || semver.validRange(range) === null) {
+    throw new Error(
+      `tasty: ${configPath}: 'requires' must be a semver range of @tenphi/eslint-plugin-tasty versions, such as '>=1.13.0'.`,
+    );
+  }
+  // A snapshot of the next release still satisfies `>=` the current one.
+  if (!semver.satisfies(pluginVersion, range, { includePrerelease: true })) {
+    throw new Error(
+      `tasty: ${configPath} requires @tenphi/eslint-plugin-tasty ${range}, but ${pluginVersion} is installed. Upgrade the plugin.`,
+    );
+  }
+}
+
+function warnUnknownKeys(config: TastyValidationConfig, configPath: string) {
+  const unknown = Object.keys(config).filter(
+    (key) => !KNOWN_KEYS.has(key) && key !== '__esModule',
+  );
+  if (unknown.length === 0) return;
+  const keys = unknown.map((key) => `'${key}'`).join(', ');
+  warnOnce(
+    `${configPath}: ignoring unknown ${unknown.length === 1 ? 'key' : 'keys'} ${keys}. Check the spelling, or upgrade @tenphi/eslint-plugin-tasty (${pluginVersion} is installed) if the config was written for a newer version.`,
+  );
+}
 
 function findProjectRoot(startDir: string): string | null {
   let dir = startDir;
@@ -276,6 +336,51 @@ interface ConfigChainResult {
   chainPaths: string[];
 }
 
+/**
+ * The config file `extends` points to, or null when there is none. A relative
+ * or absolute path that is not a file fails the run, as reading it always has; a
+ * value that names nothing usable is skipped with a warning.
+ */
+function resolveExtends(
+  config: TastyValidationConfig,
+  configPath: string,
+): string | null {
+  const target: unknown = config.extends;
+  if (target === undefined) return null;
+  const configDir = dirname(configPath);
+  if (typeof target !== 'string' || target === '') {
+    warnOnce(
+      `${configPath}: 'extends' must be a config path or a package name, not ${JSON.stringify(target)}. It is ignored.`,
+    );
+    return null;
+  }
+
+  if (target.startsWith('.') || target.startsWith('/')) {
+    const parentPath = resolve(configDir, target);
+    if (!statSync(parentPath, { throwIfNoEntry: false })?.isFile()) {
+      throw new Error(
+        `tasty: ${configPath}: 'extends' points to ${parentPath}, which is not a file.`,
+      );
+    }
+    return parentPath;
+  }
+
+  const pkgDir = resolvePackageDir(target, configDir);
+  if (!pkgDir) {
+    warnOnce(
+      `${configPath}: 'extends' names '${target}', which cannot be resolved from ${configDir}. It is ignored.`,
+    );
+    return null;
+  }
+  const pkgConfig = findConfigInDir(pkgDir);
+  if (!pkgConfig) {
+    warnOnce(
+      `${configPath}: 'extends' names '${target}', which has no tasty.config.* at ${pkgDir}. It is ignored.`,
+    );
+  }
+  return pkgConfig;
+}
+
 function resolveConfigChain(
   configPath: string,
   visited = new Set<string>(),
@@ -284,28 +389,19 @@ function resolveConfigChain(
   if (visited.has(absPath)) return { config: {}, chainPaths: [] };
   visited.add(absPath);
 
-  const config = loadRawConfig(absPath);
+  let config = loadRawConfig(absPath);
   const importPaths = extractImportPaths(absPath);
   const chainPaths = [absPath, ...importPaths];
 
-  if (!config.extends) return { config, chainPaths };
-
-  let parentPath: string;
-  if (config.extends.startsWith('.') || config.extends.startsWith('/')) {
-    parentPath = resolve(dirname(absPath), config.extends);
-  } else {
-    const pkgDir = resolvePackageDir(config.extends, dirname(absPath));
-    if (pkgDir) {
-      const pkgConfig = findConfigInDir(pkgDir);
-      if (pkgConfig) {
-        parentPath = pkgConfig;
-      } else {
-        return { config, chainPaths };
-      }
-    } else {
-      return { config, chainPaths };
-    }
+  if (!config || typeof config !== 'object' || Array.isArray(config)) {
+    warnOnce(`${absPath}: the config must be an object. It is ignored.`);
+    config = {};
   }
+  checkRequires(config, absPath);
+  warnUnknownKeys(config, absPath);
+
+  const parentPath = resolveExtends(config, absPath);
+  if (!parentPath) return { config, chainPaths };
 
   const parentResult = resolveConfigChain(parentPath, visited);
   return {
