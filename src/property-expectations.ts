@@ -142,6 +142,12 @@ const DISPLAY_MODS = [
 
 export const PROPERTY_EXPECTATIONS: Record<string, PropertyExpectation> = {
   fill: { acceptsColor: true, acceptsMods: ['none', 'transparent'] },
+  // Tasty's `fill` is the background; `svgFill` is the native SVG `fill`, so it
+  // also takes the SVG paint keywords.
+  svgFill: {
+    acceptsColor: true,
+    acceptsMods: ['none', 'transparent', 'context-fill', 'context-stroke'],
+  },
   color: { acceptsColor: true, acceptsMods: ['none', 'transparent'] },
   caretColor: COLOR_ONLY,
   accentColor: COLOR_ONLY,

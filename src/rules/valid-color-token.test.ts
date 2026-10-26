@@ -20,11 +20,11 @@ const filename = join(root, 'component.ts');
 
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
-function style(value: string) {
+function style(value: string, property = 'fill') {
   return {
     code: `
         import { tasty } from '@tenphi/tasty';
-        tasty({ styles: { fill: '${value}' } });
+        tasty({ styles: { ${property}: '${value}' } });
       `,
     filename,
   };
@@ -49,10 +49,17 @@ tester.run('valid-color-token', rule, {
     style('#outline.150'),
     style('##white'),
     style('(#outline, #border)'),
+    style('#surface.5', 'svgFill'),
+    // An SVG paint server reference, not a color token.
+    style('url(#gradient)', 'svgFill'),
   ],
   invalid: [
     {
       ...style('#whitee'),
+      errors: [{ messageId: 'unknownToken' }],
+    },
+    {
+      ...style('#whitee', 'svgFill'),
       errors: [{ messageId: 'unknownToken' }],
     },
     {

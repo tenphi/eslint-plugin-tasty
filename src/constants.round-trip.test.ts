@@ -216,6 +216,36 @@ describe('tasty public style lists', () => {
 });
 
 /**
+ * The same guard over Tasty's exported `styleHandlers`: every style a handler
+ * reads (`__lookupStyles`) is one users can write. The public lists above miss
+ * some — `svgFill` is in none of them, and was reported as unknown.
+ */
+describe('tasty style handlers', () => {
+  const handlers = Object.values(
+    (tasty as unknown as { styleHandlers?: object }).styleHandlers ?? {},
+  ) as { __lookupStyles?: string[] }[];
+
+  it('are still exported with the styles they read', () => {
+    // A renamed export would otherwise make the check below vacuous.
+    expect(
+      handlers.filter((h) => h.__lookupStyles?.length).length,
+    ).toBeGreaterThan(20);
+  });
+
+  it('read only styles the plugin recognises', () => {
+    const names = new Set(handlers.flatMap((h) => h.__lookupStyles ?? []));
+    const unrecognised = [...names]
+      .filter(
+        (name) =>
+          !KNOWN_TASTY_PROPERTIES.has(name) && !KNOWN_CSS_PROPERTIES.has(name),
+      )
+      .sort();
+
+    expect(unrecognised).toEqual([]);
+  });
+});
+
+/**
  * The sync guard for `BOOLEAN_TRUE_PROPERTIES`.
  *
  * `true` means "use the design-system default", which only works if the handler

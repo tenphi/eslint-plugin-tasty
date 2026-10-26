@@ -312,7 +312,7 @@ Warns when a style property name is not recognized as a valid tasty property or 
 `gridArea`, `order`, `gridColumn`, `gridRow`, `placeSelf`, `alignSelf`, `justifySelf`, `zIndex`, `margin`, `inset`, `position`,
 `padding`, `overflow`, `scrollbar`, `textAlign`, `scrollMargin`, `scrollPadding`,
 `border`, `radius`, `shadow`, `outline`,
-`color`, `fill`, `fade`, `image`,
+`color`, `fill`, `svgFill`, `fade`, `image`,
 `textTransform`, `fontWeight`, `fontStyle`,
 `width`, `height`, `flexBasis`, `flexGrow`, `flexShrink`, `flex`,
 `flow`, `placeItems`, `placeContent`, `alignItems`, `alignContent`, `justifyItems`, `justifyContent`, `align`, `justify`, `gap`, `columnGap`, `rowGap`, `gridColumns`, `gridRows`, `gridTemplate`, `gridAreas`,

@@ -38,6 +38,22 @@ tester.run('valid-value', rule, {
         tasty({ styles: { fill: '#purple.5' } });
       `,
     },
+    // svgFill takes colors like fill, plus the SVG paint values
+    ...[
+      '#purple.10',
+      '#current',
+      '(#primary, #secondary)',
+      '$icon-color',
+      'none',
+      'context-fill',
+      'context-stroke',
+      'url(#gradient)',
+    ].map((value) => ({
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { svgFill: '${value}' } });
+      `,
+    })),
     // Padding with directional mods
     {
       code: `
@@ -382,6 +398,21 @@ tester.run('valid-value', rule, {
       code: `
         import { tasty } from '@tenphi/tasty';
         tasty({ styles: { fill: 'purle' } });
+      `,
+      errors: [{ messageId: 'invalidMod' }],
+    },
+    ...['purle', 'context-fil'].map((value) => ({
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { svgFill: '${value}' } });
+      `,
+      errors: [{ messageId: 'invalidMod' as const }],
+    })),
+    // The SVG paint keywords are not background values.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fill: 'context-fill' } });
       `,
       errors: [{ messageId: 'invalidMod' }],
     },
