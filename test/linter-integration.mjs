@@ -293,9 +293,12 @@ component('Content', { styles: {
       join(dir, 'values-valid.tsx'),
       `
 import { Box } from '@my/ds';
+import { FocusScope } from 'react-aria';
 <Box fill="#surface" gap="1x" animationDuration="$duration" />;
 <svg fill="red" gap="17px" />;
 <Box content={'"17px #missing $missing red"'} />;
+<FocusScope fill="red" gap="17px" />;
+<NumberInput prefix="$" suffix="$ " />;
 `,
     );
     writeFileSync(
@@ -450,8 +453,8 @@ const adapted = (
       join(dir, 'typed.tsx'),
       `import { TabDropIndicator, Box, Item, RetypedBox } from './components';
 import * as UI from './components';
-<TabDropIndicator position="after" prefix="17px" />;
-<Item prefix="17px" gap="17px" />;
+<TabDropIndicator position="after" marker="17px" />;
+<Item marker="17px" gap="17px" />;
 <UI.TabDropIndicator position="before" />;
 <Box position="after" fill="red" />;
 <RetypedBox gap="17px" />;

@@ -1,4 +1,5 @@
 import type { TSESTree } from '@typescript-eslint/utils';
+import type { Scope } from '@typescript-eslint/utils/ts-eslint';
 import {
   BUILT_IN_UNITS,
   CSS_UNITS,
@@ -24,6 +25,18 @@ export function unwrapExpression(node: TSESTree.Node): TSESTree.Node {
 }
 
 /** A whole-string pattern in which `*` matches any run of characters. */
+/**
+ * A variable's one value definition. TypeScript declares a same-named type or
+ * interface (`const Box = tasty(…); type Box = …`) on the same variable, so
+ * type definitions are set aside; null for a redeclared or type-only name.
+ */
+export function valueDefinition(
+  variable: Scope.Variable,
+): Scope.Definition | null {
+  const defs = variable.defs.filter((def) => def.type !== 'Type');
+  return defs.length === 1 ? defs[0] : null;
+}
+
 export function wildcardPattern(pattern: string): RegExp {
   const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 

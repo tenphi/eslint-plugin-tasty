@@ -3,10 +3,10 @@ import type { BaseStyleProps, Styles, StyleValue } from '@tenphi/tasty';
 type Content = string | number | { render: string } | null;
 export const TabDropIndicator = (props: {
   position: 'before' | 'after';
-  prefix?: Content;
+  marker?: Content;
 }) => null;
 export const Box = (props: BaseStyleProps) => null;
-export const Item = (props: BaseStyleProps & { prefix?: Content }) => null;
+export const Item = (props: BaseStyleProps & { marker?: Content }) => null;
 export const PartialBox = (props: Partial<BaseStyleProps>) => null;
 type LocalGap = Styles['gap'];
 export const RetypedBox = (props: { gap?: LocalGap }) => null;

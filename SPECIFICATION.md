@@ -80,7 +80,7 @@ The plugin should validate style values in these JSX attribute positions:
 
 For individual style props, the plugin can validate the value syntax (color tokens, units, etc.) but needs to know which props are actually tasty style props. Two detection modes:
 
-1. **Heuristic (implemented, no type info)** — validate JSX attributes on uppercase component/member tags whose names match a known Tasty/CSS style property or `config.styles`. Native HTML/SVG tags and singular React `style` props are excluded. Matching non-style props on unrelated components can still need a rule suppression.
+1. **Heuristic (implemented, no type info)** — validate JSX attributes on uppercase component/member tags whose names match a known Tasty/CSS style property or `config.styles`. Native HTML/SVG tags and singular React `style` props are excluded, as are tags whose root binding (following `const` aliases) is imported from a bare specifier outside `importSources` and `ownedSources` — `<FocusScope contain />` from `react-aria`. An entry in either list covers the paths below it (`@my/ds` covers `@my/ds/button`). Components declared in the file, `tasty()` wrappers, and relative or in-repo imports stay checked. Matching non-style props on unrelated components can still need a rule suppression. With `settings.tasty.typeAwareJSX`, prop types decide, and the package check applies only to props the types leave unclassified.
 2. **Type-aware (future enhancement)** — use the TypeScript type checker to see if the prop type originates from tasty's `Styles` interface. This also enables detecting arbitrary `Styles`-typed variables and expressions, not just call-site arguments.
 
 Implemented value checks share discovery across static literals, templates,
@@ -317,7 +317,10 @@ style, auto-fixed where the rename is a pure key edit.
   (`maskSize`, `anchorName`, `fieldSizing`, `viewTransitionName`, `textBox`) are
   recognized, along with SVG presentation and geometry properties. Properties that
   ship ahead of the dataset are carried in a small hand-maintained supplement.
-  Regenerate with `pnpm generate:css-properties`.
+  At-rule descriptors that the specs (via `@webref/css`) do not also define as
+  properties — `src`, `prefix`, `suffix`, `syntax`, `symbols`, `unicodeRange` —
+  are left out, since a style rule cannot declare them. Regenerate with
+  `pnpm generate:css-properties`.
 - Keys starting with uppercase letter → sub-element (separate rule).
 - Keys starting with `@` → special properties (`@keyframes`, `@properties`).
 - Keys starting with `$` or `$$` → custom CSS property definition (`$name` → `--name`, `$$name` → raw `--name` reference for transitions).
@@ -560,6 +563,8 @@ padding: '2x top bottom'
 border: '1bw solid #red top'
 border: '1bw Highlight'  // CSS named and system colors are colors
 width: 'min 200px'
+display: '-webkit-box'  // with -webkit-line-clamp; also -webkit-inline-box
+aspectRatio: '16/10'  // <ratio> allows optional whitespace: same as '16 / 10'
 ```
 
 **Relationship to other value rules:**

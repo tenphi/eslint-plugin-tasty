@@ -1,4 +1,5 @@
 import { all } from 'known-css-properties';
+import webref from '@webref/css';
 
 import { EMERGING_CSS_PROPERTIES, KNOWN_CSS_PROPERTIES } from './constants.js';
 
@@ -8,14 +9,24 @@ import { EMERGING_CSS_PROPERTIES, KNOWN_CSS_PROPERTIES } from './constants.js';
  * `known-property` is the only thing standing between a style key and a report, and
  * tasty renders every camelCase key straight through to CSS — so a property missing
  * from the list is a false positive on valid CSS, and the list only stays right if
- * it is derived from data. This re-derives it from `known-css-properties` and fails
- * on drift. Regenerate with `pnpm generate:css-properties`, do not edit by hand.
+ * it is derived from data. This re-derives it from `known-css-properties`, minus
+ * the at-rule descriptors `@webref/css` lists, and fails on drift. Regenerate with `pnpm generate:css-properties`, do not edit by hand.
  */
 
 const kebabToCamel = (name: string) =>
   name.replace(/-([a-z])/g, (_, char: string) => char.toUpperCase());
 
-const dataset = all.filter((name) => !name.startsWith('-'));
+const { atrules, properties } = await webref.listAll();
+const specProperties = new Set(properties.map(({ name }) => name));
+const descriptorsOnly = new Set(
+  atrules
+    .flatMap(({ descriptors = [] }) => descriptors.map(({ name }) => name))
+    .filter((name) => !specProperties.has(name)),
+);
+
+const dataset = all.filter(
+  (name) => !name.startsWith('-') && !descriptorsOnly.has(name),
+);
 const datasetCamel = new Set(dataset.map(kebabToCamel));
 const EMERGING = new Set(EMERGING_CSS_PROPERTIES);
 
@@ -64,6 +75,34 @@ describe('KNOWN_CSS_PROPERTIES', () => {
       'cornerShape',
       'readingFlow',
       'itemFlow',
+    ]) {
+      expect(KNOWN_CSS_PROPERTIES.has(property)).toBe(true);
+    }
+  });
+
+  it('leaves out at-rule descriptors that are not properties', () => {
+    // A style rule cannot declare these, so tasty would render a declaration the
+    // browser drops; as JSX props they are a component's own (`prefix="$"`).
+    for (const descriptor of [
+      'prefix',
+      'suffix',
+      'src',
+      'syntax',
+      'symbols',
+      'inherits',
+      'unicodeRange',
+      'fontDisplay',
+      'orientation',
+    ]) {
+      expect(KNOWN_CSS_PROPERTIES.has(descriptor)).toBe(false);
+    }
+    // Names that are also properties stay.
+    for (const property of [
+      'fontWeight',
+      'fontStyle',
+      'fontFeatureSettings',
+      'speakAs',
+      'page',
     ]) {
       expect(KNOWN_CSS_PROPERTIES.has(property)).toBe(true);
     }

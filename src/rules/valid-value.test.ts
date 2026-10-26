@@ -315,6 +315,21 @@ tester.run('valid-value', rule, {
         tasty({ styles: { display: { '': 'grid', '@supports(display: grid-lanes)': 'grid-lanes' } } });
       `,
     },
+    // The legacy box keywords `-webkit-line-clamp` still needs.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { display: { '': 'block', clamped: '-webkit-box' } } });
+        tasty({ styles: { display: '-webkit-inline-box' } });
+      `,
+    },
+    // <ratio> allows optional whitespace around the slash.
+    ...['16/10', '16 / 10', '1.5/1', '4/3', '1'].map((value) => ({
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { aspectRatio: '${value}' } });
+      `,
+    })),
   ],
   invalid: [
     {
@@ -324,6 +339,28 @@ tester.run('valid-value', rule, {
       `,
       errors: [{ messageId: 'invalidMod' }],
     },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { display: '-webkit-flexbox' } });
+      `,
+      errors: [{ messageId: 'invalidMod' }],
+    },
+    // Only two numbers make a ratio, and only `aspectRatio` takes one.
+    ...['16/x', '16/10/2', '-16/10'].map((value) => ({
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { aspectRatio: '${value}' } });
+      `,
+      errors: [{ messageId: 'unexpectedMod' as const }],
+    })),
+    ...['opacity', 'zIndex', 'flex'].map((property) => ({
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { ${property}: '1/2' } });
+      `,
+      errors: [{ messageId: 'unexpectedMod' as const }],
+    })),
     // Unbalanced parentheses
     {
       code: `

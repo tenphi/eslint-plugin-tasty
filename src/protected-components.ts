@@ -8,7 +8,7 @@ import {
   resolveModuleExportOrigin,
   withMembers,
 } from './module-components.js';
-import { unwrapExpression, wildcardPattern } from './utils.js';
+import { unwrapExpression, valueDefinition, wildcardPattern } from './utils.js';
 
 /** A component resolved to a `protectedComponents` entry. */
 export interface ProtectedComponent {
@@ -235,7 +235,8 @@ export class ProtectedComponents {
     let scope: Scope.Scope | null = this.context.sourceCode.getScope(reference);
     while (scope && !scope.set.has(localName)) scope = scope.upper;
     const variable = scope?.set.get(localName);
-    if (!variable || variable.defs.length !== 1) return null;
+    const def = variable && valueDefinition(variable);
+    if (!variable || !def) return null;
 
     let cache = this.bindings.get(variable);
     if (!cache) {
@@ -245,7 +246,7 @@ export class ProtectedComponents {
     const key = members.join('.');
     if (cache.has(key)) return cache.get(key)!;
 
-    const result = this.resolveDefinition(variable.defs[0], members, visited);
+    const result = this.resolveDefinition(def, members, visited);
     cache.set(key, result);
     return result;
   }

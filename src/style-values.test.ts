@@ -8,7 +8,7 @@ const filename = resolve('test/fixtures/style-values/component.tsx');
 const factory = `import { tasty } from '@tenphi/tasty';\n`;
 const linter = new Linter();
 
-function lint(code: string, rule: string) {
+function lint(code: string, rule: string, file = filename) {
   return linter.verify(
     code,
     [
@@ -22,7 +22,7 @@ function lint(code: string, rule: string) {
         rules: { [`tasty/${rule}`]: 'error' },
       },
     ],
-    { filename },
+    { filename: file },
   );
 }
 
@@ -126,12 +126,89 @@ it('validates bare, wrapped and state-map booleans', () => {
   ).toEqual([]);
 });
 
+it('leaves props named after at-rule descriptors to the component', () => {
+  // `prefix`, `suffix` and `src` are descriptors, not properties, so a component
+  // taking them (a currency input's `prefix="$"`) is not handed a style value.
+  const code = `<NumberInput prefix="$" suffix="$ " />; <Image src="$ " />;`;
+  for (const rule of [
+    'valid-value',
+    'valid-custom-property',
+    'valid-color-token',
+  ]) {
+    expect(lint(code, rule)).toEqual([]);
+  }
+});
+
+it('leaves the props of components from other packages to the component', () => {
+  // `contain` and `overflow` are the component's own props here, not styles.
+  const code = `import { FocusScope } from 'react-aria';
+    import * as Aria from 'react-aria-components';
+    import Grid from 'some-grid';
+    import { Table } from '@vendor/table/lib';
+    const Scope = FocusScope;
+    <FocusScope contain restoreFocus />; <Aria.FocusScope contain />;
+    <Scope contain />; <Grid overflow="truncate" />; <Table overflow="truncate" />;`;
+  expect(lint(code, 'valid-boolean-property')).toEqual([]);
+  expect(lint(code, 'valid-value')).toEqual([]);
+});
+
+it('keeps checking components Tasty may style', () => {
+  // Import sources and their subpaths, the file's own components, Tasty
+  // wrappers, and relative or in-repo imports.
+  const code =
+    factory +
+    `import { FocusScope } from 'react-aria';
+    import { Box } from '@my/ds';
+    import { Card } from '@my/ds/card';
+    import { Table } from './Table';
+    import { List } from '@/components/List';
+    const Local = (props) => null;
+    const Wrapped = tasty(FocusScope, {});
+    <Box overflow="truncate" />; <Card overflow="truncate" />;
+    <Table overflow="truncate" />; <List overflow="truncate" />;
+    <Local overflow="truncate" />; <Wrapped overflow="truncate" />;
+    <Unresolved overflow="truncate" />;`;
+  expect(lint(code, 'valid-value')).toHaveLength(7);
+  // A package listed in `ownedSources` is the project's own.
+  expect(
+    lint(
+      `import { Table } from '@my-org/table'; <Table overflow="truncate" />;
+      import { FocusScope } from 'react-aria'; <FocusScope overflow="truncate" />;`,
+      'valid-value',
+      resolve('test/fixtures/owned-sources/component.tsx'),
+    ),
+  ).toHaveLength(1);
+  // A listed source, imported or owned, covers the paths below it, not above.
+  expect(
+    lint(
+      `import { Box } from '@my/ds/components/box';
+      import { Table } from '@my-org/ui/table';
+      import { Root } from '@my/ds';
+      <Box overflow="truncate" />; <Table overflow="truncate" />;
+      <Root overflow="truncate" />;`,
+      'valid-value',
+      resolve('test/fixtures/third-party/component.tsx'),
+    ),
+  ).toHaveLength(2);
+});
+
 it('checks heuristic consumer props without requiring a factory in the file', () => {
   expect(
     lint(`<Box fill="red" />; <UI.Box fill="red" />;`, 'no-raw-color-values'),
   ).toHaveLength(2);
   expect(
     lint(`<Box glaze="#missing-color" />;`, 'valid-color-token'),
+  ).toHaveLength(1);
+});
+
+it('recognizes a factory result that shares its name with a type', () => {
+  expect(
+    lint(
+      factory +
+        `const Box = tasty({}); type Box = typeof Box;
+      <Box width="calc(100% - 1x)" />;`,
+      'prefer-auto-calc',
+    ),
   ).toHaveLength(1);
 });
 

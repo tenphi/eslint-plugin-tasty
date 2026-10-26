@@ -171,8 +171,12 @@ export default createRule<[], MessageIds>({
               continue;
             }
 
-            // Check unknown tokens against property expectations
-            if (token.type === 'unknown') {
+            // Check unknown tokens against property expectations. A ratio
+            // outside `aspectRatio` is as unrecognized as any other word.
+            if (
+              token.type === 'unknown' ||
+              (token.type === 'ratio' && !expectation.acceptsRatio)
+            ) {
               const raw = token.raw;
 
               if (expectation.acceptsMods === true) {
