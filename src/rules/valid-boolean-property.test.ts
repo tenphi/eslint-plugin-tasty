@@ -46,10 +46,8 @@ tester.run('valid-boolean-property', rule, {
       errors: [{ messageId: 'invalidBooleanTrue' }],
     },
     {
-      // `fill` is documented as taking `true`, but the handler passes the
-      // boolean through: `fill: true` emits `background-color: true`, which the
-      // browser drops, so the element ends up with no background at all.
-      // `constants.round-trip.test.ts` holds the canary for the day that changes.
+      // `fill` has no default color. Tasty 3.14 ignores true, so reporting it
+      // still prevents a silently missing background.
       code: `
         import { tasty } from '@tenphi/tasty';
         tasty({ styles: { fill: true } });

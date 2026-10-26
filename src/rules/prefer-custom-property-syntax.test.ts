@@ -74,6 +74,20 @@ tester.run('prefer-custom-property-syntax', rule, {
       `,
     },
     {
+      // fontStyle is a keyword handler in Tasty 3.14 and leaves #tokens literal.
+      // Rewriting a working custom property would drop the declaration.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fontStyle: 'var(--emphasis-color)' } });
+      `,
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fontStyle: '$emphasis-color' } });
+      `,
+    },
+    {
       // React inline styles, not tasty. `#shadow-sm` is a correct rewrite *inside*
       // tasty and meaningless here — nothing resolves the token, so applying it
       // deleted the shadow. The variable name said `styles`; the type says otherwise,
