@@ -265,12 +265,10 @@ describe('`true` support', () => {
     );
   });
 
-  it('still leaks on `fill`, which is why `fill` is excluded', () => {
-    // The canary for that exclusion. Tasty's docs list `fill` as accepting
-    // `true`; its handler currently does not resolve it. When that is fixed this
-    // test fails, which is the signal to put `fill` back into the set — rather
-    // than the plugin going on reporting valid code.
-    expect(render('fill', true as never)).toBe('background-color: true;');
+  it('has no default on `fill`, which is why `fill` is excluded', () => {
+    // Tasty 3.14 drops the invalid boolean instead of emitting it. There is
+    // still no default background, so accepting it would hide a missing color.
+    expect(render('fill', true as never)).toBeNull();
     expect(BOOLEAN_TRUE_PROPERTIES.has('fill')).toBe(false);
   });
 
