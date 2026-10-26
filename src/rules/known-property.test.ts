@@ -16,6 +16,13 @@ tester.run('known-property', rule, {
         tasty({ styles: { fill: '#purple', padding: '2x' } });
       `,
     },
+    // Tasty's own name for the native SVG `fill` (its `fill` is the background)
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { Svg: { $: '> svg', svgFill: '#current' } } });
+      `,
+    },
     {
       code: `
         import { tasty } from '@tenphi/tasty';

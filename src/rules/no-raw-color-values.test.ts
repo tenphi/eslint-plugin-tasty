@@ -113,6 +113,13 @@ tester.run('no-raw-color-values', rule, {
     {
       code: `
         import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { svgFill: 'red' } });
+      `,
+      errors: [{ messageId: 'rawNamedColor', data: { name: 'red' } }],
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
         tasty({ styles: { border: '1bw solid red' } });
       `,
       errors: [{ messageId: 'rawNamedColor', data: { name: 'red' } }],

@@ -312,7 +312,7 @@ Warns when a style property name is not recognized as a valid tasty property or 
 `gridArea`, `order`, `gridColumn`, `gridRow`, `placeSelf`, `alignSelf`, `justifySelf`, `zIndex`, `margin`, `inset`, `position`,
 `padding`, `overflow`, `scrollbar`, `textAlign`, `scrollMargin`, `scrollPadding`,
 `border`, `radius`, `shadow`, `outline`,
-`color`, `fill`, `fade`, `image`,
+`color`, `fill`, `svgFill`, `fade`, `image`,
 `textTransform`, `fontWeight`, `fontStyle`,
 `width`, `height`, `flexBasis`, `flexGrow`, `flexShrink`, `flex`,
 `flow`, `placeItems`, `placeContent`, `alignItems`, `alignContent`, `justifyItems`, `justifyContent`, `align`, `justify`, `gap`, `columnGap`, `rowGap`, `gridColumns`, `gridRows`, `gridTemplate`, `gridAreas`,
@@ -571,6 +571,7 @@ Parses every string style value through the value parser and validates the resul
    - Properties that don't accept modifiers (`fill`, `color`, `opacity`, `width`, `height`, etc.) should have no `Mod` tokens. Any `Mod` token means something wasn't recognized.
    - Properties that accept specific modifiers (`border`, `padding`, `radius`, etc.) should only have `Mod` tokens from a known set.
    - Properties that don't accept colors (`padding`, `margin`, `gap`, `width`, etc.) should have no `Color` tokens.
+   - `svgFill` is the native SVG `fill`, so it also accepts `context-fill` and `context-stroke`. It takes one paint: Tasty keeps one color and drops the rest, so a second value is reported. A `url()` may have one fallback, but Tasty passes that value through as plain CSS, so a `#name` fallback is reported because it is never expanded.
 
 **What it catches:**
 
@@ -584,6 +585,12 @@ padding: '2x topp'  // 'topp' falls into Mod, not in known modifier set
 // ❌ Error: Unbalanced parentheses in value
 fill: 'rgb(255, 0, 0'  // parser warns about unmatched parens
 
+// ❌ Error: svgFill takes one paint (Tasty renders only #red)
+svgFill: 'none #red'
+
+// ❌ Error: '#purple' is not expanded after url()
+svgFill: 'url(#gradient) #purple'
+
 // ✅ Valid — parser handles all these correctly
 fill: '#purple.5'
 padding: '2x top bottom'
@@ -592,6 +599,8 @@ border: '1bw Highlight'  // CSS named and system colors are colors
 width: 'min 200px'
 display: '-webkit-box'  // with -webkit-line-clamp; also -webkit-inline-box
 aspectRatio: '16/10'  // <ratio> allows optional whitespace: same as '16 / 10'
+svgFill: 'context-stroke'
+svgFill: 'url(#gradient) currentColor'  // a url() fallback is plain CSS
 ```
 
 **Relationship to other value rules:**

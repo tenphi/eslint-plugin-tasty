@@ -57,6 +57,14 @@ tester.run('valid-boolean-property', rule, {
       errors: [{ messageId: 'invalidBooleanTrue' }],
     },
     {
+      // Unlike `color: true`, `svgFill: true` emits `fill: true`.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { svgFill: true } });
+      `,
+      errors: [{ messageId: 'invalidBooleanTrue' }],
+    },
+    {
       // Including in a state map, where it is just as invisible.
       code: `
         import { tasty } from '@tenphi/tasty';

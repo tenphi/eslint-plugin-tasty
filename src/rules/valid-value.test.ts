@@ -38,6 +38,28 @@ tester.run('valid-value', rule, {
         tasty({ styles: { fill: '#purple.5' } });
       `,
     },
+    // svgFill takes colors like fill, plus the SVG paint values
+    ...[
+      '#purple.10',
+      '#current',
+      '(#primary, #secondary)',
+      '$icon-color',
+      'none',
+      'context-fill',
+      'context-stroke',
+      'light-dark(#dark, #light)',
+      'url(#gradient)',
+      // A url() paint's fallback is plain CSS.
+      'url(#gradient) none',
+      'url(#gradient) currentColor',
+      'url(#gradient) #fff',
+      'url(#gradient) $icon-color',
+    ].map((value) => ({
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { svgFill: '${value}' } });
+      `,
+    })),
     // Padding with directional mods
     {
       code: `
@@ -382,6 +404,70 @@ tester.run('valid-value', rule, {
       code: `
         import { tasty } from '@tenphi/tasty';
         tasty({ styles: { fill: 'purle' } });
+      `,
+      errors: [{ messageId: 'invalidMod' }],
+    },
+    ...['purle', 'context-fil'].map((value) => ({
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { svgFill: '${value}' } });
+      `,
+      errors: [{ messageId: 'invalidMod' as const }],
+    })),
+    // Tasty keeps one color of an svgFill and drops the rest.
+    ...[
+      'none #red',
+      '#red #blue',
+      '#red, #blue',
+      '#purple 2x',
+      'url(#gradient) none red',
+      'url(#gradient), red',
+    ].map((value) => ({
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { svgFill: '${value}' } });
+      `,
+      errors: [
+        {
+          messageId: 'multiplePaints' as const,
+          data: { property: 'svgFill', value },
+        },
+      ],
+    })),
+    // ...and passes a url() paint through unexpanded, so a token fallback is
+    // invalid CSS.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { svgFill: 'url(#gradient) #purple' } });
+      `,
+      errors: [
+        { messageId: 'unexpandedPaintToken', data: { token: '#purple' } },
+      ],
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { svgFill: 'url(#gradient) ##purple' } });
+      `,
+      errors: [
+        { messageId: 'unexpandedPaintToken', data: { token: '##purple' } },
+      ],
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { svgFill: 'url(#gradient) #fff.5' } });
+      `,
+      errors: [
+        { messageId: 'unexpandedPaintToken', data: { token: '#fff.5' } },
+      ],
+    },
+    // The SVG paint keywords are not background values.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fill: 'context-fill' } });
       `,
       errors: [{ messageId: 'invalidMod' }],
     },

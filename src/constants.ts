@@ -133,6 +133,7 @@ export const KNOWN_TASTY_PROPERTIES = new Set([
   'outline',
   'color',
   'fill',
+  'svgFill',
   'fade',
   'image',
   'textTransform',
@@ -2001,6 +2002,7 @@ export const SYSTEM_COLORS = new Set<string>([
 export const COLOR_BEARING_PROPERTIES = new Set<string>([
   // Tasty enhanced properties
   'fill',
+  'svgFill',
   'color',
   'caretColor',
   'accentColor',

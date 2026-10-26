@@ -126,6 +126,16 @@ tester.run('valid-transition', rule, {
         { messageId: 'unknownTransition', data: { name: 'dimension', known } },
       ],
     },
+    // A Tasty style, but not a transition name: it comes out as `svgfill`.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { transition: 'svgFill 0.2s' } });
+      `,
+      errors: [
+        { messageId: 'unknownTransition', data: { name: 'svgFill', known } },
+      ],
+    },
     {
       code: `
         import { tasty } from '@tenphi/tasty';
