@@ -52,6 +52,7 @@ const VALUE_TOKEN_TYPES = new Set<ValueToken['type']>([
   'custom-unit',
   'css-unit',
   'number',
+  'ratio',
   'custom-prop',
   'custom-prop-ref',
   'css-function',

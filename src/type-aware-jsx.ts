@@ -11,7 +11,7 @@ export interface TypeAwareJSXOptions {
   project?: string;
 }
 
-type PropKind = 'style' | 'component' | 'unknown';
+export type PropKind = 'style' | 'component' | 'unknown';
 type TypeScript = typeof ts;
 type Classifier = (attribute: TSESTree.JSXAttribute) => PropKind;
 

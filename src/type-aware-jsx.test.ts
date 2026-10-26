@@ -581,4 +581,10 @@ it('classifies components from other packages by their types', () => {
     <TabDropIndicator position="after" />; <Box position="after" />;`;
   expect(rules(code)).toEqual(['tasty/valid-value']);
   expect(rules(code, false)).toEqual([]);
+  // Where the types do not decide, the package does, as without types.
+  expect(
+    rules(`import { UnknownBox } from '@vendor/ui';
+    import { UnknownBox as LocalBox } from './components';
+    <UnknownBox position="after" />; <LocalBox position="after" />;`),
+  ).toEqual(['tasty/valid-value']);
 });

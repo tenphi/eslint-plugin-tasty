@@ -20,6 +20,8 @@ export type ValueToken =
   | { type: 'custom-unit'; value: number; unit: string; raw: string }
   | { type: 'css-unit'; value: number; unit: string; raw: string }
   | { type: 'number'; value: number; raw: string }
+  /** An unspaced `<ratio>`, such as `16/10`; the spaced form is two parts. */
+  | { type: 'ratio'; raw: string }
   | { type: 'keyword'; value: string }
   | { type: 'css-function'; name: string; args: string; raw: string }
   /**
@@ -68,7 +70,7 @@ const RE_UNIT_NUM = /^[+-]?(?:\d*\.\d+|\d+)([a-z][a-z0-9]*)$/;
 const RE_NUMBER = /^[+-]?(?:\d*\.\d+|\d+)$/;
 const RE_CSS_UNIT_NUM = /^[+-]?(?:\d*\.\d+|\d+)([a-z%]+)$/;
 /** An unspaced `<ratio>`, such as `16/10`. */
-const RE_RATIO = /^(\d*\.\d+|\d+)\/(\d*\.\d+|\d+)$/;
+const RE_RATIO = /^(?:\d*\.\d+|\d+)\/(?:\d*\.\d+|\d+)$/;
 
 const COLOR_FUNCS = new Set([
   'rgb',
@@ -568,6 +570,11 @@ function classifyToken(
     return { type: 'number', value: parseFloat(token), raw: token };
   }
 
+  // Unspaced ratio: 16/10
+  if (RE_RATIO.test(token)) {
+    return { type: 'ratio', raw: token };
+  }
+
   // Tasty merge directive (@inherit)
   if (token === '@inherit') {
     return { type: 'keyword', value: token };
@@ -760,22 +767,7 @@ export function parseValue(
   };
 
   for (const scanned_token of scanned) {
-    // `<ratio>` allows optional whitespace around the slash, so `16/10` reads
-    // as the two parts `16 / 10` gives.
-    const ratio = RE_RATIO.exec(scanned_token.value);
-    if (ratio) {
-      currentTokens.push({
-        type: 'number',
-        value: parseFloat(ratio[1]),
-        raw: ratio[1],
-      });
-      endPart();
-      currentTokens.push({
-        type: 'number',
-        value: parseFloat(ratio[2]),
-        raw: ratio[2],
-      });
-    } else if (scanned_token.value) {
+    if (scanned_token.value) {
       const classified = classifyToken(
         scanned_token.value,
         scanned_token.offset,

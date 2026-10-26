@@ -346,11 +346,18 @@ tester.run('valid-value', rule, {
       `,
       errors: [{ messageId: 'invalidMod' }],
     },
-    // Only two numbers make a ratio.
+    // Only two numbers make a ratio, and only `aspectRatio` takes one.
     ...['16/x', '16/10/2', '-16/10'].map((value) => ({
       code: `
         import { tasty } from '@tenphi/tasty';
         tasty({ styles: { aspectRatio: '${value}' } });
+      `,
+      errors: [{ messageId: 'unexpectedMod' as const }],
+    })),
+    ...['opacity', 'zIndex', 'flex'].map((property) => ({
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { ${property}: '1/2' } });
       `,
       errors: [{ messageId: 'unexpectedMod' as const }],
     })),

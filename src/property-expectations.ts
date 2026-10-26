@@ -18,6 +18,8 @@
 export interface PropertyExpectation {
   acceptsColor: boolean;
   acceptsMods: boolean | string[];
+  /** Whether an unspaced `<ratio>` token (`16/10`) is a value here. */
+  acceptsRatio?: boolean;
 }
 
 const DIRECTIONAL_MODS = ['top', 'right', 'bottom', 'left'];
@@ -215,7 +217,8 @@ export const PROPERTY_EXPECTATIONS: Record<string, PropertyExpectation> = {
   order: VALUE_ONLY,
   zIndex: VALUE_ONLY,
   opacity: VALUE_ONLY,
-  aspectRatio: VALUE_ONLY,
+  // `<ratio>` allows optional whitespace around the slash: `16/10`, `16 / 10`.
+  aspectRatio: { ...VALUE_ONLY, acceptsRatio: true },
   lineClamp: VALUE_ONLY,
   tabSize: VALUE_ONLY,
 

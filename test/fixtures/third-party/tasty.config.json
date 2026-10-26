@@ -1,0 +1,4 @@
+{
+  "importSources": ["@my/ds/components"],
+  "ownedSources": ["@my-org/ui"]
+}

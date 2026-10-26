@@ -178,6 +178,18 @@ it('keeps checking components Tasty may style', () => {
       resolve('test/fixtures/owned-sources/component.tsx'),
     ),
   ).toHaveLength(1);
+  // A listed source, imported or owned, covers the paths below it, not above.
+  expect(
+    lint(
+      `import { Box } from '@my/ds/components/box';
+      import { Table } from '@my-org/ui/table';
+      import { Root } from '@my/ds';
+      <Box overflow="truncate" />; <Table overflow="truncate" />;
+      <Root overflow="truncate" />;`,
+      'valid-value',
+      resolve('test/fixtures/third-party/component.tsx'),
+    ),
+  ).toHaveLength(2);
 });
 
 it('checks heuristic consumer props without requiring a factory in the file', () => {

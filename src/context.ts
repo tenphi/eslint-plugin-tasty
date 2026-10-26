@@ -18,6 +18,7 @@ import {
   finishJSXAnalysis,
   isTypeAwareJSX,
   jsxPropKind,
+  type PropKind,
 } from './type-aware-jsx.js';
 import { isModuleTastyComponent } from './module-components.js';
 
@@ -291,10 +292,19 @@ function isInRepoSource(source: string): boolean {
   );
 }
 
-/** The package a bare specifier names: `@scope/pkg/sub` -> `@scope/pkg`. */
-function packageName(source: string): string {
+/**
+ * A bare specifier and each path above it, down to its package:
+ * `@scope/pkg/a/b` gives `@scope/pkg/a/b`, `@scope/pkg/a` and `@scope/pkg`. A
+ * source entry naming any of them covers the specifier.
+ */
+function specifierPaths(source: string): string[] {
   const parts = source.split('/');
-  return parts.slice(0, source.startsWith('@') ? 2 : 1).join('/');
+  const packageLength = source.startsWith('@') ? 2 : 1;
+  const paths: string[] = [];
+  for (let length = parts.length; length >= packageLength; length--) {
+    paths.push(parts.slice(0, length).join('/'));
+  }
+  return paths;
 }
 
 /** `settings.tasty.mergeFunctions`: project helpers with `mergeStyles` semantics. */
@@ -339,6 +349,8 @@ export class TastyContext {
   private mergeFunctions: ReadonlySet<string>;
   private relativeComponents = new Map<string, boolean>();
   private resolving = new Set<TSESTree.Node>();
+  private ownedPatterns: RegExp[] | undefined;
+  private externalElements = new WeakMap<TSESTree.Node, boolean>();
 
   constructor(
     private context: RuleContext<string, unknown[]>,
@@ -388,7 +400,12 @@ export class TastyContext {
   }
 
   isComponentJSXProp(node: TSESTree.JSXAttribute): boolean {
-    return jsxPropKind(this.context, node) === 'component';
+    return this.jsxPropKind(node) === 'component';
+  }
+
+  /** What `typeAwareJSX` makes of a JSX prop; `'unknown'` while it is off. */
+  jsxPropKind(node: TSESTree.JSXAttribute): PropKind {
+    return jsxPropKind(this.context, node);
   }
 
   /** Whether `settings.tasty.typeAwareJSX` classifies JSX props by their types. */
@@ -425,60 +442,91 @@ export class TastyContext {
     return source === undefined || this.isOwnedSource(source);
   }
 
+  /** In-repo, or a package (or a subpath of one) listed in `ownedSources`. */
   private isOwnedSource(source: string): boolean {
     if (isInRepoSource(source)) return true;
 
     // `ownedSources` is optional on the public `ResolvedConfig`, so a config
     // built by a consumer rather than by `loadConfig` may not carry it.
-    return (this.config.ownedSources ?? []).some((pattern) =>
-      wildcardPattern(pattern).test(source),
+    this.ownedPatterns ??= (this.config.ownedSources ?? []).map(
+      wildcardPattern,
+    );
+    const patterns = this.ownedPatterns;
+    return specifierPaths(source).some((path) =>
+      patterns.some((pattern) => pattern.test(path)),
     );
   }
 
   /**
-   * Whether a JSX tag names a component from a package Tasty has no say over:
-   * an import from a bare specifier that is neither an import source (or one of
-   * its subpaths) nor owned, such as `react-aria`'s `FocusScope`. Its props are
-   * its own, so `<FocusScope contain />` carries no style value. `const` aliases
-   * are followed; a component declared in the file, a factory call and a
-   * relative or in-repo import are not external.
+   * The definition a name resolves to through `const` aliases of an identifier
+   * or a non-computed member chain (`const Scope = FocusScope`,
+   * `const Item = UI.Item`): an import binding, or a declaration whose value is
+   * something else. Null for an unbound or redeclared name, or an alias cycle.
    */
-  isExternalJSXComponent(node: TSESTree.Node, name: string): boolean {
-    const visited = new Set<TSESTree.VariableDeclarator>();
-    const resolve = (reference: TSESTree.Node, localName: string): boolean => {
-      let scope: Scope.Scope | null =
-        this.context.sourceCode.getScope(reference);
-      while (scope && !scope.set.has(localName)) scope = scope.upper;
-      const variable = scope?.set.get(localName);
-      if (!variable || variable.defs.length !== 1) return false;
-      const def = variable.defs[0];
+  private resolveAlias(
+    reference: TSESTree.Node,
+    name: string,
+    visited = new Set<TSESTree.Node>(),
+  ): Scope.Definition | null {
+    let scope: Scope.Scope | null = this.context.sourceCode.getScope(reference);
+    while (scope && !scope.set.has(name)) scope = scope.upper;
+    const variable = scope?.set.get(name);
+    if (!variable || variable.defs.length !== 1) return null;
+    const def = variable.defs[0];
+    if (
+      def.type !== 'Variable' ||
+      def.parent.kind !== 'const' ||
+      def.node.id.type !== 'Identifier' ||
+      !def.node.init
+    ) {
+      return def;
+    }
 
-      if (def.type === 'ImportBinding') {
-        if (def.parent.type !== 'ImportDeclaration') return false;
-        const source = def.parent.source.value;
-        return (
-          !this.importSources.has(source) &&
-          !this.importSources.has(packageName(source)) &&
-          !this.isOwnedSource(source)
-        );
-      }
+    const init = unwrapExpression(def.node.init);
+    if (init.type !== 'Identifier' && init.type !== 'MemberExpression') {
+      return def;
+    }
+    if (visited.has(def.node)) return null;
+    visited.add(def.node);
+    let root: TSESTree.Node = init;
+    while (root.type === 'MemberExpression') {
+      if (root.computed) return null;
+      root = unwrapExpression(root.object);
+    }
+    return root.type === 'Identifier'
+      ? this.resolveAlias(init, root.name, visited)
+      : null;
+  }
 
+  /**
+   * Whether a JSX element is a component from a package Tasty has no say over:
+   * its tag, or the root object of a member tag, is imported from a bare
+   * specifier that is neither an import source nor owned, such as `react-aria`'s
+   * `FocusScope`. Either list covers a package's subpaths. Its props are its
+   * own, so `<FocusScope contain />` carries no style value. `const` aliases are
+   * followed; a component declared in the file, a factory call and a relative
+   * or in-repo import are not external.
+   */
+  isExternalJSXElement(element: TSESTree.JSXOpeningElement): boolean {
+    let external = this.externalElements.get(element);
+    if (external === undefined) {
+      let tag = element.name;
+      while (tag.type === 'JSXMemberExpression') tag = tag.object;
+      const def =
+        tag.type === 'JSXIdentifier' ? this.resolveAlias(tag, tag.name) : null;
+      external = false;
       if (
-        def.type !== 'Variable' ||
-        def.parent.kind !== 'const' ||
-        def.node.id.type !== 'Identifier' ||
-        !def.node.init ||
-        visited.has(def.node)
+        def?.type === 'ImportBinding' &&
+        def.parent.type === 'ImportDeclaration'
       ) {
-        return false;
+        const source = def.parent.source.value;
+        external =
+          !this.isOwnedSource(source) &&
+          !specifierPaths(source).some((path) => this.importSources.has(path));
       }
-      visited.add(def.node);
-      // `baseComponentName` reads through member chains but not calls, so
-      // `const Panel = tasty(FocusScope, …)` stays a Tasty component.
-      const root = baseComponentName(def.node.init);
-      return root !== null && resolve(def.node.init, root);
-    };
-    return resolve(node, name);
+      this.externalElements.set(element, external);
+    }
+    return external;
   }
 
   isTastyCall(node: TSESTree.CallExpression): TastyImport | undefined {
@@ -551,63 +599,35 @@ export class TastyContext {
 
   /** Local factory results, const aliases, and configured component imports. */
   isTastyJSXComponent(node: TSESTree.Node, name: string): boolean {
-    const visited = new Set<TSESTree.VariableDeclarator>();
-    const resolve = (reference: TSESTree.Node, localName: string): boolean => {
-      let scope = this.context.sourceCode.getScope(reference);
-      while (scope) {
-        const variable = scope.set.get(localName);
-        if (variable) {
-          return variable.defs.some((def) => {
-            if (def.type === 'ImportBinding') {
-              if (
-                def.parent.type !== 'ImportDeclaration' ||
-                def.parent.importKind === 'type' ||
-                (def.node.type === 'ImportSpecifier' &&
-                  def.node.importKind === 'type')
-              ) {
-                return false;
-              }
-              const source = def.parent.source.value;
-              if (this.importSources.has(source)) return true;
-              return this.isRelativeTastyImport(source, def.node);
-            }
-            if (def.type !== 'Variable') return false;
-            const declaration = def.node;
-            if (
-              declaration.id.type !== 'Identifier' ||
-              declaration.parent.kind !== 'const' ||
-              !declaration.init ||
-              visited.has(declaration)
-            )
-              return false;
-            visited.add(declaration);
-            const init = unwrapExpression(declaration.init);
-            if (init.type === 'Identifier') return resolve(init, init.name);
-            if (init.type === 'MemberExpression' && !init.computed) {
-              let member: TSESTree.Node = init;
-              while (member.type === 'MemberExpression') {
-                if (member.computed) return false;
-                member = unwrapExpression(member.object);
-              }
-              const root = baseComponentName(init);
-              return root !== null && resolve(init, root);
-            }
-            if (init.type !== 'CallExpression') return false;
-            const imp = this.isTastyCall(init);
-            return (
-              imp?.importedName === 'tasty' ||
-              (imp !== undefined &&
-                this.config.styleFunctions?.[imp.importedName]?.kind ===
-                  'options')
-            );
-          });
-        }
-        if (!scope.upper) break;
-        scope = scope.upper;
+    const def = this.resolveAlias(node, name);
+    if (def?.type === 'ImportBinding') {
+      if (
+        def.parent.type !== 'ImportDeclaration' ||
+        def.parent.importKind === 'type' ||
+        (def.node.type === 'ImportSpecifier' && def.node.importKind === 'type')
+      ) {
+        return false;
       }
+      const source = def.parent.source.value;
+      if (this.importSources.has(source)) return true;
+      return this.isRelativeTastyImport(source, def.node);
+    }
+    if (
+      def?.type !== 'Variable' ||
+      def.parent.kind !== 'const' ||
+      def.node.id.type !== 'Identifier' ||
+      !def.node.init
+    ) {
       return false;
-    };
-    return resolve(node, name);
+    }
+    const init = unwrapExpression(def.node.init);
+    if (init.type !== 'CallExpression') return false;
+    const imp = this.isTastyCall(init);
+    return (
+      imp?.importedName === 'tasty' ||
+      (imp !== undefined &&
+        this.config.styleFunctions?.[imp.importedName]?.kind === 'options')
+    );
   }
 
   /**

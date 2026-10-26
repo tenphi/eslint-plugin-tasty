@@ -141,10 +141,14 @@ describe('value-parser', () => {
       expect(tokens).toHaveLength(1);
     });
 
-    it('reads an unspaced ratio as the spaced form', () => {
-      expect(parseValue('16/10')).toEqual(parseValue('16 / 10'));
-      expect(parseValue('1.5/1, 4/3')).toEqual(parseValue('1.5 / 1, 4 / 3'));
-      expect(flattenTokens(parseValue('2x/1'))).toHaveLength(1);
+    it('classifies an unspaced ratio', () => {
+      expect(flattenTokens(parseValue('16/10, 1.5/1'))).toEqual([
+        { type: 'ratio', raw: '16/10' },
+        { type: 'ratio', raw: '1.5/1' },
+      ]);
+      for (const value of ['2x/1', '-16/10', '16/10/2', 'center/cover']) {
+        expect(flattenTokens(parseValue(value))[0].type).toBe('unknown');
+      }
     });
   });
 

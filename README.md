@@ -104,7 +104,8 @@ When a rule's advice is "change the component you are extending", it stays quiet
 over a base imported from someone else's package. Components declared in the same
 file and relative, absolute, `~`, `#` or `@/` imports count as yours already —
 list a scope here only for a design system you publish from your own monorepo
-(`*` matches any run of characters).
+(`*` matches any run of characters). An entry also covers its package's subpaths,
+so `@my-org/ui` owns `@my-org/ui/button`.
 
 A design system can also list the components consumers should customize through
 their props instead of restyling, in `protectedComponents`; consumers inherit the
@@ -446,12 +447,13 @@ are excluded. Bindings, calls, spreads, and interpolated templates are not evalu
 By default, these checks do not require TypeScript type services.
 
 A component imported from another package is skipped: a bare specifier that is
-not one of the `importSources` (or a subpath of one) and does not match
-`ownedSources`. Its props are its own, so `<FocusScope contain />` from
-`react-aria` is not read as a style. Components declared in the file, `tasty()`
-wrappers, and relative or in-repo imports (`./`, `~/`, `#`, `@/`) are still
-checked, since they may be Tasty components. With `typeAwareJSX` on, every
-component is classified by its prop types instead.
+not listed in `importSources` or `ownedSources`, where an entry also covers the
+paths below it (`@my/ds` covers `@my/ds/button`). Its props are its own, so
+`<FocusScope contain />` from `react-aria` is not read as a style. Components
+declared in the file, `tasty()` wrappers, and relative or in-repo imports (`./`,
+`~/`, `#`, `@/`) are still checked, since they may be Tasty components. With
+`typeAwareJSX` on, prop types decide, and the package rule applies only where
+they cannot (`any`, unresolved types).
 
 ### Experimental type-aware JSX props
 
