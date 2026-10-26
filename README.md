@@ -133,7 +133,8 @@ installed version. A consumer that lags behind its design system finds out on
 the first lint run instead of getting silently different results.
 
 The plugin also warns, on stderr and once per config file, about keys it does not
-read (a typo, or a key from a newer plugin) and about an `extends` that names
+read (a typo, or a key from a newer plugin), about known keys of the wrong shape
+(`states: '@mobile'` instead of a list), and about an `extends` that names
 nothing usable: a non-string value, a package that cannot be resolved, a package
 without a `tasty.config.*`, or a chain that leads back to itself. A package
 `extends` can also name a file inside the package, such as

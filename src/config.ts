@@ -79,15 +79,98 @@ function checkRequires(config: TastyValidationConfig, configPath: string) {
   }
 }
 
-function warnUnknownKeys(config: TastyValidationConfig, configPath: string) {
+/** List keys, and whether `false` (turning the check off) is allowed. */
+const LIST_KEYS = {
+  tokens: true,
+  units: true,
+  functions: true,
+  funcs: true,
+  states: false,
+  presets: false,
+  recipes: false,
+  styles: false,
+  importSources: false,
+  ownedSources: false,
+} as const;
+
+/** Keys Tasty's runtime config (`configure()`) holds as objects keyed by name. */
+const RUNTIME_OBJECT_KEYS = [
+  'tokens',
+  'units',
+  'functions',
+  'states',
+  'presets',
+  'recipes',
+];
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function describe(value: unknown): string {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) {
+    return value.every((item) => typeof item === 'string')
+      ? 'a list'
+      : 'a list with a non-string entry';
+  }
+  return isPlainObject(value) ? 'an object' : `a ${typeof value}`;
+}
+
+/**
+ * Warns about keys the plugin does not read and known keys of the wrong shape,
+ * and returns the config without the latter, so `states: '@mobile'` is not
+ * read character by character.
+ */
+function checkKeys(
+  config: TastyValidationConfig,
+  configPath: string,
+): TastyValidationConfig {
+  // Tasty's SSR guide keeps the runtime config in a `tasty.config.ts` too.
+  const runtime = RUNTIME_OBJECT_KEYS.some((key) =>
+    isPlainObject((config as Record<string, unknown>)[key]),
+  )
+    ? " It looks like Tasty's runtime config, which the plugin does not read."
+    : '';
+
   const unknown = Object.keys(config).filter(
     (key) => !KNOWN_KEYS.has(key) && key !== '__esModule',
   );
-  if (unknown.length === 0) return;
-  const keys = unknown.map((key) => `'${key}'`).join(', ');
-  warnOnce(
-    `${configPath}: ignoring unknown ${unknown.length === 1 ? 'key' : 'keys'} ${keys}. Check the spelling, or upgrade @tenphi/eslint-plugin-tasty (${pluginVersion} is installed) if the config was written for a newer version.`,
-  );
+  if (unknown.length > 0) {
+    const keys = unknown.map((key) => `'${key}'`).join(', ');
+    warnOnce(
+      `${configPath}: ignoring unknown ${unknown.length === 1 ? 'key' : 'keys'} ${keys}.${
+        runtime ||
+        ` Check the spelling, or upgrade @tenphi/eslint-plugin-tasty (${pluginVersion} is installed) if the config was written for a newer version.`
+      }`,
+    );
+  }
+
+  const checked: Record<string, unknown> = { ...config };
+  const ignore = (key: string, expected: string) => {
+    warnOnce(
+      `${configPath}: ignoring '${key}', which must be ${expected}, not ${describe(checked[key])}.${runtime}`,
+    );
+    delete checked[key];
+  };
+  for (const [key, allowsFalse] of Object.entries(LIST_KEYS)) {
+    const value = checked[key];
+    if (
+      value === undefined ||
+      (value === false && allowsFalse) ||
+      (Array.isArray(value) && value.every((item) => typeof item === 'string'))
+    ) {
+      continue;
+    }
+    ignore(key, `${allowsFalse ? 'false or ' : ''}a list of names`);
+  }
+  if (
+    checked.styleFunctions !== undefined &&
+    !isPlainObject(checked.styleFunctions)
+  ) {
+    ignore('styleFunctions', 'an object keyed by function name');
+  }
+  return checked as TastyValidationConfig;
 }
 
 function findProjectRoot(startDir: string): string | null {
@@ -439,7 +522,7 @@ function resolveConfigChain(
     config = {};
   }
   checkRequires(config, absPath);
-  warnUnknownKeys(config, absPath);
+  config = checkKeys(config, absPath);
 
   const parentPath = resolveExtends(config, absPath, touched);
   if (!parentPath) return config;

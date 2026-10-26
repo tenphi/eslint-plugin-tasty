@@ -261,6 +261,50 @@ describe('config warnings', () => {
     );
   });
 
+  it('ignores known keys of the wrong shape', () => {
+    const warn = warnings();
+    const root = project();
+    const path = join(root, 'tasty.config.json');
+    writeConfig(path, {
+      states: '@mobile',
+      tokens: ['#brand', 1],
+      units: false,
+      presets: false,
+      styleFunctions: ['component'],
+    });
+    const config = loadConfig(join(root, 'component.ts'));
+    expect([
+      config.states,
+      config.tokens,
+      config.units,
+      config.presets,
+    ]).toEqual([[], [], false, []]);
+    expect(config.styleFunctions).toEqual({});
+    expect(warn.mock.calls.map(([message]) => message)).toEqual([
+      `[eslint-plugin-tasty] ${path}: ignoring 'tokens', which must be false or a list of names, not a list with a non-string entry.`,
+      `[eslint-plugin-tasty] ${path}: ignoring 'states', which must be a list of names, not a string.`,
+      `[eslint-plugin-tasty] ${path}: ignoring 'presets', which must be a list of names, not a boolean.`,
+      `[eslint-plugin-tasty] ${path}: ignoring 'styleFunctions', which must be an object keyed by function name, not a list.`,
+    ]);
+  });
+
+  it("names Tasty's runtime config when a file looks like one", () => {
+    const warn = warnings();
+    const root = project();
+    const path = join(root, 'tasty.config.json');
+    writeConfig(path, {
+      tokens: { $gap: '8px' },
+      globalStyles: { body: { margin: '0' } },
+    });
+    expect(loadConfig(join(root, 'component.ts')).tokens).toEqual([]);
+    const hint =
+      " It looks like Tasty's runtime config, which the plugin does not read.";
+    expect(warn.mock.calls.map(([message]) => message)).toEqual([
+      `[eslint-plugin-tasty] ${path}: ignoring unknown key 'globalStyles'.${hint}`,
+      `[eslint-plugin-tasty] ${path}: ignoring 'tokens', which must be false or a list of names, not an object.${hint}`,
+    ]);
+  });
+
   it('ignores a config that is not an object', () => {
     const warn = warnings();
     const root = project();

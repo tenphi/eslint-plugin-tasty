@@ -277,6 +277,7 @@ Problems in a config file are reported rather than dropped:
 
 - **`requires` not met** — the run fails with `tasty: <file> requires @tenphi/eslint-plugin-tasty <range>, but <version> is installed.` A `requires` that is not a valid semver range fails the same way.
 - **Unknown keys** — a warning on stderr, once per config file, lists the keys the plugin does not read, such as a typo or a key from a newer plugin. They are ignored.
+- **Known keys of the wrong shape** — a list key that is not a list of strings (or `false`, where that turns a check off), or a `styleFunctions` that is not an object, is a warning and ignored, rather than read character by character or as an empty list. When `tokens`, `states` or a similar key is an object keyed by name, the warnings say the file looks like Tasty's runtime config, which Tasty's SSR guide also names `tasty.config.ts`.
 - **`extends` resolving to nothing** — a non-string value, a package that cannot be resolved, a package without a `tasty.config.*` at its root, or a package subpath that names no config is a warning, and the `extends` is ignored. So is a chain that leads back to a config already in it. A relative or absolute path that is not a file fails the run.
 - **A config that is not an object** — a warning, and the file is ignored.
 

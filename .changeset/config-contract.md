@@ -6,6 +6,7 @@
 
 The plugin now also warns, once per config file, about problems it used to drop silently:
 - keys it does not read, such as a typo or a key from a newer plugin;
+- known keys of the wrong shape, such as `states: '@mobile'`, which used to be read character by character. When the file looks like Tasty's runtime config, with `tokens` as an object, the warning says so;
 - an `extends` that is not a string, names a package that cannot be resolved, or names a package without a `tasty.config.*`;
 - an `extends` chain that leads back to itself;
 - a config that is not an object.
