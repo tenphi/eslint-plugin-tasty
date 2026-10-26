@@ -201,6 +201,17 @@ it('checks heuristic consumer props without requiring a factory in the file', ()
   ).toHaveLength(1);
 });
 
+it('recognizes a factory result that shares its name with a type', () => {
+  expect(
+    lint(
+      factory +
+        `const Box = tasty({}); type Box = typeof Box;
+      <Box width="calc(100% - 1x)" />;`,
+      'prefer-auto-calc',
+    ),
+  ).toHaveLength(1);
+});
+
 it('keeps semantic rewrites off unrelated or shadowed components', () => {
   const code =
     factory +

@@ -160,6 +160,7 @@ const Spaced = tasty(Button.Group, { styles: { gap: '2x' } });
       ...tsx(`import * as UI from '@my-org/ui';
 import { Button as UIButton, Card } from '@my-org/ui';
 const Alias = UIButton;
+type Alias = typeof UIButton;
 <UIButton fill="#danger" />;
 <UI.Button fill="#danger" />;
 <Alias fill="#danger" />;

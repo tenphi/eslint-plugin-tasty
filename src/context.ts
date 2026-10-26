@@ -12,6 +12,7 @@ import {
   collectLocalStateAliases,
   getKeyName,
   unwrapExpression,
+  valueDefinition,
   wildcardPattern,
 } from './utils.js';
 import {
@@ -461,7 +462,8 @@ export class TastyContext {
    * The definition a name resolves to through `const` aliases of an identifier
    * or a non-computed member chain (`const Scope = FocusScope`,
    * `const Item = UI.Item`): an import binding, or a declaration whose value is
-   * something else. Null for an unbound or redeclared name, or an alias cycle.
+   * something else. Null for an unbound or redeclared name, or an alias cycle; a
+   * same-named type does not count as a redeclaration.
    */
   private resolveAlias(
     reference: TSESTree.Node,
@@ -470,9 +472,8 @@ export class TastyContext {
   ): Scope.Definition | null {
     let scope: Scope.Scope | null = this.context.sourceCode.getScope(reference);
     while (scope && !scope.set.has(name)) scope = scope.upper;
-    const variable = scope?.set.get(name);
-    if (!variable || variable.defs.length !== 1) return null;
-    const def = variable.defs[0];
+    const def = scope && valueDefinition(scope.set.get(name)!);
+    if (!def) return null;
     if (
       def.type !== 'Variable' ||
       def.parent.kind !== 'const' ||
