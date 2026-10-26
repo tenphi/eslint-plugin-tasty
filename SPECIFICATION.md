@@ -571,7 +571,7 @@ Parses every string style value through the value parser and validates the resul
    - Properties that don't accept modifiers (`fill`, `color`, `opacity`, `width`, `height`, etc.) should have no `Mod` tokens. Any `Mod` token means something wasn't recognized.
    - Properties that accept specific modifiers (`border`, `padding`, `radius`, etc.) should only have `Mod` tokens from a known set.
    - Properties that don't accept colors (`padding`, `margin`, `gap`, `width`, etc.) should have no `Color` tokens.
-   - `svgFill` is the native SVG `fill`, so it also accepts `context-fill` and `context-stroke`. It takes one paint: Tasty keeps one color and drops the rest, so a second value is reported. After a `url()`, Tasty passes the value through as plain CSS, so a `#name` fallback is reported because it is never expanded.
+   - `svgFill` is the native SVG `fill`, so it also accepts `context-fill` and `context-stroke`. It takes one paint: Tasty keeps one color and drops the rest, so a second value is reported. A `url()` may have one fallback, but Tasty passes that value through as plain CSS, so a `#name` fallback is reported because it is never expanded.
 
 **What it catches:**
 

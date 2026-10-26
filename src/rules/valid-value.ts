@@ -227,11 +227,22 @@ export default createRule<[], MessageIds>({
         .flatMap((group) => group.parts.flatMap((part) => part.tokens))
         .filter((token) => token.type !== 'important');
       const [first] = tokens;
+      const url = first?.type === 'css-function' && first.name === 'url';
 
-      if (first?.type === 'css-function' && first.name === 'url') {
+      // CSS allows one fallback after a url() paint.
+      if (result.groups.length > 1 || tokens.length > (url ? 2 : 1)) {
+        context.report({
+          node,
+          messageId: 'multiplePaints',
+          data: { property, value },
+        });
+      }
+
+      if (url) {
         for (const token of tokens) {
           if (
-            (token.type === 'color-token' && !isRawHexColor(token.raw)) ||
+            (token.type === 'color-token' &&
+              (token.opacity !== undefined || !isRawHexColor(token.raw))) ||
             token.type === 'color-ref'
           ) {
             context.report({
@@ -241,12 +252,6 @@ export default createRule<[], MessageIds>({
             });
           }
         }
-      } else if (result.groups.length > 1 || tokens.length > 1) {
-        context.report({
-          node,
-          messageId: 'multiplePaints',
-          data: { property, value },
-        });
       }
     }
 

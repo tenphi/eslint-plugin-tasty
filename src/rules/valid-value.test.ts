@@ -415,20 +415,25 @@ tester.run('valid-value', rule, {
       errors: [{ messageId: 'invalidMod' as const }],
     })),
     // Tasty keeps one color of an svgFill and drops the rest.
-    ...['none #red', '#red #blue', '#red, #blue', '#purple 2x'].map(
-      (value) => ({
-        code: `
+    ...[
+      'none #red',
+      '#red #blue',
+      '#red, #blue',
+      '#purple 2x',
+      'url(#gradient) none red',
+      'url(#gradient), red',
+    ].map((value) => ({
+      code: `
         import { tasty } from '@tenphi/tasty';
         tasty({ styles: { svgFill: '${value}' } });
       `,
-        errors: [
-          {
-            messageId: 'multiplePaints' as const,
-            data: { property: 'svgFill', value },
-          },
-        ],
-      }),
-    ),
+      errors: [
+        {
+          messageId: 'multiplePaints' as const,
+          data: { property: 'svgFill', value },
+        },
+      ],
+    })),
     // ...and passes a url() paint through unexpanded, so a token fallback is
     // invalid CSS.
     {
@@ -447,6 +452,15 @@ tester.run('valid-value', rule, {
       `,
       errors: [
         { messageId: 'unexpandedPaintToken', data: { token: '##purple' } },
+      ],
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { svgFill: 'url(#gradient) #fff.5' } });
+      `,
+      errors: [
+        { messageId: 'unexpandedPaintToken', data: { token: '#fff.5' } },
       ],
     },
     // The SVG paint keywords are not background values.
