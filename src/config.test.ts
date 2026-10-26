@@ -137,7 +137,7 @@ describe('requires', () => {
   });
 
   it('rejects a value that is not a semver range', () => {
-    for (const requires of ['soon', 113, ['>=1.0.0']]) {
+    for (const requires of ['soon', '', '  ', 113, ['>=1.0.0']]) {
       const root = project();
       writeConfig(join(root, 'tasty.config.json'), { requires });
       expect(() => loadConfig(join(root, 'component.ts'))).toThrow(
@@ -194,11 +194,70 @@ describe('config warnings', () => {
     expect(warn).toHaveBeenCalledTimes(cases.length);
   });
 
-  it('fails when a relative extends is not a file', () => {
+  it('fails when a relative extends is not a file, until it is created', () => {
     const root = project();
-    writeConfig(join(root, 'tasty.config.json'), { extends: './missing.json' });
-    expect(() => loadConfig(join(root, 'component.ts'))).toThrow(
-      `'extends' points to ${join(root, 'missing.json')}, which is not a file.`,
+    writeConfig(join(root, 'tasty.config.json'), {
+      extends: './missing.json',
+      tokens: ['#brand'],
+    });
+    const failure = () => {
+      try {
+        loadConfig(join(root, 'component.ts'));
+      } catch (error) {
+        return error;
+      }
+    };
+    const first = failure();
+    expect(first).toBeInstanceOf(Error);
+    expect((first as Error).message).toBe(
+      `tasty: ${join(root, 'tasty.config.json')}: 'extends' points to ${join(root, 'missing.json')}, which is not a file.`,
+    );
+    // The failure is cached rather than reloaded for every rule and file.
+    expect(failure()).toBe(first);
+
+    writeConfig(join(root, 'missing.json'), { units: ['cols'] });
+    const config = loadConfig(join(root, 'component.ts'));
+    expect([config.tokens, config.units]).toEqual([['#brand'], ['cols']]);
+  });
+
+  it('resolves an extends that names a file inside a package', () => {
+    const warn = warnings();
+    const extend = (target: string) => {
+      const root = project();
+      const pkg = join(root, 'node_modules/@my-org/ui');
+      mkdirSync(join(pkg, 'lint/strict'), { recursive: true });
+      writeFileSync(join(pkg, 'package.json'), '{}');
+      writeConfig(join(pkg, 'lint/tasty.json'), { tokens: ['#file'] });
+      writeConfig(join(pkg, 'lint/strict/tasty.config.json'), {
+        tokens: ['#dir'],
+      });
+      writeConfig(join(root, 'tasty.config.json'), { extends: target });
+      return { pkg, tokens: loadConfig(join(root, 'component.ts')).tokens };
+    };
+    expect(extend('@my-org/ui/lint/tasty.json').tokens).toEqual(['#file']);
+    expect(extend('@my-org/ui/lint/tasty').tokens).toEqual(['#file']);
+    expect(extend('@my-org/ui/lint/strict').tokens).toEqual(['#dir']);
+    expect(warn).not.toHaveBeenCalled();
+    const { pkg, tokens } = extend('@my-org/ui/lint/missing');
+    expect(tokens).toEqual([]);
+    expect(warn.mock.lastCall?.[0]).toContain(
+      `but ${join(pkg, 'lint/missing')} is not a config file`,
+    );
+  });
+
+  it('warns about an extends cycle', () => {
+    const warn = warnings();
+    const root = project();
+    const base = join(root, 'base.json');
+    writeConfig(base, { extends: './tasty.config.json', units: ['cols'] });
+    writeConfig(join(root, 'tasty.config.json'), {
+      extends: './base.json',
+      tokens: ['#brand'],
+    });
+    const config = loadConfig(join(root, 'component.ts'));
+    expect([config.tokens, config.units]).toEqual([['#brand'], ['cols']]);
+    expect(warn.mock.lastCall?.[0]).toContain(
+      `${join(root, 'tasty.config.json')} is extended again by its own extends chain`,
     );
   });
 

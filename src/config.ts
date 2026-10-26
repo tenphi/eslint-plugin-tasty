@@ -16,32 +16,38 @@ const CONFIG_FILENAMES = [
 ];
 
 interface CachedConfig {
-  config: ResolvedConfig;
+  /** The resolved config, or the error that loading it failed with. */
+  result: ResolvedConfig | Error;
   fileMtimes: Map<string, number>;
 }
 
 const configCache = new Map<string, CachedConfig>();
 
-/** Every key a config may carry. Anything else is a typo or from a newer plugin. */
-const KNOWN_KEYS = new Set<string>([
-  'extends',
-  'requires',
-  'tokens',
-  'units',
-  'functions',
-  'funcs',
-  'states',
-  'presets',
-  'recipes',
-  'styles',
-  'importSources',
-  'ownedSources',
-  'styleFunctions',
-  'protectedComponents',
-  // The Tasty VS Code extension reads these from the same file.
-  'presetDescriptions',
-  'stateDescriptions',
-]);
+/**
+ * Every key a config may carry; anything else is a typo or from a newer plugin.
+ * Typed against the config interface so a new key cannot be missed here.
+ */
+const KNOWN_KEYS = new Set(
+  Object.keys({
+    extends: true,
+    requires: true,
+    tokens: true,
+    units: true,
+    functions: true,
+    funcs: true,
+    states: true,
+    presets: true,
+    recipes: true,
+    styles: true,
+    importSources: true,
+    ownedSources: true,
+    styleFunctions: true,
+    protectedComponents: true,
+    // The Tasty VS Code extension reads these from the same file.
+    presetDescriptions: true,
+    stateDescriptions: true,
+  } satisfies Record<keyof TastyValidationConfig, true>),
+);
 
 const warnings = new Set<string>();
 
@@ -56,7 +62,11 @@ function warnOnce(message: string): void {
 function checkRequires(config: TastyValidationConfig, configPath: string) {
   const range: unknown = config.requires;
   if (range === undefined) return;
-  if (typeof range !== 'string' || semver.validRange(range) === null) {
+  if (
+    typeof range !== 'string' ||
+    range.trim() === '' ||
+    semver.validRange(range) === null
+  ) {
     throw new Error(
       `tasty: ${configPath}: 'requires' must be a semver range of @tenphi/eslint-plugin-tasty versions, such as '>=1.13.0'.`,
     );
@@ -331,11 +341,6 @@ function mergeConfigs(
   return result;
 }
 
-interface ConfigChainResult {
-  config: TastyValidationConfig;
-  chainPaths: string[];
-}
-
 /**
  * The config file `extends` points to, or null when there is none. A relative
  * or absolute path that is not a file fails the run, as reading it always has; a
@@ -344,6 +349,7 @@ interface ConfigChainResult {
 function resolveExtends(
   config: TastyValidationConfig,
   configPath: string,
+  touched: string[],
 ): string | null {
   const target: unknown = config.extends;
   if (target === undefined) return null;
@@ -357,7 +363,9 @@ function resolveExtends(
 
   if (target.startsWith('.') || target.startsWith('/')) {
     const parentPath = resolve(configDir, target);
-    if (!statSync(parentPath, { throwIfNoEntry: false })?.isFile()) {
+    // Watched, so creating the file clears a cached failure.
+    touched.push(parentPath);
+    if (!isFile(parentPath)) {
       throw new Error(
         `tasty: ${configPath}: 'extends' points to ${parentPath}, which is not a file.`,
       );
@@ -365,33 +373,66 @@ function resolveExtends(
     return parentPath;
   }
 
-  const pkgDir = resolvePackageDir(target, configDir);
+  // `@scope/pkg/path/to/config` names a file inside the package.
+  const parts = target.split('/');
+  const packageName = parts.slice(0, target.startsWith('@') ? 2 : 1).join('/');
+  const subpath = target.slice(packageName.length + 1);
+  const pkgDir = resolvePackageDir(packageName, configDir);
   if (!pkgDir) {
     warnOnce(
-      `${configPath}: 'extends' names '${target}', which cannot be resolved from ${configDir}. It is ignored.`,
+      `${configPath}: 'extends' names '${packageName}', which cannot be resolved from ${configDir}. It is ignored.`,
     );
     return null;
   }
-  const pkgConfig = findConfigInDir(pkgDir);
+  const pkgConfig = subpath
+    ? findConfigFile(join(pkgDir, subpath))
+    : findConfigInDir(pkgDir);
   if (!pkgConfig) {
     warnOnce(
-      `${configPath}: 'extends' names '${target}', which has no tasty.config.* at ${pkgDir}. It is ignored.`,
+      subpath
+        ? `${configPath}: 'extends' names '${target}', but ${join(pkgDir, subpath)} is not a config file. It is ignored.`
+        : `${configPath}: 'extends' names '${target}', which has no tasty.config.* at ${pkgDir}. It is ignored.`,
     );
   }
   return pkgConfig;
 }
 
+function isFile(path: string): boolean {
+  return statSync(path, { throwIfNoEntry: false })?.isFile() ?? false;
+}
+
+/** A config file at `path`, with or without its extension, or in that directory. */
+function findConfigFile(path: string): string | null {
+  for (const ext of ['', '.ts', '.js', '.mjs', '.json']) {
+    if (isFile(path + ext)) return path + ext;
+  }
+  return statSync(path, { throwIfNoEntry: false })?.isDirectory()
+    ? findConfigInDir(path)
+    : null;
+}
+
+/**
+ * Loads a config and the chain it extends, parents merged first. Every file
+ * read (or expected) is pushed to `touched`, whose mtimes decide when the
+ * result, or a failure, is stale.
+ */
 function resolveConfigChain(
   configPath: string,
+  touched: string[],
   visited = new Set<string>(),
-): ConfigChainResult {
+): TastyValidationConfig {
   const absPath = resolve(configPath);
-  if (visited.has(absPath)) return { config: {}, chainPaths: [] };
+  if (visited.has(absPath)) {
+    warnOnce(
+      `${absPath} is extended again by its own extends chain. The cycle is ignored.`,
+    );
+    return {};
+  }
   visited.add(absPath);
+  touched.push(absPath);
 
   let config = loadRawConfig(absPath);
-  const importPaths = extractImportPaths(absPath);
-  const chainPaths = [absPath, ...importPaths];
+  touched.push(...extractImportPaths(absPath));
 
   if (!config || typeof config !== 'object' || Array.isArray(config)) {
     warnOnce(`${absPath}: the config must be an object. It is ignored.`);
@@ -400,14 +441,10 @@ function resolveConfigChain(
   checkRequires(config, absPath);
   warnUnknownKeys(config, absPath);
 
-  const parentPath = resolveExtends(config, absPath);
-  if (!parentPath) return { config, chainPaths };
+  const parentPath = resolveExtends(config, absPath, touched);
+  if (!parentPath) return config;
 
-  const parentResult = resolveConfigChain(parentPath, visited);
-  return {
-    config: mergeConfigs(parentResult.config, config),
-    chainPaths: [...parentResult.chainPaths, ...chainPaths],
-  };
+  return mergeConfigs(resolveConfigChain(parentPath, touched, visited), config);
 }
 
 function toResolved(config: TastyValidationConfig): ResolvedConfig {
@@ -479,32 +516,34 @@ export function loadConfig(filePath: string): ResolvedConfig {
   const cacheKey = [pkgConfigFile ?? '', ...configFiles].join('\0');
 
   const cached = configCache.get(cacheKey);
-  if (cached) {
-    const currentMtimes = getMtimes([...cached.fileMtimes.keys()]);
-    if (mtimesMatch(cached.fileMtimes, currentMtimes)) {
-      return cached.config;
+  if (
+    cached &&
+    mtimesMatch(cached.fileMtimes, getMtimes([...cached.fileMtimes.keys()]))
+  ) {
+    if (cached.result instanceof Error) throw cached.result;
+    return cached.result;
+  }
+
+  // A failure is cached too: oxlint keeps linting after a plugin error, and
+  // every rule on every file would otherwise reload the chain to fail again.
+  const touched: string[] = [];
+  let result: ResolvedConfig | Error;
+  try {
+    let merged: TastyValidationConfig = pkgConfigFile
+      ? resolveConfigChain(pkgConfigFile, touched)
+      : {};
+    for (let i = configFiles.length - 1; i >= 0; i--) {
+      merged = mergeConfigs(
+        merged,
+        resolveConfigChain(configFiles[i], touched),
+      );
     }
+    result = toResolved(merged);
+  } catch (error) {
+    result = error instanceof Error ? error : new Error(String(error));
   }
 
-  let merged: TastyValidationConfig = {};
-  const allChainPaths: string[] = [];
-
-  if (pkgConfigFile) {
-    const result = resolveConfigChain(pkgConfigFile);
-    merged = result.config;
-    allChainPaths.push(...result.chainPaths);
-  }
-
-  for (let i = configFiles.length - 1; i >= 0; i--) {
-    const { config, chainPaths } = resolveConfigChain(configFiles[i]);
-    merged = mergeConfigs(merged, config);
-    allChainPaths.push(...chainPaths);
-  }
-
-  const resolved = toResolved(merged);
-  const fileMtimes = getMtimes(allChainPaths);
-
-  configCache.set(cacheKey, { config: resolved, fileMtimes });
-
-  return resolved;
+  configCache.set(cacheKey, { result, fileMtimes: getMtimes(touched) });
+  if (result instanceof Error) throw result;
+  return result;
 }

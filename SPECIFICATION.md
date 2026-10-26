@@ -137,8 +137,9 @@ interface TastyValidationConfig {
   /**
    * Extend another config file or an npm package's config.
    * - Relative path: resolved relative to this config file.
-   * - Package name: resolved via Node module resolution (looks for the package's
-   *   default export or `tasty.config` entry in its `exports` map).
+   * - Package name: the `tasty.config.*` at the root of the package found in
+   *   `node_modules`, or the config file a subpath names
+   *   (`@my-org/ui/lint/tasty.config`, extension optional, or a directory).
    * The extended config is merged first, then this config's values override.
    * @example '../tasty.config.ts'
    * @example '@my-org/design-tokens'
@@ -266,7 +267,7 @@ interface ProtectedComponentConfig {
 1. Look for `tasty.config.ts`, `tasty.config.js`, `tasty.config.mjs`, or `tasty.config.json` in the project root (nearest directory with `package.json`).
 2. If `extends` is set, resolve and load the parent config first, then merge:
    - **Relative path** (starts with `.` or `/`): resolved relative to the current config file's directory.
-   - **Package name** (anything else): resolved via `require.resolve()` / Node module resolution. The package should export a `TastyValidationConfig` as its default export, or provide a `tasty.config` entry in its `exports` map.
+   - **Package name** (anything else): the package is looked up in `node_modules` from the config's directory upward. A bare name uses the `tasty.config.*` at the package root; a subpath (`@my-org/ui/lint/tasty.config`) names a file inside the package, with or without its extension, or a directory holding a `tasty.config.*`.
 3. `extends` chains are followed recursively (a parent config can also extend another).
 4. Arrays are concatenated (deduped). `false` overrides parent arrays. Objects are shallow-merged.
 
@@ -276,10 +277,10 @@ Problems in a config file are reported rather than dropped:
 
 - **`requires` not met** — the run fails with `tasty: <file> requires @tenphi/eslint-plugin-tasty <range>, but <version> is installed.` A `requires` that is not a valid semver range fails the same way.
 - **Unknown keys** — a warning on stderr, once per config file, lists the keys the plugin does not read, such as a typo or a key from a newer plugin. They are ignored.
-- **`extends` resolving to nothing** — a non-string value, a package that cannot be resolved, or a package without a `tasty.config.*` at its root is a warning, and the `extends` is ignored. A relative or absolute path that is not a file fails the run.
+- **`extends` resolving to nothing** — a non-string value, a package that cannot be resolved, a package without a `tasty.config.*` at its root, or a package subpath that names no config is a warning, and the `extends` is ignored. So is a chain that leads back to a config already in it. A relative or absolute path that is not a file fails the run.
 - **A config that is not an object** — a warning, and the file is ignored.
 
-Warnings go to `console.warn` with an `[eslint-plugin-tasty]` prefix, since neither linter has a channel for problems that belong to no linted file.
+Warnings go to `console.warn` with an `[eslint-plugin-tasty]` prefix, since neither linter has a channel for problems that belong to no linted file. A failed load is cached against the mtimes of the files it read, like a successful one, so each rule on each file does not reload the chain to fail again.
 
 ### Config reloading
 

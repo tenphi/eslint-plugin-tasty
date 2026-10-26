@@ -7,6 +7,7 @@
 The plugin now also warns, once per config file, about problems it used to drop silently:
 - keys it does not read, such as a typo or a key from a newer plugin;
 - an `extends` that is not a string, names a package that cannot be resolved, or names a package without a `tasty.config.*`;
+- an `extends` chain that leads back to itself;
 - a config that is not an object.
 
-`presetDescriptions` and `stateDescriptions`, which the Tasty VS Code extension reads from the same file, are accepted and typed. A relative `extends` that is not a file still fails the run, now with a clear message instead of a file-system error.
+`presetDescriptions` and `stateDescriptions`, which the Tasty VS Code extension reads from the same file, are accepted and typed. A package `extends` can now name a config file inside the package, such as `@my-org/ui/lint/tasty.config`. A relative `extends` that is not a file still fails the run, now with a clear message instead of a file-system error.
