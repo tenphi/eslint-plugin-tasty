@@ -20,6 +20,11 @@ export interface PropertyExpectation {
   acceptsMods: boolean | string[];
   /** Whether an unspaced `<ratio>` token (`16/10`) is a value here. */
   acceptsRatio?: boolean;
+  /**
+   * An SVG `<paint>`, which Tasty reads as one value: it keeps the first color
+   * and drops the rest, and passes a value led by `url()` through as plain CSS.
+   */
+  paint?: boolean;
 }
 
 const DIRECTIONAL_MODS = ['top', 'right', 'bottom', 'left'];
@@ -147,6 +152,7 @@ export const PROPERTY_EXPECTATIONS: Record<string, PropertyExpectation> = {
   svgFill: {
     acceptsColor: true,
     acceptsMods: ['none', 'transparent', 'context-fill', 'context-stroke'],
+    paint: true,
   },
   color: { acceptsColor: true, acceptsMods: ['none', 'transparent'] },
   caretColor: COLOR_ONLY,

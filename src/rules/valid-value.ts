@@ -3,8 +3,12 @@ import { createRule } from '../create-rule.js';
 import { TastyContext } from '../context.js';
 import { stringStyleValueListeners } from '../style-values.js';
 import { parseValue } from '../parsers/value-parser.js';
-import type { ValueParserOptions } from '../parsers/value-parser.js';
+import type {
+  ValueParseResult,
+  ValueParserOptions,
+} from '../parsers/value-parser.js';
 import { getExpectation } from '../property-expectations.js';
+import { isRawHexColor } from '../utils.js';
 
 const SKIP_PROPERTIES = new Set([
   'recipe',
@@ -41,6 +45,8 @@ type MessageIds =
   | 'unexpectedColor'
   | 'invalidMod'
   | 'unknownToken'
+  | 'multiplePaints'
+  | 'unexpandedPaintToken'
   | 'parseError';
 
 export default createRule<[], MessageIds>({
@@ -63,6 +69,10 @@ export default createRule<[], MessageIds>({
         "Modifier '{{mod}}' is not valid for '{{property}}'. Accepted: {{accepted}}.",
       unknownToken:
         "Unknown token '{{token}}' in '{{property}}' value. Check for a typo.",
+      multiplePaints:
+        "'{{property}}' takes a single paint, but '{{value}}' has more than one value. Tasty keeps one color and drops the rest.",
+      unexpandedPaintToken:
+        "'{{token}}' is not expanded after url(): Tasty passes a url() paint through as plain CSS. Use a CSS color or a $custom-property for the fallback.",
       parseError: '{{message}}',
     },
     schema: [],
@@ -116,6 +126,7 @@ export default createRule<[], MessageIds>({
       if (!property) return;
 
       const expectation = getExpectation(property);
+      if (expectation.paint) checkPaint(result, value, property, node);
 
       for (const group of result.groups) {
         for (const part of group.parts) {
@@ -203,6 +214,39 @@ export default createRule<[], MessageIds>({
             }
           }
         }
+      }
+    }
+
+    function checkPaint(
+      result: ValueParseResult,
+      value: string,
+      property: string,
+      node: TSESTree.Node,
+    ): void {
+      const tokens = result.groups
+        .flatMap((group) => group.parts.flatMap((part) => part.tokens))
+        .filter((token) => token.type !== 'important');
+      const [first] = tokens;
+
+      if (first?.type === 'css-function' && first.name === 'url') {
+        for (const token of tokens) {
+          if (
+            (token.type === 'color-token' && !isRawHexColor(token.raw)) ||
+            token.type === 'color-ref'
+          ) {
+            context.report({
+              node,
+              messageId: 'unexpandedPaintToken',
+              data: { token: token.raw },
+            });
+          }
+        }
+      } else if (result.groups.length > 1 || tokens.length > 1) {
+        context.report({
+          node,
+          messageId: 'multiplePaints',
+          data: { property, value },
+        });
       }
     }
 

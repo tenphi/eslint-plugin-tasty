@@ -47,7 +47,13 @@ tester.run('valid-value', rule, {
       'none',
       'context-fill',
       'context-stroke',
+      'light-dark(#dark, #light)',
       'url(#gradient)',
+      // A url() paint's fallback is plain CSS.
+      'url(#gradient) none',
+      'url(#gradient) currentColor',
+      'url(#gradient) #fff',
+      'url(#gradient) $icon-color',
     ].map((value) => ({
       code: `
         import { tasty } from '@tenphi/tasty';
@@ -408,6 +414,41 @@ tester.run('valid-value', rule, {
       `,
       errors: [{ messageId: 'invalidMod' as const }],
     })),
+    // Tasty keeps one color of an svgFill and drops the rest.
+    ...['none #red', '#red #blue', '#red, #blue', '#purple 2x'].map(
+      (value) => ({
+        code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { svgFill: '${value}' } });
+      `,
+        errors: [
+          {
+            messageId: 'multiplePaints' as const,
+            data: { property: 'svgFill', value },
+          },
+        ],
+      }),
+    ),
+    // ...and passes a url() paint through unexpanded, so a token fallback is
+    // invalid CSS.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { svgFill: 'url(#gradient) #purple' } });
+      `,
+      errors: [
+        { messageId: 'unexpandedPaintToken', data: { token: '#purple' } },
+      ],
+    },
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { svgFill: 'url(#gradient) ##purple' } });
+      `,
+      errors: [
+        { messageId: 'unexpandedPaintToken', data: { token: '##purple' } },
+      ],
+    },
     // The SVG paint keywords are not background values.
     {
       code: `
