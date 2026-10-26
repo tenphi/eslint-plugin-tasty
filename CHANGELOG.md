@@ -1,5 +1,15 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.12.1
+
+### Patch Changes
+
+- [#131](https://github.com/tenphi/eslint-plugin-tasty/pull/131) [`2579858`](https://github.com/tenphi/eslint-plugin-tasty/commit/2579858246e7f2c23fabbcc2d34f9b6672816ac3) Thanks [@tenphi](https://github.com/tenphi)! - At-rule descriptors no longer count as CSS properties. `known-css-properties` lists names such as `prefix`, `suffix`, `src`, `syntax`, `symbols`, `unicodeRange` and `orientation`, which a style rule cannot declare. The generated property list now leaves out every name that the W3C specs, through `@webref/css`, define only as a descriptor. Names that are also properties, such as `fontWeight` or `speakAs`, stay. `known-property` now reports these names as style keys. A JSX prop with one of these names, such as `<NumberInput prefix="$" />`, is no longer value-checked as a style.
+
+- [#131](https://github.com/tenphi/eslint-plugin-tasty/pull/131) [`2579858`](https://github.com/tenphi/eslint-plugin-tasty/commit/2579858246e7f2c23fabbcc2d34f9b6672816ac3) Thanks [@tenphi](https://github.com/tenphi)! - `valid-value` accepts `display: '-webkit-box'` and `'-webkit-inline-box'`, which multi-line truncation with `-webkit-line-clamp` still needs. It also accepts an unspaced ratio such as `aspectRatio: '16/10'`, the same as `'16 / 10'`, since `<ratio>` allows optional whitespace around the slash. Other properties still report a ratio, such as `opacity: '1/2'`.
+
+- [#131](https://github.com/tenphi/eslint-plugin-tasty/pull/131) [`2579858`](https://github.com/tenphi/eslint-plugin-tasty/commit/2579858246e7f2c23fabbcc2d34f9b6672816ac3) Thanks [@tenphi](https://github.com/tenphi)! - The style-value rules no longer check JSX props on components imported from other packages, such as `react-aria`'s `<FocusScope contain />`. Such a component's props are its own. This applies to a bare specifier that neither `importSources` nor `ownedSources` lists. An entry in either list covers the paths below it, so `@my/ds` covers `@my/ds/button`. `const` aliases resolve to the component they name. Components declared in the file, `tasty()` wrappers, and relative or in-repo imports are still checked. With `typeAwareJSX` on, prop types decide, and this rule applies only where they cannot, such as `any` or unresolved props. `ownedSources` entries now cover their subpaths for `prefer-shorthand-property` as well.
+
 ## 1.12.0
 
 ### Minor Changes
