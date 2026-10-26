@@ -606,7 +606,16 @@ tasty(Button, { variants: {} });
     );
     const outdated = spawnSync(
       process.execPath,
-      [linter.bin, '--config', join(dir, linter.configName), 'valid.ts'],
+      // An explicit format: on CI oxlint defaults to GitHub annotations, which
+      // leave the error text out.
+      [
+        linter.bin,
+        '--config',
+        join(dir, linter.configName),
+        '--format',
+        'json',
+        'valid.ts',
+      ],
       { cwd: dir, encoding: 'utf8', timeout: 30_000 },
     );
     assert.notEqual(outdated.status, 0, `${linter.name}: requires fails the run`);
@@ -621,7 +630,14 @@ tasty(Button, { variants: {} });
     );
     const unknown = spawnSync(
       process.execPath,
-      [linter.bin, '--config', join(dir, linter.configName), 'valid.ts'],
+      [
+        linter.bin,
+        '--config',
+        join(dir, linter.configName),
+        '--format',
+        'json',
+        'valid.ts',
+      ],
       { cwd: dir, encoding: 'utf8', timeout: 30_000 },
     );
     assert.equal(unknown.status, 0, `${linter.name}: unknown keys only warn`);
