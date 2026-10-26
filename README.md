@@ -445,6 +445,14 @@ rule suppression. Native HTML/SVG attributes and React's singular `style` prop
 are excluded. Bindings, calls, spreads, and interpolated templates are not evaluated.
 By default, these checks do not require TypeScript type services.
 
+A component imported from another package is skipped: a bare specifier that is
+not one of the `importSources` (or a subpath of one) and does not match
+`ownedSources`. Its props are its own, so `<FocusScope contain />` from
+`react-aria` is not read as a style. Components declared in the file, `tasty()`
+wrappers, and relative or in-repo imports (`./`, `~/`, `#`, `@/`) are still
+checked, since they may be Tasty components. With `typeAwareJSX` on, every
+component is classified by its prop types instead.
+
 ### Experimental type-aware JSX props
 
 Opt into type analysis to distinguish semantic component props from style props.
@@ -471,7 +479,7 @@ The resolver uses JSX's contextual prop type and follows property declarations:
 - Props inherited or picked from Tasty's `Styles` remain validated, including
   indexed aliases such as `Styles['gap']` and explicit `StyleValue` types.
 - Declared component props such as `position: 'before' | 'after'` or
-  `prefix: ReactNode` are excluded from JSX value checks.
+  `marker: ReactNode` are excluded from JSX value checks.
 - Missing components, unresolved types, `any`, generics, index signatures,
   excluded files, and broad primitive types retain the existing name heuristic.
   If a union combines a style declaration and a semantic declaration, the style

@@ -496,15 +496,29 @@ function makeClassifier(
   };
 }
 
+function typeAwareJSXOption(
+  context: RuleContext<string, unknown[]>,
+): boolean | TypeAwareJSXOptions | undefined {
+  const settings = context.settings.tasty as
+    | { typeAwareJSX?: boolean | TypeAwareJSXOptions }
+    | undefined;
+  return settings?.typeAwareJSX;
+}
+
+/** Whether `settings.tasty.typeAwareJSX` turns the classifier on. */
+export function isTypeAwareJSX(
+  context: RuleContext<string, unknown[]>,
+): boolean {
+  const option = typeAwareJSXOption(context);
+  return option !== undefined && option !== false;
+}
+
 /** No compiler is loaded, or program created, unless the setting is enabled. */
 export function jsxPropKind(
   context: RuleContext<string, unknown[]>,
   attribute: TSESTree.JSXAttribute,
 ): PropKind {
-  const settings = context.settings.tasty as
-    | { typeAwareJSX?: boolean | TypeAwareJSXOptions }
-    | undefined;
-  const option = settings?.typeAwareJSX;
+  const option = typeAwareJSXOption(context);
   if (option === undefined || option === false) return 'unknown';
   if (
     option !== true &&

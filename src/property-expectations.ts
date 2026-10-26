@@ -132,6 +132,10 @@ const DISPLAY_MODS = [
   'inline-flex',
   'inline-grid',
   'inline-grid-lanes',
+  // The old flexbox boxes, kept because `-webkit-line-clamp` only truncates
+  // inside one.
+  '-webkit-box',
+  '-webkit-inline-box',
 ];
 
 export const PROPERTY_EXPECTATIONS: Record<string, PropertyExpectation> = {

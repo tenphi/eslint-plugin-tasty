@@ -1,5 +1,5 @@
 import type { TSESTree } from '@typescript-eslint/utils';
-import type { RuleContext } from '@typescript-eslint/utils/ts-eslint';
+import type { RuleContext, Scope } from '@typescript-eslint/utils/ts-eslint';
 import type { ResolvedConfig, StyleFunctionConfig } from './types.js';
 import { loadConfig } from './config.js';
 import {
@@ -14,7 +14,11 @@ import {
   unwrapExpression,
   wildcardPattern,
 } from './utils.js';
-import { finishJSXAnalysis, jsxPropKind } from './type-aware-jsx.js';
+import {
+  finishJSXAnalysis,
+  isTypeAwareJSX,
+  jsxPropKind,
+} from './type-aware-jsx.js';
 import { isModuleTastyComponent } from './module-components.js';
 
 /**
@@ -287,6 +291,12 @@ function isInRepoSource(source: string): boolean {
   );
 }
 
+/** The package a bare specifier names: `@scope/pkg/sub` -> `@scope/pkg`. */
+function packageName(source: string): string {
+  const parts = source.split('/');
+  return parts.slice(0, source.startsWith('@') ? 2 : 1).join('/');
+}
+
 /** `settings.tasty.mergeFunctions`: project helpers with `mergeStyles` semantics. */
 function readMergeFunctions(
   context: RuleContext<string, unknown[]>,
@@ -381,6 +391,11 @@ export class TastyContext {
     return jsxPropKind(this.context, node) === 'component';
   }
 
+  /** Whether `settings.tasty.typeAwareJSX` classifies JSX props by their types. */
+  get typeAwareJSX(): boolean {
+    return isTypeAwareJSX(this.context);
+  }
+
   finishJSXAnalysis(): void {
     finishJSXAnalysis(this.context);
   }
@@ -407,7 +422,10 @@ export class TastyContext {
     if (localName === null) return true;
 
     const source = this.moduleSources.get(localName);
-    if (source === undefined) return true;
+    return source === undefined || this.isOwnedSource(source);
+  }
+
+  private isOwnedSource(source: string): boolean {
     if (isInRepoSource(source)) return true;
 
     // `ownedSources` is optional on the public `ResolvedConfig`, so a config
@@ -415,6 +433,52 @@ export class TastyContext {
     return (this.config.ownedSources ?? []).some((pattern) =>
       wildcardPattern(pattern).test(source),
     );
+  }
+
+  /**
+   * Whether a JSX tag names a component from a package Tasty has no say over:
+   * an import from a bare specifier that is neither an import source (or one of
+   * its subpaths) nor owned, such as `react-aria`'s `FocusScope`. Its props are
+   * its own, so `<FocusScope contain />` carries no style value. `const` aliases
+   * are followed; a component declared in the file, a factory call and a
+   * relative or in-repo import are not external.
+   */
+  isExternalJSXComponent(node: TSESTree.Node, name: string): boolean {
+    const visited = new Set<TSESTree.VariableDeclarator>();
+    const resolve = (reference: TSESTree.Node, localName: string): boolean => {
+      let scope: Scope.Scope | null =
+        this.context.sourceCode.getScope(reference);
+      while (scope && !scope.set.has(localName)) scope = scope.upper;
+      const variable = scope?.set.get(localName);
+      if (!variable || variable.defs.length !== 1) return false;
+      const def = variable.defs[0];
+
+      if (def.type === 'ImportBinding') {
+        if (def.parent.type !== 'ImportDeclaration') return false;
+        const source = def.parent.source.value;
+        return (
+          !this.importSources.has(source) &&
+          !this.importSources.has(packageName(source)) &&
+          !this.isOwnedSource(source)
+        );
+      }
+
+      if (
+        def.type !== 'Variable' ||
+        def.parent.kind !== 'const' ||
+        def.node.id.type !== 'Identifier' ||
+        !def.node.init ||
+        visited.has(def.node)
+      ) {
+        return false;
+      }
+      visited.add(def.node);
+      // `baseComponentName` reads through member chains but not calls, so
+      // `const Panel = tasty(FocusScope, …)` stays a Tasty component.
+      const root = baseComponentName(def.node.init);
+      return root !== null && resolve(def.node.init, root);
+    };
+    return resolve(node, name);
   }
 
   isTastyCall(node: TSESTree.CallExpression): TastyImport | undefined {

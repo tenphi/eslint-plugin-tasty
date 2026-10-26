@@ -67,6 +67,8 @@ export interface ValueParserOptions {
 const RE_UNIT_NUM = /^[+-]?(?:\d*\.\d+|\d+)([a-z][a-z0-9]*)$/;
 const RE_NUMBER = /^[+-]?(?:\d*\.\d+|\d+)$/;
 const RE_CSS_UNIT_NUM = /^[+-]?(?:\d*\.\d+|\d+)([a-z%]+)$/;
+/** An unspaced `<ratio>`, such as `16/10`. */
+const RE_RATIO = /^(\d*\.\d+|\d+)\/(\d*\.\d+|\d+)$/;
 
 const COLOR_FUNCS = new Set([
   'rgb',
@@ -758,7 +760,22 @@ export function parseValue(
   };
 
   for (const scanned_token of scanned) {
-    if (scanned_token.value) {
+    // `<ratio>` allows optional whitespace around the slash, so `16/10` reads
+    // as the two parts `16 / 10` gives.
+    const ratio = RE_RATIO.exec(scanned_token.value);
+    if (ratio) {
+      currentTokens.push({
+        type: 'number',
+        value: parseFloat(ratio[1]),
+        raw: ratio[1],
+      });
+      endPart();
+      currentTokens.push({
+        type: 'number',
+        value: parseFloat(ratio[2]),
+        raw: ratio[2],
+      });
+    } else if (scanned_token.value) {
       const classified = classifyToken(
         scanned_token.value,
         scanned_token.offset,

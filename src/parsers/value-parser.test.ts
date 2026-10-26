@@ -140,6 +140,12 @@ describe('value-parser', () => {
       const tokens = flattenTokens(result);
       expect(tokens).toHaveLength(1);
     });
+
+    it('reads an unspaced ratio as the spaced form', () => {
+      expect(parseValue('16/10')).toEqual(parseValue('16 / 10'));
+      expect(parseValue('1.5/1, 4/3')).toEqual(parseValue('1.5 / 1, 4 / 3'));
+      expect(flattenTokens(parseValue('2x/1'))).toHaveLength(1);
+    });
   });
 
   describe('error reporting', () => {

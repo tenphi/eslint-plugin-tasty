@@ -106,6 +106,9 @@ export function styleValueListeners(
       while (tag.type === 'JSXMemberExpression') tag = tag.object;
       // Native HTML/SVG attributes contain CSS, not Tasty's value language.
       if (tag.type !== 'JSXIdentifier' || !/^[A-Z]/.test(tag.name)) return;
+      // Without prop types, a third-party component is taken to own its props.
+      if (!ctx.typeAwareJSX && ctx.isExternalJSXComponent(node, tag.name))
+        return;
       if (options.requireTastyJSX && !ctx.isTastyJSXComponent(node, tag.name))
         return;
 

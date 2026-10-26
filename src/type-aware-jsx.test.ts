@@ -62,8 +62,8 @@ function rules(code: string, option: unknown = true) {
 
 it('removes semantic collisions and preserves style diagnostics with either setting form', () => {
   const code = `import { TabDropIndicator, Box, Item } from './components';
-    <TabDropIndicator position="after" prefix="17px red" />;
-    <Item prefix="17px" gap="17px" />;
+    <TabDropIndicator position="after" marker="17px red" />;
+    <Item marker="17px" gap="17px" />;
     <Box position="after" fill="red" />;`;
   // `fill="red"` is a valid color, so only no-raw-color-values reports it.
   const expected = [
@@ -112,15 +112,15 @@ it('classifies the selected property of an indexed mixed-prop type', () => {
     components,
     readFileSync(components, 'utf8') +
       `
-    type MixedProps = BaseStyleProps & { prefix?: Content };
-    type CopiedContent = MixedProps['prefix'];
-    export const ProxyItem = (props: { prefix?: CopiedContent }) => null;
-    export const DirectItem = (props: { prefix?: MixedProps['prefix'] }) => null;
+    type MixedProps = BaseStyleProps & { marker?: Content };
+    type CopiedContent = MixedProps['marker'];
+    export const ProxyItem = (props: { marker?: CopiedContent }) => null;
+    export const DirectItem = (props: { marker?: MixedProps['marker'] }) => null;
     export const ProxyBox = (props: { gap?: MixedProps['gap'] }) => null;`,
   );
   expect(
     rules(`import { ProxyItem, DirectItem, ProxyBox } from './components';
-    <ProxyItem prefix="17px" />; <DirectItem prefix="17px" />;
+    <ProxyItem marker="17px" />; <DirectItem marker="17px" />;
     <ProxyBox gap="17px" />;`),
   ).toEqual(['tasty/consistent-token-usage']);
 });
@@ -208,7 +208,7 @@ it('preserves value-preserving utility style origins and resolves concrete gener
       `
     export const UtilityBox = (props: { gap?: NonNullable<StyleValue<'17px' | '1x'>> }) => null;
     export const ExtractBox = (props: { gap?: Extract<StyleValue<'17px' | '1x'>, string> }) => null;
-    type GenericProps<T> = { prefix?: T };
+    type GenericProps<T> = { marker?: T };
     export const SemanticGeneric = (props: GenericProps<Content>) => null;
     export const LiteralGeneric = (props: GenericProps<'before' | 'after'>) => null;
     export const UnrelatedGeneric = <T,>(props: GenericProps<Content> & { id: T }) => null;`,
@@ -216,9 +216,9 @@ it('preserves value-preserving utility style origins and resolves concrete gener
   const code = `import { UtilityBox, ExtractBox, SemanticGeneric, LiteralGeneric, UnrelatedGeneric } from './components';
     <UtilityBox gap="17px" />;
     <ExtractBox gap="17px" />;
-    <SemanticGeneric prefix="17px" />;
-    <LiteralGeneric prefix="after" />;
-    <UnrelatedGeneric id={1} prefix="17px" />;`;
+    <SemanticGeneric marker="17px" />;
+    <LiteralGeneric marker="after" />;
+    <UnrelatedGeneric id={1} marker="17px" />;`;
   expect(lint(code).map(({ ruleId, line }) => ({ ruleId, line }))).toEqual([
     { ruleId: 'tasty/consistent-token-usage', line: 2 },
     { ruleId: 'tasty/consistent-token-usage', line: 3 },
@@ -232,11 +232,11 @@ it('does not trace unused branches of conditional semantic props', () => {
     readFileSync(components, 'utf8') +
       `
     type Conditional<T, U, Flag> = Flag extends true ? T : U;
-    export const ConditionalItem = (props: { prefix?: Conditional<StyleValue<'17px' | '1x'>, Content, false> }) => null;
+    export const ConditionalItem = (props: { marker?: Conditional<StyleValue<'17px' | '1x'>, Content, false> }) => null;
     export const ExtractBox = (props: { gap?: Extract<StyleValue<'17px' | '1x'>, string> }) => null;`,
   );
   const code = `import { ConditionalItem, ExtractBox } from './components';
-    <ConditionalItem prefix="17px" />;
+    <ConditionalItem marker="17px" />;
     <ExtractBox gap="17px" />;`;
   expect(lint(code).map(({ ruleId, line }) => ({ ruleId, line }))).toEqual([
     { ruleId: 'tasty/consistent-token-usage', line: 3 },
@@ -284,19 +284,19 @@ it('excludes semantic aliases containing nested style types and conditional cons
     readFileSync(components, 'utf8') +
       `
     type SemanticEnvelope = { text: string; decoration?: Styles };
-    export const SemanticNested = (props: { prefix?: SemanticEnvelope }) => null;
+    export const SemanticNested = (props: { marker?: SemanticEnvelope }) => null;
     type ConditionalPosition = Styles extends object ? 'before' | 'after' : never;
     export const ConditionalComponent = (props: { position?: ConditionalPosition }) => null;
     type GenericPayload<T> = string | number | { contents: T };
-    export const GenericSemantic = (props: { prefix?: GenericPayload<Styles> }) => null;
+    export const GenericSemantic = (props: { marker?: GenericPayload<Styles> }) => null;
     type DefaultPayload<T = Styles> = string | { contents: T };
-    export const DefaultSemantic = (props: { prefix?: DefaultPayload }) => null;`,
+    export const DefaultSemantic = (props: { marker?: DefaultPayload }) => null;`,
   );
   expect(
     rules(`import { SemanticNested, ConditionalComponent, GenericSemantic, DefaultSemantic } from './components';
-    <SemanticNested prefix={{ text: '17px' }} />;
+    <SemanticNested marker={{ text: '17px' }} />;
     <ConditionalComponent position="after" />;
-    <GenericSemantic prefix="17px" />; <DefaultSemantic prefix="17px" />;`),
+    <GenericSemantic marker="17px" />; <DefaultSemantic marker="17px" />;`),
   ).toEqual([]);
 });
 
@@ -471,7 +471,7 @@ it.each(['valid-color-token', 'valid-custom-property'])(
       JSON.stringify({ tokens: ['#known', '$known'] }),
     );
     const token = rule === 'valid-color-token' ? '#missing' : '$missing';
-    const code = `import { Item } from './components'; <Item prefix="${token}" />;`;
+    const code = `import { Item } from './components'; <Item marker="${token}" />;`;
     const activeRules: Linter.RulesRecord = { [`tasty/${rule}`]: 'error' };
     expect(lint(code, true, activeRules)).toEqual([]);
     const source = linter.getSourceCode();
@@ -479,8 +479,8 @@ it.each(['valid-color-token', 'valid-custom-property'])(
     writeFileSync(
       components,
       readFileSync(components, 'utf8').replaceAll(
-        'prefix?: Content',
-        "prefix?: Styles['fill']",
+        'marker?: Content',
+        "marker?: Styles['fill']",
       ),
     );
     expect(
@@ -500,7 +500,7 @@ it('keeps pixel checks on broad primitive unions while excluding content unions'
   );
   expect(
     rules(`import { CustomGap, CustomWidth, Item } from './components';
-    <CustomGap gap="17px" />; <CustomWidth width={17} />; <Item prefix="17px" />;`),
+    <CustomGap gap="17px" />; <CustomWidth width={17} />; <Item marker="17px" />;`),
   ).toEqual(['tasty/consistent-token-usage', 'tasty/consistent-token-usage']);
 });
 
@@ -569,4 +569,16 @@ it('lets no-protected-restyle skip semantic props that share a style name', () =
     );
   expect(props(true)).toEqual(['position', 'fill']);
   expect(props(false)).toEqual(['position', 'position', 'fill']);
+});
+
+it('classifies components from other packages by their types', () => {
+  // Without types, a package outside `importSources` is taken to own its props;
+  // with them, a component that declares Tasty style props is still checked.
+  const tsconfig = JSON.parse(readFileSync(join(dir, 'tsconfig.json'), 'utf8'));
+  tsconfig.compilerOptions.paths['@vendor/ui'] = ['./components.tsx'];
+  writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify(tsconfig));
+  const code = `import { TabDropIndicator, Box } from '@vendor/ui';
+    <TabDropIndicator position="after" />; <Box position="after" />;`;
+  expect(rules(code)).toEqual(['tasty/valid-value']);
+  expect(rules(code, false)).toEqual([]);
 });

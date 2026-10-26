@@ -120,6 +120,19 @@ tester.run('known-property', rule, {
   ],
   invalid: [
     {
+      // At-rule descriptors are not properties: a style rule cannot declare them.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { prefix: '1x', suffix: 'auto', symbols: 'x', src: 'none', fontWeight: 600 } });
+      `,
+      errors: [
+        { messageId: 'unknownProperty', data: { name: 'prefix' } },
+        { messageId: 'unknownProperty', data: { name: 'suffix' } },
+        { messageId: 'unknownProperty', data: { name: 'symbols' } },
+        { messageId: 'unknownProperty', data: { name: 'src' } },
+      ],
+    },
+    {
       // The annotation is read before the constant-case exclusion.
       code: `
         import type { Styles } from '@tenphi/tasty';
