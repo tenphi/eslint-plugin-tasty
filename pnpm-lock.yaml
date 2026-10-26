@@ -17,6 +17,9 @@ importers:
       postcss-selector-parser:
         specifier: ^7.1.6
         version: 7.1.6
+      semver:
+        specifier: ^7.7.4
+        version: 7.7.4
     devDependencies:
       '@changesets/changelog-github':
         specifier: ^0.5.2
@@ -33,6 +36,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.15
+      '@types/semver':
+        specifier: ^7.8.0
+        version: 7.8.0
       '@typescript-eslint/parser':
         specifier: ^8.56.1
         version: 8.57.0(eslint@10.0.3(jiti@2.6.1))(typescript@5.9.3)
@@ -638,6 +644,9 @@ packages:
 
   '@types/node@22.19.15':
     resolution: {integrity: sha512-F0R/h2+dsy5wJAUe3tAU6oqa2qbWY5TpNfL/RGmo1y38hiyO1w3x2jPtt76wmuaJI4DQnOBu21cNXQ2STIUUWg==}
+
+  '@types/semver@7.8.0':
+    resolution: {integrity: sha512-1mAINjtQCXXeLkJ9ehXkwOcBpqtLxiVtKhpUf83DdRNdQKV0iXZpaHYqRr7nj+wvxuJzoAmAwXI+sCNMv1CzLQ==}
 
   '@typescript-eslint/eslint-plugin@8.57.0':
     resolution: {integrity: sha512-qeu4rTHR3/IaFORbD16gmjq9+rEs9fGKdX0kF6BKSfi+gCuG3RCKLlSBYzn/bGsY9Tj7KE/DAQStbp8AHJGHEQ==}
@@ -2164,6 +2173,8 @@ snapshots:
   '@types/node@22.19.15':
     dependencies:
       undici-types: 6.21.0
+
+  '@types/semver@7.8.0': {}
 
   '@typescript-eslint/eslint-plugin@8.57.0(@typescript-eslint/parser@8.57.0(eslint@10.0.3(jiti@2.6.1))(typescript@5.9.3))(eslint@10.0.3(jiti@2.6.1))(typescript@5.9.3)':
     dependencies:

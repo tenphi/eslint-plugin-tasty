@@ -114,6 +114,33 @@ list through `extends`. See [`tasty/no-protected-restyle`](docs/rules/no-protect
 > `functions` was called `funcs` before v1. The old spelling is still read as a
 > deprecated alias.
 
+### Versioning a shared config
+
+A config that relies on newer plugin features can say so with `requires`, a
+semver range of `@tenphi/eslint-plugin-tasty` versions:
+
+```ts
+// tasty.config.ts of a design system that consumers extend
+export default {
+  requires: '>=1.13.0',
+  protectedComponents: [{ source: '@my-org/ui', exclude: ['Button.Group'] }],
+};
+```
+
+Every config in the `extends` chain may declare one, and linting fails when the
+installed plugin does not satisfy them all, naming the config, the range and the
+installed version. A consumer that lags behind its design system finds out on
+the first lint run instead of getting silently different results.
+
+The plugin also warns, on stderr and once per config file, about keys it does not
+read (a typo, or a key from a newer plugin), about known keys of the wrong shape
+(`states: '@mobile'` instead of a list), and about an `extends` that names
+nothing usable: a non-string value, a package that cannot be resolved, a package
+without a `tasty.config.*`, or a chain that leads back to itself. A package
+`extends` can also name a file inside the package, such as
+`@my-org/ui/lint/tasty.config`. `presetDescriptions` and `stateDescriptions`,
+which the Tasty VS Code extension reads from the same file, are accepted.
+
 ### Custom style functions
 
 Design systems can wrap Tasty with their own component factories and style

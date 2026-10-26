@@ -33,6 +33,12 @@ export interface ProtectedComponentConfig {
 
 export interface TastyValidationConfig {
   extends?: string;
+  /**
+   * The `@tenphi/eslint-plugin-tasty` versions this config needs, as a semver
+   * range such as `'>=1.13.0'`. Every config in the `extends` chain may declare
+   * one, and linting fails when the installed plugin does not satisfy them all.
+   */
+  requires?: string;
   tokens?: false | string[];
   units?: false | string[];
   /**
@@ -67,6 +73,10 @@ export interface TastyValidationConfig {
    * restyle. Entries from an extended config come first; `false` drops them.
    */
   protectedComponents?: false | ProtectedComponentConfig[];
+  /** Read by the Tasty VS Code extension, which shares this file; ignored here. */
+  presetDescriptions?: Record<string, string>;
+  /** Read by the Tasty VS Code extension, which shares this file; ignored here. */
+  stateDescriptions?: Record<string, string>;
 }
 
 export interface ResolvedConfig {

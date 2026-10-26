@@ -1,7 +1,7 @@
-import { createRequire } from 'node:module';
 import type { TSESLint } from '@typescript-eslint/utils';
 import * as rules from './rules/index.js';
 import { recommended, strict } from './configs.js';
+import { version } from './version.js';
 
 const ruleMap: Record<string, TSESLint.RuleModule<string, unknown[]>> = {
   'known-property': rules.knownProperty,
@@ -48,13 +48,6 @@ const ruleMap: Record<string, TSESLint.RuleModule<string, unknown[]>> = {
   'prefer-hide': rules.preferHide,
   'prefer-directional-shorthand': rules.preferDirectionalShorthand,
   'prefer-longhand-property': rules.preferLonghandProperty,
-};
-
-// Read from package.json so `meta.version` cannot drift from the released
-// version, as the previous hardcoded literal had. `../package.json` resolves to
-// the package root from both `src/` and the unbundled `dist/`.
-const { version } = createRequire(import.meta.url)('../package.json') as {
-  version: string;
 };
 
 const plugin = {
