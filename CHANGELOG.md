@@ -1,5 +1,15 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.14.0
+
+### Minor Changes
+
+- [#141](https://github.com/tenphi/eslint-plugin-tasty/pull/141) [`ab7b3df`](https://github.com/tenphi/eslint-plugin-tasty/commit/ab7b3dfb12de2f5e4cf07de8f1f43f409c15060e) Thanks [@tenphi](https://github.com/tenphi)! - Add `tasty/prefer-fill-mix` (recommended, warn). It reports the deprecated space-separated two-color `fill` and `backgroundColor` (`'#surface #dark.04'`) and autofixes it to Tasty's comma mix (`'#dark 4%, #surface'`) when the overlay's opacity is written on it; `'#base #clear'` becomes `'#base'`. It also reports a mix part weighted by its opacity (`'#dark.04, #surface'`) with an editor suggestion. The rule is inactive unless `@tenphi/tasty` 3.15.0 or later is installed.
+
+### Patch Changes
+
+- [#139](https://github.com/tenphi/eslint-plugin-tasty/pull/139) [`c4ee711`](https://github.com/tenphi/eslint-plugin-tasty/commit/c4ee71150abc4a0ae661c47e4d029b78913c235c) Thanks [@tenphi](https://github.com/tenphi)! - Preserve fontStyle custom properties when autofixing styles with Tasty 3.14, and verify token and boolean handling against that runtime.
+
 ## 1.13.1
 
 ### Patch Changes
