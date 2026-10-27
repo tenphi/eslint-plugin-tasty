@@ -46,6 +46,7 @@ const ruleMap: Record<string, TSESLint.RuleModule<string, unknown[]>> = {
   'prefer-state-negation': rules.preferStateNegation,
   'prefer-custom-property-syntax': rules.preferCustomPropertySyntax,
   'prefer-hide': rules.preferHide,
+  'prefer-fill-mix': rules.preferFillMix,
   'prefer-directional-shorthand': rules.preferDirectionalShorthand,
   'prefer-longhand-property': rules.preferLonghandProperty,
 };

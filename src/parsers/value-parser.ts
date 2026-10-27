@@ -72,7 +72,8 @@ const RE_CSS_UNIT_NUM = /^[+-]?(?:\d*\.\d+|\d+)([a-z%]+)$/;
 /** An unspaced `<ratio>`, such as `16/10`. */
 const RE_RATIO = /^(?:\d*\.\d+|\d+)\/(?:\d*\.\d+|\d+)$/;
 
-const COLOR_FUNCS = new Set([
+/** Functions the parser classifies as colors. */
+export const COLOR_FUNCS = new Set([
   'rgb',
   'rgba',
   'hsl',

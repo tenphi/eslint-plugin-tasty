@@ -575,6 +575,48 @@ function mtimesMatch(
   return true;
 }
 
+const tastyVersionCache = new Map<
+  string,
+  { mtime: number; version: string | null }
+>();
+
+/**
+ * The version of `@tenphi/tasty` installed for the project `filePath` belongs
+ * to, or `null` when it cannot be found. Rules whose fixes need a newer Tasty
+ * check it, so `--fix` never writes syntax the installed Tasty cannot render.
+ */
+export function getInstalledTastyVersion(filePath: string): string | null {
+  const projectRoot = findProjectRoot(dirname(resolve(filePath)));
+  if (!projectRoot) return null;
+
+  const pkgDir = resolvePackageDir(TASTY_PACKAGE_NAME, projectRoot);
+  if (!pkgDir) return null;
+
+  const pkgJson = join(pkgDir, 'package.json');
+  let mtime: number;
+  try {
+    mtime = statSync(pkgJson).mtimeMs;
+  } catch {
+    return null;
+  }
+
+  const cached = tastyVersionCache.get(pkgJson);
+  if (cached?.mtime === mtime) return cached.version;
+
+  let version: string | null = null;
+  try {
+    const parsed = JSON.parse(readFileSync(pkgJson, 'utf-8')) as {
+      version?: unknown;
+    };
+    if (typeof parsed.version === 'string') version = parsed.version;
+  } catch {
+    // An unreadable manifest is the same as no Tasty at all.
+  }
+
+  tastyVersionCache.set(pkgJson, { mtime, version });
+  return version;
+}
+
 export function loadConfig(filePath: string): ResolvedConfig {
   const fileDir = dirname(resolve(filePath));
   const projectRoot = findProjectRoot(fileDir);
