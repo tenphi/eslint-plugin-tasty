@@ -40,5 +40,6 @@ export { default as preferAutoCalc } from './prefer-auto-calc.js';
 export { default as preferStateNegation } from './prefer-state-negation.js';
 export { default as preferCustomPropertySyntax } from './prefer-custom-property-syntax.js';
 export { default as preferHide } from './prefer-hide.js';
+export { default as preferFillMix } from './prefer-fill-mix.js';
 export { default as preferDirectionalShorthand } from './prefer-directional-shorthand.js';
 export { default as preferLonghandProperty } from './prefer-longhand-property.js';
