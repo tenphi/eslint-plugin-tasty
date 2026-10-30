@@ -490,6 +490,9 @@ function classifyToken(
       });
       return { type: 'unknown', raw: token };
     }
+    if (token.includes('+')) {
+      return classifyCompoundColor(token, offset, errors);
+    }
     return classifyColorToken(token, offset, errors);
   }
 
@@ -717,6 +720,43 @@ function classifyColorToken(
   }
 
   return { type: 'color-token', name, raw };
+}
+
+/** One layer of a compound color: a `#name`, before any opacity suffix. */
+const RE_COMPOUND_LAYER = /^#[a-z0-9-]+(?:\.|$)/i;
+
+/**
+ * Classify a compound color, `#surface+#dark.04`: color tokens joined by `+`,
+ * each with its own opacity, painted left to right. Tasty drops the whole value
+ * when a part is not a color token, so that is an error. The token's name is
+ * the compound as written, and it has no opacity of its own.
+ */
+function classifyCompoundColor(
+  token: string,
+  offset: number,
+  errors: ValueError[],
+): ValueToken {
+  const raw = token;
+  let layerOffset = offset;
+
+  for (const layer of token.split('+')) {
+    if (!RE_COMPOUND_LAYER.test(layer)) {
+      errors.push({
+        message: `'${raw}' is not a compound color: every part joined by '+' must be a color token, such as '#surface+#dark.04'.`,
+        offset,
+        length: raw.length,
+        raw,
+      });
+      return { type: 'unknown', raw };
+    }
+
+    if (classifyColorToken(layer, layerOffset, errors).type !== 'color-token') {
+      return { type: 'unknown', raw };
+    }
+    layerOffset += layer.length + 1;
+  }
+
+  return { type: 'color-token', name: token.slice(1), raw };
 }
 
 // ============================================================================

@@ -268,7 +268,7 @@ not matched.
 | `tasty/prefer-state-negation` | warn | Top-level `:not(...)` in state keys instead of the `!` prefix (autofixable; nested CSS selectors stay intact) |
 | `tasty/prefer-custom-property-syntax` | warn | `var(--prop)` / `$x-color` / `transparent` / `currentColor` instead of `$prop` / `#color` / `#clear` / `#current` |
 | `tasty/prefer-hide` | warn | `display: 'none'` instead of `hide: true` |
-| `tasty/prefer-fill-mix` | warn | Deprecated two-color `fill` (`'#surface #dark.04'`) instead of a comma mix (`'#dark 4%, #surface'`), autofixed when the overlay's opacity is written on it; mix parts weighted by their opacity (`'#dark.04, #surface'`). Needs `@tenphi/tasty` 3.15 ([details](docs/rules/prefer-fill-mix.md)) |
+| `tasty/prefer-fill-mix` | warn | Deprecated two-color `fill`, space-separated (`'#surface #dark.04'`) or comma-mixed (`'#dark 4%, #surface'`), instead of a compound color (`'#surface+#dark.04'`) or `color-mix()`, autofixed when the result is the same color; mix parts weighted by their opacity (`'#dark.04, #surface'`). Needs `@tenphi/tasty` 3.15, and 3.16 for compound colors ([details](docs/rules/prefer-fill-mix.md)) |
 | `tasty/prefer-directional-shorthand` | warn | 4-value `margin`/`padding`/`inset`/`radius`/`fade`/`border` with placeholder positions instead of directional form |
 | `tasty/prefer-longhand-property` | error | Lossy `flex` shorthand instead of `flexGrow` / `flexShrink` / `flexBasis` |
 
