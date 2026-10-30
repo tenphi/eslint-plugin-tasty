@@ -194,6 +194,37 @@ describe('value-parser', () => {
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].message).toContain('Trailing dot');
     });
+
+    it('classifies a compound color as one color token', () => {
+      for (const value of [
+        '#surface+#dark.04',
+        '#surface.5+#dark.04',
+        '#surface+#accent.1+#dark.$hover',
+        '#current+#dark.2',
+      ]) {
+        const result = parseValue(value);
+        expect(result.errors).toEqual([]);
+        expect(flattenTokens(result)).toEqual([
+          { type: 'color-token', name: value.slice(1), raw: value },
+        ]);
+      }
+    });
+
+    it('reports a compound joined to anything but color tokens', () => {
+      for (const value of ['#surface+1x', '#surface+', '#surface+##dark']) {
+        const result = parseValue(value);
+        expect(result.errors).toHaveLength(1);
+        expect(result.errors[0].message).toContain(
+          `'${value}' is not a compound color`,
+        );
+      }
+    });
+
+    it('reports an invalid opacity in a compound layer', () => {
+      const result = parseValue('#surface+#dark.5.5');
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].message).toContain("Invalid opacity value '5.5'");
+    });
   });
 
   describe('extractTokensByType', () => {
