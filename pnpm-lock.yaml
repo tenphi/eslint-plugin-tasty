@@ -31,8 +31,8 @@ importers:
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.0.3(jiti@2.6.1))
       '@tenphi/tasty':
-        specifier: ^3.16.0
-        version: 3.16.0(jiti@2.6.1)(react@19.2.8)
+        specifier: ^3.17.0
+        version: 3.17.0(jiti@2.6.1)(react@19.2.8)
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.15
@@ -594,8 +594,8 @@ packages:
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
-  '@tenphi/tasty@3.16.0':
-    resolution: {integrity: sha512-+iJa91lwa4fbW+Tc2BRJXDuRFgQzzOJAemoLYkFG3jPRUywAv+wvmvDv9MBs0HBD/JHzwNFj52JctMcrPh8URA==}
+  '@tenphi/tasty@3.17.0':
+    resolution: {integrity: sha512-aiZHO4IonmtGAStslFc9KryNdhYTPcLG/3gqZrQiFSEyPrkqfknk/2tvO22+L2tL1JRaSv72Vr0x0qTqEOKBJw==}
     engines: {node: '>=20'}
     peerDependencies:
       '@babel/core': ^7.24.0 || ^8.0.0
@@ -2141,7 +2141,7 @@ snapshots:
 
   '@standard-schema/spec@1.1.0': {}
 
-  '@tenphi/tasty@3.16.0(jiti@2.6.1)(react@19.2.8)':
+  '@tenphi/tasty@3.17.0(jiti@2.6.1)(react@19.2.8)':
     dependencies:
       csstype: 3.2.3
     optionalDependencies:
