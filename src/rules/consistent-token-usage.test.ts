@@ -40,6 +40,33 @@ tester.run('consistent-token-usage', rule, {
         const obj = { gap: '8px' };
       `,
     },
+    {
+      // With `pixels: 'replaceable'`, a length with no exact unit is allowed:
+      // layout sizes, hairlines, and numeric inputs alike.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({
+          styles: {
+            width: 'max 520px',
+            height: { '': '28px', compact: '22px' },
+            inset: '-2px 0 auto 3px',
+            gap: 17,
+            radius: '4px',
+            border: '2px solid #accent',
+          },
+        });
+      `,
+      options: [{ pixels: 'replaceable' }],
+    },
+    {
+      // Type-scale lengths have no unit: `x` is the spacing scale, so a 16px
+      // line height or a 40px font size is not replaceable.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fontSize: '40px', lineHeight: '16px', letterSpacing: '8px' } });
+      `,
+      options: [{ pixels: 'replaceable' }],
+    },
   ],
   invalid: [
     {
@@ -142,6 +169,89 @@ tester.run('consistent-token-usage', rule, {
               output: `
         import { tasty } from '@tenphi/tasty';
         tasty({ styles: { Icon: { radius: { '': '1r' } } } });
+      `,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      // With `pixels: 'replaceable'`, only the part of a value with an exact
+      // unit is reported, and the fix leaves the rest of the value alone.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { padding: '8px 17px', border: '1px solid #accent', width: 64 } });
+      `,
+      options: [{ pixels: 'replaceable' }],
+      errors: [
+        {
+          messageId: 'preferToken',
+          data: { raw: '8px', suggestion: '1x' },
+          suggestions: [
+            {
+              messageId: 'replaceWithToken',
+              output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { padding: '1x 17px', border: '1px solid #accent', width: 64 } });
+      `,
+            },
+          ],
+        },
+        {
+          messageId: 'preferToken',
+          data: { raw: '1px', suggestion: '1bw' },
+          suggestions: [
+            {
+              messageId: 'replaceWithToken',
+              output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { padding: '8px 17px', border: '1bw solid #accent', width: 64 } });
+      `,
+            },
+          ],
+        },
+        {
+          messageId: 'preferToken',
+          data: { raw: '64px', suggestion: '8x' },
+          suggestions: [
+            {
+              messageId: 'replaceWithToken',
+              output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { padding: '8px 17px', border: '1px solid #accent', width: '8x' } });
+      `,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      // `pixels: 'all'` is the default: a length with no exact unit is reported.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { width: '520px' } });
+      `,
+      options: [{ pixels: 'all' }],
+      errors: [{ messageId: 'rawPixelValue', data: { raw: '520px' } }],
+    },
+    {
+      // By default a type-scale length is still reported, without an `x`
+      // suggestion, while a spacing length beside it keeps its suggestion.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { lineHeight: '16px', padding: '16px' } });
+      `,
+      errors: [
+        { messageId: 'rawPixelValue', data: { raw: '16px' } },
+        {
+          messageId: 'preferToken',
+          data: { raw: '16px', suggestion: '2x' },
+          suggestions: [
+            {
+              messageId: 'replaceWithToken',
+              output: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { lineHeight: '16px', padding: '2x' } });
       `,
             },
           ],
