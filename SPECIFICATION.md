@@ -1506,10 +1506,17 @@ strings, and URLs are allowed.
 
 Known conventional equivalents have suggestions: `8px` → `1x`, `16px` → `2x`,
 radius `6px` → `1r`, border `1px` → `1bw`. These suggestions assume the conventional
-scale defaults and must be reviewed against the consumer's design system. Other
+scale defaults and must be reviewed against the consumer's design system.
+`fontSize`, `lineHeight` and `letterSpacing` are on the type scale, so their
+lengths get no `x` suggestion. Other
 pixels (such as `17px`) are report-only; the rule does not invent a token or assume
 its value. Suggestions preserve surrounding syntax and other values, and are
 withheld for source/decoded-value differences caused by escapes or JSX entities.
+
+Option `pixels`: `'all'` (default) reports every nonzero pixel length as above.
+`'replaceable'` reports only a pixel length with a known equivalent, so every
+report has a suggestion; other pixels are allowed. A project whose layout sizes
+are pixels on purpose can then run the rule as an error.
 
 ---
 

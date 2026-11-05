@@ -10,6 +10,13 @@ import { scanValueWords } from '../value-words.js';
 type MessageIds = 'preferToken' | 'rawPixelValue' | 'replaceWithToken';
 
 /**
+ * Which pixel lengths to report: every one, or only those with an exact
+ * replacement, so a project can enforce the known units without listing every
+ * layout size it chose in pixels.
+ */
+type Pixels = 'all' | 'replaceable';
+
+/**
  * Properties whose value carries a border width, so a `1px` in one is the
  * `1bw` token spelled out.
  *
@@ -21,6 +28,16 @@ type MessageIds = 'preferToken' | 'rawPixelValue' | 'replaceWithToken';
 const BORDER_WIDTH_PROPERTIES = new Set<string>([
   'border',
   ...LOGICAL_BORDER_STYLES,
+]);
+
+/**
+ * Lengths on the type scale, which presets set. `x` is the spacing scale, so a
+ * `16px` line height equals `2x` only by coincidence and gets no suggestion.
+ */
+const TYPE_SCALE_PROPERTIES = new Set<string>([
+  'fontSize',
+  'lineHeight',
+  'letterSpacing',
 ]);
 
 /** Enhanced handlers that convert numeric inputs to pixels. Unitless CSS stays out. */
@@ -78,7 +95,7 @@ const PX_TO_UNIT: Record<string, string> = {
   '64px': '8x',
 };
 
-export default createRule<[], MessageIds>({
+export default createRule<[{ pixels?: Pixels }], MessageIds>({
   name: 'consistent-token-usage',
   meta: {
     type: 'suggestion',
@@ -94,10 +111,18 @@ export default createRule<[], MessageIds>({
         "Consider using '{{suggestion}}' instead of '{{raw}}'. For an intentional pixel value, explicitly disable tasty/consistent-token-usage on this line with a reason.",
       replaceWithToken: "Replace '{{raw}}' with '{{suggestion}}'",
     },
-    schema: [],
+    schema: [
+      {
+        type: 'object',
+        properties: {
+          pixels: { type: 'string', enum: ['all', 'replaceable'] },
+        },
+        additionalProperties: false,
+      },
+    ],
   },
-  defaultOptions: [],
-  create(context) {
+  defaultOptions: [{ pixels: 'all' }],
+  create(context, [{ pixels = 'all' }]) {
     const ctx = new TastyContext(context);
 
     function checkValue(
@@ -107,7 +132,7 @@ export default createRule<[], MessageIds>({
     ): void {
       // Definitions establish the scale itself; quoted text and URLs are opaque.
       if (/^[#$]/.test(property)) return;
-      const pixels = new Map<
+      const lengths = new Map<
         string,
         { start: number; end: number; replacement: string }[]
       >();
@@ -123,18 +148,21 @@ export default createRule<[], MessageIds>({
             ? '1r'
             : BORDER_WIDTH_PROPERTIES.has(property) && amount === 1
               ? '1bw'
-              : PX_TO_UNIT[canonical];
-        const edits = pixels.get(raw) ?? [];
+              : TYPE_SCALE_PROPERTIES.has(property)
+                ? undefined
+                : PX_TO_UNIT[canonical];
+        const edits = lengths.get(raw) ?? [];
         edits.push({
           start: word.offset,
           end: word.offset + raw.length,
           replacement: suggestion ?? '',
         });
-        pixels.set(raw, edits);
+        lengths.set(raw, edits);
       }
-      for (const [raw, edits] of pixels) {
+      for (const [raw, edits] of lengths) {
         const suggestion = edits[0].replacement;
         if (!suggestion) {
+          if (pixels === 'replaceable') continue;
           context.report({ node, messageId: 'rawPixelValue', data: { raw } });
           continue;
         }

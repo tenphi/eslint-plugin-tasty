@@ -263,7 +263,7 @@ not matched.
 | `tasty/no-classname-prop` | warn | `className` on recognized Tasty components; keep styling in Tasty or use `data-element` for sub-elements ([details](docs/rules/no-classname-prop.md)) |
 | `tasty/no-styles-prop` | warn | Instance `styles` on recognized Tasty components; use `tokens`, `mods`, exposed props/variants, or `tasty(Component, { styles })` ([details](docs/rules/no-styles-prop.md)) |
 | `tasty/no-protected-restyle` | warn | Restyling a design system's `protectedComponents`: instance `styles` and `*Styles`, appearance style props, and `tasty()` wrappers that restyle them, followed through aliases, wrappers and relative re-exports. Inactive without the config ([details](docs/rules/no-protected-restyle.md)) |
-| `tasty/consistent-token-usage` | warn | Nonzero raw pixel lengths, including compounds, expressions and numeric inputs to enhanced length handlers |
+| `tasty/consistent-token-usage` | warn | Nonzero raw pixel lengths, including compounds, expressions and numeric inputs to enhanced length handlers. The `pixels: 'replaceable'` option reports only lengths with an exact unit, such as `8px` → `1x` ([details](docs/rules/consistent-token-usage.md)) |
 | `tasty/prefer-auto-calc` | warn | `calc(...)` instead of Tasty auto-calc `(...)` |
 | `tasty/prefer-state-negation` | warn | Top-level `:not(...)` in state keys instead of the `!` prefix (autofixable; nested CSS selectors stay intact) |
 | `tasty/prefer-custom-property-syntax` | warn | `var(--prop)` / `$x-color` / `transparent` / `currentColor` instead of `$prop` / `#color` / `#clear` / `#current` |
@@ -565,8 +565,11 @@ are checked only for enhanced handlers that convert them to pixels; unitless
 properties such as `opacity` and `zIndex` are unaffected. Known equivalents still
 have suggestions (`8px` → `1x`, radius `6px` → `1r`, border `1px` → `1bw`). These
 assume the conventional scale defaults; review them against your design system.
-Other pixels are report-only. Zero, token definitions, quoted CSS text, and URLs
-are allowed. Quotes and URLs are also excluded from token and raw-color checks.
+Font size, line height and letter spacing are on the type scale, so they get no
+`x` suggestion.
+Other pixels are report-only. With the `pixels: 'replaceable'` option, they are
+not reported, and only lengths with an exact unit are. Zero, token definitions,
+quoted CSS text, and URLs are allowed. Quotes and URLs are also excluded from token and raw-color checks.
 Range-based fixes are withheld when JavaScript escapes or JSX entities make
 source offsets differ from the decoded value.
 
