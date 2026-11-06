@@ -56,6 +56,30 @@ On a Tasty component the message suggests token references and `tokens`. On any
 other element it suggests moving the styles into Tasty: render a `tasty()`
 element, or wrap the component with `tasty(Component, { styles })`.
 
+```js
+'tasty/no-style-prop': ['warn', { values: 'static' }],
+```
+
+| `values`          | Reports                                                                                                 |
+| ----------------- | ------------------------------------------------------------------------------------------------------- |
+| `'all'` (default) | Every `style`                                                                                           |
+| `'static'`        | A `style` whose every value is a literal, written inline or as a local `const` object, and Tasty syntax |
+
+A static `style` always has a Tasty form: style props or the component's styles,
+where Tasty units, tokens and states apply. A runtime value (a measured
+position, a size from a prop, a user's theme) is the same inline custom property
+whether it is written in `style` or in `tokens`, so `'static'` leaves it to the
+author. A `style` built from a spread, a call, a conditional, a template with
+substitutions or a computed key is not static.
+
+### Tasty syntax in `style`
+
+`style` hands its values to the browser unparsed, so a Tasty unit (`'4x'`,
+`'1bw'`), a color token (`'#dark'`) or a `$` token in a literal value is an
+invalid declaration that the browser drops. The rule reports it under either
+`values` setting, even when the other values are dynamic, and names the value.
+A raw hex color, `var()` and CSS units, `lh` included, are left alone.
+
 ## Replacing React's `style` restriction
 
 `react/forbid-component-props` and `react/forbid-dom-props` are each one rule

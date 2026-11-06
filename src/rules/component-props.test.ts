@@ -381,3 +381,121 @@ describe('no-style-prop elements option', () => {
     expect(() => lint(elements.native, { elements: 'dom' })).toThrow();
   });
 });
+
+describe('no-style-prop values option', () => {
+  function lint(code: string, options?: object) {
+    const config = [
+      {
+        files: ['**/*.tsx'],
+        languageOptions: {
+          parser,
+          parserOptions: { ecmaFeatures: { jsx: true } },
+        },
+        plugins: { tasty: plugin },
+        rules: {
+          'tasty/no-style-prop': options ? ['warn', options] : 'warn',
+        },
+      },
+    ] as never;
+    return linter.verify(local + code, config, { filename });
+  }
+
+  function ids(code: string, options?: object) {
+    return lint(code, options).map((message) => message.messageId);
+  }
+
+  const staticOnly = { values: 'static' };
+
+  it.each(
+    Object.entries({
+      literals: `<Box style={{ textAlign: 'center', opacity: 0.75, margin: -1 }} />;`,
+      'no-substitution template': '<Box style={{ width: `100%` }} />;',
+      'custom property': `<Box style={{ '--sidebar-width': '220px' }} />;`,
+      'const binding': `const ROW = { width: '100%' } as const;\n<Box style={ROW} />;`,
+      'annotated const': `const ROW: object = { width: '100%' };\n<Box style={ROW} />;`,
+      'inline spread': `<Box {...{ style: { color: 'red' } }} />;`,
+    }),
+  )('values: static reports a static style (%s)', (_, code) => {
+    expect(ids(code, staticOnly)).toEqual(['staticStyle']);
+  });
+
+  it.each(
+    Object.entries({
+      variable: `<Box style={value} />;`,
+      'dynamic value': `<Box style={{ width }} />;`,
+      template: '<Box style={{ left: `${x}px` }} />;',
+      'object spread': `<Box style={{ ...base, color: 'red' }} />;`,
+      conditional: `<Box style={cond ? { height: 'auto' } : undefined} />;`,
+      'conditional value': `<Box style={{ cursor: cond ? 'grab' : 'grabbing' }} />;`,
+      'computed key': `<Box style={{ [key]: 'red' }} />;`,
+      'let binding': `let ROW = { width: '100%' };\n<Box style={ROW} />;`,
+      'const of a call': `const ROW = getStyles();\n<Box style={ROW} />;`,
+      null: `<Box style={null} />;`,
+    }),
+  )('values: static leaves a dynamic style alone (%s)', (_, code) => {
+    expect(ids(code, staticOnly)).toEqual([]);
+  });
+
+  it.each(
+    Object.entries({
+      'custom unit': [`'4x'`, `'4x'`],
+      'unit in a list': [`'1bw solid red'`, `'1bw'`],
+      'color token': [`'#dark'`, `'#dark'`],
+      'color token with opacity': [`'#dark.5'`, `'#dark.5'`],
+      'custom property token': [`'$gap'`, `'$gap'`],
+    }),
+  )('reports Tasty syntax in any style (%s)', (_, [literal, word]) => {
+    const code = `<Box style={{ padding: ${literal}, width }} />;`;
+    for (const options of [undefined, staticOnly, { values: 'all' }]) {
+      const messages = lint(code, options);
+      expect(messages.map((message) => message.messageId)).toEqual([
+        'tastySyntax',
+      ]);
+      expect(messages[0].message).toContain(word);
+    }
+  });
+
+  it.each(
+    Object.entries({
+      'hex color': `'#f3f4f6'`,
+      'css units': `'10px 2em 50%'`,
+      'lh unit': `'calc(3 * 1lh)'`,
+      'var()': `'var(--dark-03-color)'`,
+      'quoted text': `"'2x Grotesk', sans-serif"`,
+    }),
+  )('leaves CSS that only looks like Tasty alone (%s)', (_, literal) => {
+    expect(
+      ids(`<Box style={{ padding: ${literal}, width }} />;`, staticOnly),
+    ).toEqual([]);
+  });
+
+  it('keeps reporting every style by default', () => {
+    expect(
+      ids(`<Box style={value} />;\n<Box style={{ color: 'red' }} />;`),
+    ).toEqual(['noStyleProp', 'noStyleProp']);
+  });
+
+  it('applies the elements option', () => {
+    const code = `<div style={{ color: 'red' }} />;\n<div style={{ color }} />;`;
+    expect(ids(code, { ...staticOnly, elements: 'all' })).toEqual([
+      'staticStyle',
+    ]);
+    expect(ids(code, staticOnly)).toEqual([]);
+  });
+
+  it('points a static style at styles and the exception path', () => {
+    const [message] = lint(`<Box style={{ color: 'red' }} />;`, staticOnly);
+    for (const text of [
+      'static',
+      'styles',
+      'explicitly disable tasty/no-style-prop',
+    ])
+      expect(message.message).toContain(text);
+  });
+
+  it('rejects an unknown value', () => {
+    expect(() =>
+      lint(`<Box style={value} />;`, { values: 'dynamic' }),
+    ).toThrow();
+  });
+});
