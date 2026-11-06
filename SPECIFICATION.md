@@ -1540,8 +1540,12 @@ build-time `tastyStatic()` rule handles its own dynamic-value errors. At-rule
 definition objects (`@keyframes`, `@font-face`, etc.) are excluded because they
 may be shared JavaScript data rather than individual style values.
 
-Values fixed once the module has loaded are not reported, since Tasty generates
-their CSS once, exactly as for a literal: `undefined`, module-scope `const`
+A style object that no function encloses is built once, while the module loads,
+so none of its values is reported, calls and unresolved names included. An
+instance field does not count as module level: it runs for every instance.
+
+Inside a function, values fixed once the module has loaded are not reported,
+since Tasty generates their CSS once, exactly as for a literal: `undefined`, module-scope `const`
 bindings, enums and imports (and their members, including computed members with
 such keys), and templates, operators, conditionals and `mergeStyles(...)` calls
 built only from those. A `mergeStyles` object-literal argument is a style object
@@ -1569,14 +1573,12 @@ Tasty style values should be static and known at write time. Dynamic behavior sh
 **Examples:**
 ```js
 // ⚠️ Warning: Style values should be static
-tasty({
-  styles: {
-    fill: isActive ? '#blue' : '#gray', // ← dynamic
-  },
-});
+function Tab({ isActive }) {
+  return <Box styles={{ fill: isActive ? '#blue' : '#gray' }} />; // ← dynamic
+}
 
 // ✅ Correct — use state mapping
-tasty({
+const TabBox = tasty({
   styles: {
     fill: {
       '': '#gray',
@@ -1584,6 +1586,10 @@ tasty({
     },
   },
 });
+
+function Tab({ isActive }) {
+  return <TabBox mods={{ active: isActive }} />;
+}
 ```
 
 ---

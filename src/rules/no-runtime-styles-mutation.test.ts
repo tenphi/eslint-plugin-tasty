@@ -75,6 +75,26 @@ tester.run('no-runtime-styles-mutation', rule, {
         return <El styles={mergeStyles(styles, pick)} data={{ width: size }} />;
       }
     `,
+    // A style object no function encloses is built once, while the module
+    // loads, so every value in it is fixed: calls and globals included.
+    `
+      import { tasty } from '@tenphi/tasty';
+      import { bar, cssVar, glaze } from './theme';
+
+      const PALETTE: Styles = { '#accent': glaze.color({ hue: 280 }).tasty() };
+
+      export const Meter = tasty({
+        styles: {
+          fill: cssVar('controlBg'),
+          color: prefersDark ? '#white' : '#dark',
+          Bar: bar('.42s', '0s'),
+        },
+      });
+
+      class Preview {
+        static view = <Box styles={{ fill: cssVar('surface') }} />;
+      }
+    `,
   ],
   invalid: [
     {
@@ -198,7 +218,9 @@ tester.run('no-runtime-styles-mutation', rule, {
     {
       code: `
         import { tasty } from '@tenphi/tasty';
-        tasty({ styles: { fill: selectedFill } });
+        export function make(selectedFill) {
+          return tasty({ styles: { fill: selectedFill } });
+        }
       `,
       errors: [
         {
@@ -210,8 +232,10 @@ tester.run('no-runtime-styles-mutation', rule, {
     {
       code: [
         "import { tasty } from '@tenphi/tasty';",
-        "tasty({ styles: { fill: isActive ? '#primary' : '#surface',",
-        '  padding: `${space}x`, opacity: getOpacity() } });',
+        'export function make({ isActive, space }) {',
+        "  return tasty({ styles: { fill: isActive ? '#primary' : '#surface',",
+        '    padding: `${space}x`, opacity: getOpacity() } });',
+        '}',
       ].join('\n'),
       errors: [
         { messageId: 'dynamicStyleValue', data: { property: 'fill' } },
@@ -223,7 +247,9 @@ tester.run('no-runtime-styles-mutation', rule, {
       // Report the specific value inside a state map, not the entire map.
       code: `
         import { tasty } from '@tenphi/tasty';
-        tasty({ styles: { fill: { '': '#surface', active: selectedFill } } });
+        export function make(selectedFill) {
+          return tasty({ styles: { fill: { '': '#surface', active: selectedFill } } });
+        }
       `,
       errors: [
         {
@@ -235,7 +261,9 @@ tester.run('no-runtime-styles-mutation', rule, {
     {
       code: `
         import { tasty } from '@tenphi/tasty';
-        tasty({ styles: { fill: { [activeState]: '#primary' } } });
+        export function make(activeState) {
+          return tasty({ styles: { fill: { [activeState]: '#primary' } } });
+        }
       `,
       errors: [{ messageId: 'dynamicStyleKey' }],
     },
@@ -243,7 +271,9 @@ tester.run('no-runtime-styles-mutation', rule, {
       // Nested sub-elements also match style selectors; only one report is due.
       code: `
         import { tasty } from '@tenphi/tasty';
-        tasty({ styles: { Label: { color: selectedColor } } });
+        export function make(selectedColor) {
+          return tasty({ styles: { Label: { color: selectedColor } } });
+        }
       `,
       errors: [
         {
@@ -255,7 +285,9 @@ tester.run('no-runtime-styles-mutation', rule, {
     {
       code: `
         import { useStyles } from '@tenphi/tasty';
-        useStyles({ opacity: [1, opacity] });
+        export function useFade(opacity) {
+          return useStyles({ opacity: [1, opacity] });
+        }
       `,
       errors: [
         {
@@ -266,7 +298,10 @@ tester.run('no-runtime-styles-mutation', rule, {
     },
     {
       code: `
-        const styles = { fill: selectedFill };
+        export function make(selectedFill) {
+          const styles = { fill: selectedFill };
+          return styles;
+        }
       `,
       errors: [
         {
@@ -276,12 +311,33 @@ tester.run('no-runtime-styles-mutation', rule, {
       ],
     },
     {
-      code: `const view = <Box styles={{ fill: selectedFill }} />;`,
+      code: `const View = ({ selectedFill }) => <Box styles={{ fill: selectedFill }} />;`,
       errors: [
         {
           messageId: 'dynamicStyleValue',
           data: { property: 'fill' },
         },
+      ],
+    },
+    {
+      // The same values inside a function, or in an instance field, are
+      // built again for every call or instance.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        import { bar, cssVar } from './theme';
+
+        export function Meter() {
+          return <Box styles={{ fill: cssVar('controlBg'), Bar: bar('.42s', '0s') }} />;
+        }
+
+        class Preview {
+          view = <Box styles={{ fill: cssVar('surface') }} />;
+        }
+      `,
+      errors: [
+        { messageId: 'dynamicStyleValue', data: { property: 'fill' } },
+        { messageId: 'dynamicStyleValue', data: { property: 'Bar' } },
+        { messageId: 'dynamicStyleValue', data: { property: 'fill' } },
       ],
     },
   ],

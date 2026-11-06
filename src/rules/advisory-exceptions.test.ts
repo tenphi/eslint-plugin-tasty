@@ -35,7 +35,9 @@ describe('intentional exceptions to advisory rules', () => {
           rules: { [`tasty/${rule}`]: 'warn' },
         },
       ];
-      const call = `tasty(${base}{ styles: {\n${property},\n} });\n`;
+      // Inside a function: a style object built at module load is fixed, so
+      // `no-runtime-styles-mutation` checks only the ones built at render.
+      const call = `void (() => tasty(${base}{ styles: {\n${property},\n} }));\n`;
       const reported = linter.verify(imports + call, config, { filename });
       expect(reported).toHaveLength(1);
       expect(reported[0].severity).toBe(1);
