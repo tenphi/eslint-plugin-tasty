@@ -1429,6 +1429,13 @@ wider settings let a project remove `style` from `react/forbid-component-props`
 and `react/forbid-dom-props`, whose disable directives cover every prop they
 forbid, so a `style` exception names one rule and hides nothing else.
 
+It also takes a `values` option: `'all'` (default) reports every `style`, and
+`'static'` reports only a `style` whose every value is a literal, inline or as a
+local `const` object, with a `staticStyle` message. Under either setting a
+literal value in Tasty syntax (a custom unit, a color token other than a raw hex
+color, or a `$` token) gets a `tastySyntax` message that names it, since the
+browser drops it as inline CSS; CSS units, `lh` included, are not Tasty syntax.
+
 | Rule | Replacement guidance |
 |---|---|
 | `tasty/no-style-prop` | Declare token references in component styles and pass dynamic values through `tokens`. |
