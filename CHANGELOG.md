@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.17.1
+
+### Patch Changes
+
+- [#152](https://github.com/tenphi/eslint-plugin-tasty/pull/152) [`8e704c6`](https://github.com/tenphi/eslint-plugin-tasty/commit/8e704c6f1c26ae8dc6b8ab5412bc9b68765f163c) Thanks [@tenphi](https://github.com/tenphi)! - `no-runtime-styles-mutation` no longer checks a style object that no function encloses. Such an object is built once, while the module loads, so Tasty generates its CSS once whatever its values are: a call such as `cssVar('surface')` or `glaze.color(...).tasty()` in a module-level `tasty({ styles })` or palette is not a render-time value. An instance field still counts as render time, since it runs for every instance.
+
 ## 1.17.0
 
 ### Minor Changes
