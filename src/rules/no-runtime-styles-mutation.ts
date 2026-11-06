@@ -184,12 +184,34 @@ export default createRule<[], MessageIds>({
       }
     }
 
+    /**
+     * Whether an object is built once, while the module loads: no function
+     * encloses it, and neither does an instance field, which runs per
+     * instance. Every value in it is then fixed at load, calls included.
+     */
+    function isBuiltAtLoad(node: TSESTree.Node): boolean {
+      for (let current = node.parent; current; current = current.parent) {
+        switch (current.type) {
+          case 'FunctionDeclaration':
+          case 'FunctionExpression':
+          case 'ArrowFunctionExpression':
+            return false;
+          case 'PropertyDefinition':
+          case 'AccessorProperty':
+            if (!current.static) return false;
+            break;
+        }
+      }
+      return true;
+    }
+
     function handleStyleObject(node: TSESTree.ObjectExpression): void {
       const styleCtx = ctx.getStyleContext(node);
       // tastyStatic has a stricter build-time error for dynamic values.
       if (!styleCtx || styleCtx.isStaticCall) return;
       // Walk the full tree once; sub-element objects also match AST selectors.
       if (ctx.getRootStyleObject(node) !== node) return;
+      if (isBuiltAtLoad(node)) return;
 
       checkProperties(node);
     }
