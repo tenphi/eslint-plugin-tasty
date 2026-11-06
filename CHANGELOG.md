@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.17.0
+
+### Minor Changes
+
+- [#150](https://github.com/tenphi/eslint-plugin-tasty/pull/150) [`28f5db4`](https://github.com/tenphi/eslint-plugin-tasty/commit/28f5db4430d49367a47c2322945915f1fe919837) Thanks [@tenphi](https://github.com/tenphi)! - `no-style-prop` takes a `values` option. `'static'` reports only a `style` whose every value is a literal, which always has a Tasty form, and leaves runtime values to the author. Under either setting, Tasty syntax in a `style` value (`'4x'`, `'#dark'`, `'$gap'`) is reported with its own message, since the browser drops it.
+
 ## 1.16.0
 
 ### Minor Changes
