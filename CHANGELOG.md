@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.18.0
+
+### Minor Changes
+
+- [#154](https://github.com/tenphi/eslint-plugin-tasty/pull/154) [`acb5247`](https://github.com/tenphi/eslint-plugin-tasty/commit/acb5247e545ff613e17fb67d81bca5461622f4a1) Thanks [@tenphi](https://github.com/tenphi)! - `no-protected-restyle` takes a `usages` option. `'wrappers'` reports only `tasty()` wrappers that restyle a protected component, and leaves instance `styles`, `*Styles` and style props alone, so a project can enforce the rule on its wrapper definitions first. The default, `'all'`, checks both as before.
+
 ## 1.17.1
 
 ### Patch Changes
