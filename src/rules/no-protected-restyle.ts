@@ -11,6 +11,9 @@ import { jsxElementPropListeners } from './tasty-component-props.js';
 
 type MessageIds = 'restyleProp' | 'restyleWrapper';
 
+/** Which usages the rule checks: instance props and `tasty()` wrappers, or the wrappers alone. */
+type Usages = 'all' | 'wrappers';
+
 /** `tasty(Base, options)` keys that configure the wrapper instead of setting a default prop. */
 const WRAPPER_OPTIONS = new Set([
   'as',
@@ -47,7 +50,7 @@ function isNeverStyleValue(node: TSESTree.Node): boolean {
   );
 }
 
-export default createRule<[], MessageIds>({
+export default createRule<[{ usages?: Usages }], MessageIds>({
   name: 'no-protected-restyle',
   meta: {
     type: 'suggestion',
@@ -61,10 +64,18 @@ export default createRule<[], MessageIds>({
       restyleWrapper:
         "This tasty() wrapper restyles {{component}}, a protected {{source}} component, through '{{prop}}'. Set its own props, 'tokens' or 'mods' instead. If this override is intended, explicitly disable tasty/no-protected-restyle for this usage with an ESLint comment and a reason.",
     },
-    schema: [],
+    schema: [
+      {
+        type: 'object',
+        properties: {
+          usages: { type: 'string', enum: ['all', 'wrappers'] },
+        },
+        additionalProperties: false,
+      },
+    ],
   },
-  defaultOptions: [],
-  create(context) {
+  defaultOptions: [{ usages: 'all' }],
+  create(context, [{ usages = 'all' }]) {
     const ctx = new TastyContext(context);
     const components = new ProtectedComponents(context, ctx);
     if (!components.enabled) return {};
@@ -170,11 +181,20 @@ export default createRule<[], MessageIds>({
       },
     );
 
+    // `usages: 'wrappers'` drops the JSX checks, so instance props pass. The
+    // wrapper check still needs the imports tracked.
+    const instances =
+      usages === 'wrappers'
+        ? { ImportDeclaration: jsx.ImportDeclaration }
+        : {
+            ...jsx,
+            'Program:exit'() {
+              ctx.finishJSXAnalysis();
+            },
+          };
+
     return {
-      ...jsx,
-      'Program:exit'() {
-        ctx.finishJSXAnalysis();
-      },
+      ...instances,
       CallExpression(node) {
         const [base, options] = node.arguments;
         if (!options || !components.isWrapperCall(node)) return;
