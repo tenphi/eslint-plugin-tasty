@@ -89,6 +89,21 @@ For `extends: '@my-org/ui'` to find the list, the package has to publish its
 The design system's own source imports its components by relative path, which
 does not match `source`, so the design system itself is not held to the rule.
 
+## Options
+
+```js
+'tasty/no-protected-restyle': ['error', { usages: 'wrappers' }],
+```
+
+| `usages` | Reports |
+| --- | --- |
+| `'all'` (default) | Instance `styles`, `*Styles` and style props, and `tasty()` wrappers |
+| `'wrappers'` | `tasty()` wrappers that restyle a protected component, and wrappers of those wrappers |
+
+A wrapper defines a restyled component once, and every use of it inherits the
+restyle. `'wrappers'` lets a project enforce the rule on those definitions while
+its instance overrides are still being worked through.
+
 ## What it reports
 
 On a protected component:

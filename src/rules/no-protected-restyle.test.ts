@@ -112,6 +112,16 @@ const Spaced = tasty(Button.Group, { styles: { gap: '2x' } });
       code: `import { Button } from '@my-org/ui';\n<Button styles={{ fill: '#danger' }} />;`,
       filename: resolve('test/fixtures/style-values/component.tsx'),
     },
+    // `usages: 'wrappers'` leaves instance props alone.
+    {
+      ...tsx(
+        ui +
+          `<Button styles={{ fill: '#danger' }} fill="#danger" />;
+<ComboBox inputStyles={{ padding: '2x' }} />;
+<Button {...{ styles: { fill: '#danger' } }} />;`,
+      ),
+      options: [{ usages: 'wrappers' }],
+    },
   ],
   invalid: [
     {
@@ -263,6 +273,18 @@ tasty(Button.Split, { fill: '#danger' });`),
         prop('width', "'Dialog'", "'@my-org/strict-ui'"),
         prop('styles', "'Dialog'", "'@my-org/strict-ui'"),
       ],
+    },
+    {
+      // `usages: 'wrappers'` still reports wrappers, including one reached
+      // through an imported alias, and skips the instance on the next line.
+      ...tsx(
+        `import { tasty } from '@tenphi/tasty';
+import { Button as UIButton } from '@my-org/ui';
+export const DangerButton = tasty(UIButton, { styles: { fill: '#danger' } });
+<UIButton fill="#danger" />;`,
+      ),
+      options: [{ usages: 'wrappers' }],
+      errors: [wrapper('styles', "'UIButton' (based on 'Button')")],
     },
   ],
 });
