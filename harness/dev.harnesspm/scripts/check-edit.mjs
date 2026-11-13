@@ -1,6 +1,7 @@
 /**
  * The check-edit hook: after an agent edits a file that imports Tasty, lints
- * it with the recommended Tasty rules and hands the new problems back.
+ * it with the Tasty rules the project's lint config sets (or the recommended
+ * ones) and hands the new problems back.
  *
  * Claude Code runs it on PostToolUse for Edit, Write and MultiEdit, with the
  * event as JSON on stdin. Exit 0 says nothing. Exit 2 puts stderr in front of
@@ -18,11 +19,13 @@ import {
   importsFrom,
   isLintable,
   isTypeScript,
+  lintOptions,
   loadESLint,
   loadTypeScriptParser,
   newProblems,
   rulePage,
 } from './lint.mjs';
+import { createConfigResolver, isOn } from './project-config.mjs';
 
 /** More problems than this are summed up, not listed. */
 const LIMIT = 20;
@@ -74,31 +77,56 @@ if (!importsFrom(text)) {
 }
 
 let problems;
+let linter;
+let typeAware = false;
 try {
-  const { default: plugin, recommended } = await import(build('index.js'));
   const dirs = [dirname(file), projectDir];
-  const ESLint = await loadESLint(dirs, PACKAGE_ROOT);
+  let loaded;
+  try {
+    loaded = await loadESLint(dirs, PACKAGE_ROOT);
+  } catch (error) {
+    // A project that lints with Oxlint alone may have no ESLint. Then the hook
+    // stays out of the way, and `tasty-lint:check` says what to install.
+    if (error?.code === 'NO_ESLINT') process.exit(0);
+    throw error;
+  }
+  const { ESLint, espree } = loaded;
+  const { default: plugin, recommended } = await import(build('index.js'));
+  const project = await createConfigResolver({
+    ESLint,
+    plugin,
+    packageRoot: PACKAGE_ROOT,
+  }).forFile(file);
+  linter = project.source?.linter;
+  const lint = lintOptions(project, { recommended, projectDir });
+  if (project.ignored || !Object.values(lint.rules).some(isOn)) process.exit(0);
   const parser = await loadTypeScriptParser(dirs);
   if (!parser && isTypeScript(file)) setupError(NO_PARSER);
+  // typeAwareJSX builds a TypeScript program of the whole project: on UI Kit,
+  // 13 s instead of 1 s for one file, on every edit. Without it, JSX props are
+  // classified by name, so `tasty-lint:check` has the last word on them.
+  const { typeAwareJSX, ...settings } = lint.settings;
+  typeAware = Boolean(typeAwareJSX);
   const eslint = createLinter({
     ESLint,
     plugin,
-    rules: recommended,
     parser,
-    cwd: projectDir,
+    espree,
+    ...lint,
+    settings,
   });
-  const lint = async (source) =>
+  const lintText = async (source) =>
     collectProblems(
       await eslint.lintText(source, { filePath: file }),
       projectDir,
     ).problems;
 
-  problems = await lint(text);
+  problems = await lintText(text);
   // Report only what this edit added, so problems an older line already had
   // do not come back after every edit of the file.
   const original = event.tool_response?.originalFile;
   if (problems.length > 0 && typeof original === 'string' && original) {
-    problems = newProblems(problems, text, await lint(original), original);
+    problems = newProblems(problems, text, await lintText(original), original);
   }
 } catch (error) {
   setupError(error instanceof Error ? error.message : String(error));
@@ -112,8 +140,10 @@ const relativeFile = shown[0].file;
 // agent's shell went last, such as a folder in node_modules.
 const pageOf = (name) =>
   rulePage(name, { projectDir, packageRoot: PACKAGE_ROOT, cwd: projectDir });
+// The disable comment the project's linter reads.
+const directive = `${linter === 'oxlint' ? 'oxlint' : 'eslint'}-disable-next-line`;
 const out = [
-  `tasty-lint: this edit left ${problems.length} Tasty lint problem${problems.length === 1 ? '' : 's'} in ${relativeFile}. Fix ${problems.length === 1 ? 'it' : 'them'}. For an intentional exception, put \`// eslint-disable-next-line tasty/<rule> -- <reason>\` above the line.`,
+  `tasty-lint: this edit left ${problems.length} Tasty lint problem${problems.length === 1 ? '' : 's'} in ${relativeFile}. Fix ${problems.length === 1 ? 'it' : 'them'}. For an intentional exception, put \`// ${directive} tasty/<rule> -- <reason>\` above the line.`,
   '',
   formatProblems(shown, pageOf),
 ];
@@ -121,6 +151,12 @@ if (problems.length > LIMIT) {
   out.push(
     '',
     `${problems.length - LIMIT} more: run \`npx harnesspm run tasty-lint:check ${relativeFile}\`.`,
+  );
+}
+if (typeAware) {
+  out.push(
+    '',
+    `This hook skips typeAwareJSX to stay fast, so it reads JSX props by their names. If a reported JSX prop is not a style, check it with \`npx harnesspm run tasty-lint:check ${relativeFile}\`.`,
   );
 }
 console.error(out.join('\n'));

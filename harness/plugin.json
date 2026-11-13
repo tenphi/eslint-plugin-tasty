@@ -11,7 +11,7 @@
       "scripts": {
         "check": {
           "file": "./dev.harnesspm/scripts/check.mjs",
-          "description": "Lint files or folders with only the tasty/* rules (recommended, or --strict) and the project's tasty.config, and print each problem with its rule's page",
+          "description": "Lint files or folders with only the tasty/* rules, as the project's Oxlint or ESLint config sets them (else the recommended preset, or --strict), and print each problem with its rule's page",
           "allow": true
         },
         "check-edit": {

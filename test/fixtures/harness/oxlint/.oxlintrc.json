@@ -1,0 +1,19 @@
+{
+  // Shaped like UI Kit's: the plugin under the name `tasty`, levels that differ
+  // from the presets, an override for stories, settings, and ignored files.
+  "jsPlugins": [{ "name": "tasty", "specifier": "@tenphi/eslint-plugin-tasty" }],
+  "settings": { "tasty": { "mergeFunctions": ["mergeLayers"] } },
+  "ignorePatterns": ["generated/"],
+  "rules": {
+    "no-debugger": "error",
+    "tasty/no-raw-color-values": "error",
+    "tasty/valid-preset": "deny",
+    "tasty/known-property": "allow",
+  },
+  "overrides": [
+    {
+      "files": ["*.stories.tsx"],
+      "rules": { "tasty/no-raw-color-values": "warn" },
+    },
+  ],
+}

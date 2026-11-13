@@ -55,6 +55,8 @@ const Rule = tasty({
 });
 ```
 
+With Oxlint, `// oxlint-disable-next-line` works the same way.
+
 ## Options
 
 ```js

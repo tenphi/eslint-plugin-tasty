@@ -37,6 +37,8 @@ const floating = (
 );
 ```
 
+With Oxlint, `// oxlint-disable-next-line` works the same way.
+
 Place the directive immediately before the reported attribute line. It suppresses
 only this rule for that line. The warning message includes this exception path;
 the plugin does not silently exempt library-provided values or enforce reasons.

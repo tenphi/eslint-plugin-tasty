@@ -8,4 +8,4 @@
 
 ## Exceptions
 
-- Disable a rule for one line only: `// eslint-disable-next-line tasty/<rule> -- <reason>`.
+- Disable a rule for one line only: `// eslint-disable-next-line tasty/<rule> -- <reason>`. With Oxlint, `oxlint-disable-next-line` works too.
