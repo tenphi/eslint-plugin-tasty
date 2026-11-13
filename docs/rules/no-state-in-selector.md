@@ -2,7 +2,9 @@
 
 Keep sub-element `$` selectors structural. Express state conditions in property
 state maps so Tasty can resolve their priority and make competing states
-exclusive. Both the recommended and strict presets enable this rule as a warning.
+exclusive.
+
+**Presets:** warning in recommended and strict. **Fix:** none.
 
 ## Reported
 
@@ -134,3 +136,7 @@ rule does not validate CSS syntax. Other rules may flag dynamic style values.
 
 For an intentional exception, disable only this rule on the selector's line and
 explain why its condition must remain part of the structural selection.
+
+## Options
+
+None.

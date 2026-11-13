@@ -226,59 +226,61 @@ not matched.
 
 ## Rules
 
+Every rule has a page in [`docs/rules/`](docs/rules/) with examples and options. The pages ship in the package.
+
 ### Recommended
 
 | Rule | Severity | Description |
 |------|----------|-------------|
-| `tasty/known-property` | warn | Unknown style property names (checked against the full MDN/W3C CSS property set) |
-| `tasty/valid-value` | error | Malformed style values (unbalanced parens, !important) |
-| `tasty/valid-color-token` | error | Invalid color token syntax or unknown tokens |
-| `tasty/valid-custom-unit` | error | Unknown custom units |
-| `tasty/valid-boolean-property` | error | `true` on properties that don't support it, in a state map as well as on a direct value. Includes `fill`, which tasty documents as taking `true` but currently renders as `background-color: true` |
-| `tasty/valid-state-key` | error | Invalid state key syntax in style mappings (including misuse of the `_` fallback floor) |
-| `tasty/valid-styles-structure` | error | Invalid styles object structure, and the v2 at-rule key spellings (auto-fixable) |
-| `tasty/no-nested-state-map` | error | Nested state maps (not supported) |
-| `tasty/no-important` | error | `!important` usage (breaks tasty specificity) |
-| `tasty/valid-sub-element` | error | Sub-element values must be style objects; `$` selectors must not target the root element ([details](docs/rules/valid-sub-element.md)) |
-| `tasty/valid-directional-modifier` | error | Directional modifiers on wrong properties, and more than one value in a group that names directions. Physical properties take `top`/`right`/`bottom`/`left`, logical ones `start`/`end`, and mixing the two is reported in either direction |
-| `tasty/valid-radius-shape` | error | Unknown radius shape keywords |
-| `tasty/valid-preset` | error | Unknown preset names |
-| `tasty/valid-recipe` | error | Unknown recipe names |
-| `tasty/valid-transition` | warn | Unknown transition names, and camelCase CSS names that Tasty would emit as no property (`gridTemplateColumns` → `grid-template-columns`) |
-| `tasty/no-nested-selector` | warn | `&`-prefixed nested selectors (use sub-elements) |
-| `tasty/no-state-in-selector` | warn | Pseudo-class and attribute conditions in sub-element `$` selectors; put conditions in property state maps ([details](docs/rules/no-state-in-selector.md)) |
-| `tasty/prefer-element-selector` | warn | Prefer element names such as `Primary > Search` over exact `data-element` attributes in sub-element `$` selectors (safely autofixable; [details](docs/rules/prefer-element-selector.md)) |
-| `tasty/static-no-dynamic-values` | error | Dynamic values in `tastyStatic()` |
-| `tasty/static-valid-selector` | error | Invalid selector in `tastyStatic(selector, ...)` |
-| `tasty/require-default-state` | error | Missing default (`''`) or fallback floor (`_`) key in state mappings (skipped for extending calls and maps that spread another) |
-| `tasty/no-own-at-root` | warn | `@own()` used at root level where it is redundant (not in shared style constants, which may be spread into a sub-element) |
-| `tasty/no-ignored-pseudo-element-state` | error | States Tasty ignores on a pseudo-element, such as `@own([open])` on `$: 'a::before'`: attributes, modifiers, classes, and tree-structural pseudo-classes ([details](docs/rules/no-ignored-pseudo-element-state.md)) |
-| `tasty/valid-default-state-order` | warn | Misplaced default (`''`) or redundant `''` when only `_` is present |
-| `tasty/prefer-shorthand-property` | warn | Use Tasty shorthand instead of native CSS properties (`backgroundColor` → `fill`, `paddingBlock` → `blockPadding`, etc.). Report-only warnings explain how to override one part through a token, with concrete min/max dimension examples. Extension warnings point at the base component and are skipped over bases you cannot edit (see `ownedSources`; [details](docs/rules/prefer-shorthand-property.md)) |
-| `tasty/no-raw-color-values` | warn | Raw hex/rgb/`okhsl`/`okhst`/`oklch`/named colors instead of `#color` tokens |
-| `tasty/no-raw-transition-duration` | warn | Hardcoded `transition` duration (`fill 0.2s`) in Tasty styles or a local `tasty()` component's `transition` prop. Suggests a configured duration token or the implicit per-name timing; zero and delays are left alone |
-| `tasty/no-runtime-styles-mutation` | warn | Render-time JavaScript in Tasty style values (props, state, hook results, parameters, local bindings, calls, computed keys); use states and tokens instead. A style object no function encloses is built once at load and not checked; inside a function, module-scope constants, imports, `undefined` and static `mergeStyles(...)` calls are fixed at load and allowed |
-| `tasty/no-style-spread` | warn | Object or array spreads inside runtime Tasty styles; recommends `mergeStyles` for multiple root spreads; intentional spreads need a per-line suppression and reason |
-| `tasty/no-style-prop` | warn | `style` on recognized Tasty components; use token references and the `tokens` prop. The `elements` option covers every component or element, so it can replace React's `style` restriction; `values: 'static'` reports only static styles. Tasty syntax in `style` is always reported ([details](docs/rules/no-style-prop.md)) |
-| `tasty/no-classname-prop` | warn | `className` on recognized Tasty components; keep styling in Tasty or use `data-element` for sub-elements ([details](docs/rules/no-classname-prop.md)) |
-| `tasty/no-styles-prop` | warn | Instance `styles` on recognized Tasty components; use `tokens`, `mods`, exposed props/variants, or `tasty(Component, { styles })` ([details](docs/rules/no-styles-prop.md)) |
-| `tasty/no-protected-restyle` | warn | Restyling a design system's `protectedComponents`: instance `styles` and `*Styles`, appearance style props, and `tasty()` wrappers that restyle them, followed through aliases, wrappers and relative re-exports. `usages: 'wrappers'` reports only the wrappers. Inactive without the config ([details](docs/rules/no-protected-restyle.md)) |
-| `tasty/consistent-token-usage` | warn | Nonzero raw pixel lengths, including compounds, expressions and numeric inputs to enhanced length handlers. The `pixels: 'replaceable'` option reports only lengths with an exact unit, such as `8px` → `1x` ([details](docs/rules/consistent-token-usage.md)) |
-| `tasty/prefer-auto-calc` | warn | `calc(...)` instead of Tasty auto-calc `(...)` |
-| `tasty/prefer-state-negation` | warn | Top-level `:not(...)` in state keys instead of the `!` prefix (autofixable; nested CSS selectors stay intact) |
-| `tasty/prefer-custom-property-syntax` | warn | `var(--prop)` / `$x-color` / `transparent` / `currentColor` instead of `$prop` / `#color` / `#clear` / `#current` |
-| `tasty/prefer-hide` | warn | `display: 'none'` instead of `hide: true` |
-| `tasty/prefer-fill-mix` | warn | Deprecated two-color `fill`, space-separated (`'#surface #dark.04'`) or comma-mixed (`'#dark 4%, #surface'`), instead of a compound color (`'#surface+#dark.04'`) or `color-mix()`, autofixed when the result is the same color; mix parts weighted by their opacity (`'#dark.04, #surface'`). Needs `@tenphi/tasty` 3.15, and 3.16 for compound colors ([details](docs/rules/prefer-fill-mix.md)) |
-| `tasty/prefer-directional-shorthand` | warn | 4-value `margin`/`padding`/`inset`/`radius`/`fade`/`border` with placeholder positions instead of directional form |
-| `tasty/prefer-longhand-property` | error | Lossy `flex` shorthand instead of `flexGrow` / `flexShrink` / `flexBasis` |
+| [`tasty/known-property`](docs/rules/known-property.md) | warn | Unknown style property names (checked against the full MDN/W3C CSS property set) |
+| [`tasty/valid-value`](docs/rules/valid-value.md) | error | Malformed style values (unbalanced parens, !important) |
+| [`tasty/valid-color-token`](docs/rules/valid-color-token.md) | error | Invalid color token syntax or unknown tokens |
+| [`tasty/valid-custom-unit`](docs/rules/valid-custom-unit.md) | error | Unknown custom units |
+| [`tasty/valid-boolean-property`](docs/rules/valid-boolean-property.md) | error | `true` on properties that don't support it, in a state map as well as on a direct value. Includes `fill`, which tasty documents as taking `true` but currently renders as `background-color: true` |
+| [`tasty/valid-state-key`](docs/rules/valid-state-key.md) | error | Invalid state key syntax in style mappings (including misuse of the `_` fallback floor) |
+| [`tasty/valid-styles-structure`](docs/rules/valid-styles-structure.md) | error | Invalid styles object structure, and the v2 at-rule key spellings (auto-fixable) |
+| [`tasty/no-nested-state-map`](docs/rules/no-nested-state-map.md) | error | Nested state maps (not supported) |
+| [`tasty/no-important`](docs/rules/no-important.md) | error | `!important` usage (breaks tasty specificity) |
+| [`tasty/valid-sub-element`](docs/rules/valid-sub-element.md) | error | Sub-element values must be style objects; `$` selectors must not target the root element |
+| [`tasty/valid-directional-modifier`](docs/rules/valid-directional-modifier.md) | error | Directional modifiers on wrong properties, and more than one value in a group that names directions. Physical properties take `top`/`right`/`bottom`/`left`, logical ones `start`/`end`, and mixing the two is reported in either direction |
+| [`tasty/valid-radius-shape`](docs/rules/valid-radius-shape.md) | error | Unknown radius shape keywords |
+| [`tasty/valid-preset`](docs/rules/valid-preset.md) | error | Unknown preset names |
+| [`tasty/valid-recipe`](docs/rules/valid-recipe.md) | error | Unknown recipe names |
+| [`tasty/valid-transition`](docs/rules/valid-transition.md) | warn | Unknown transition names, and camelCase CSS names that Tasty would emit as no property (`gridTemplateColumns` → `grid-template-columns`) |
+| [`tasty/no-nested-selector`](docs/rules/no-nested-selector.md) | warn | `&`-prefixed nested selectors (use sub-elements) |
+| [`tasty/no-state-in-selector`](docs/rules/no-state-in-selector.md) | warn | Pseudo-class and attribute conditions in sub-element `$` selectors; put conditions in property state maps |
+| [`tasty/prefer-element-selector`](docs/rules/prefer-element-selector.md) | warn | Prefer element names such as `Primary > Search` over exact `data-element` attributes in sub-element `$` selectors (safely autofixable) |
+| [`tasty/static-no-dynamic-values`](docs/rules/static-no-dynamic-values.md) | error | Dynamic values in `tastyStatic()` |
+| [`tasty/static-valid-selector`](docs/rules/static-valid-selector.md) | error | Invalid selector in `tastyStatic(selector, ...)` |
+| [`tasty/require-default-state`](docs/rules/require-default-state.md) | error | Missing default (`''`) or fallback floor (`_`) key in state mappings (skipped for extending calls and maps that spread another) |
+| [`tasty/no-own-at-root`](docs/rules/no-own-at-root.md) | warn | `@own()` used at root level where it is redundant (not in shared style constants, which may be spread into a sub-element) |
+| [`tasty/no-ignored-pseudo-element-state`](docs/rules/no-ignored-pseudo-element-state.md) | error | States Tasty ignores on a pseudo-element, such as `@own([open])` on `$: 'a::before'`: attributes, modifiers, classes, and tree-structural pseudo-classes |
+| [`tasty/valid-default-state-order`](docs/rules/valid-default-state-order.md) | warn | Misplaced default (`''`) or redundant `''` when only `_` is present |
+| [`tasty/prefer-shorthand-property`](docs/rules/prefer-shorthand-property.md) | warn | Use Tasty shorthand instead of native CSS properties (`backgroundColor` → `fill`, `paddingBlock` → `blockPadding`, etc.). Report-only warnings explain how to override one part through a token, with concrete min/max dimension examples. Extension warnings point at the base component and are skipped over bases you cannot edit (see `ownedSources`) |
+| [`tasty/no-raw-color-values`](docs/rules/no-raw-color-values.md) | warn | Raw hex/rgb/`okhsl`/`okhst`/`oklch`/named colors instead of `#color` tokens |
+| [`tasty/no-raw-transition-duration`](docs/rules/no-raw-transition-duration.md) | warn | Hardcoded `transition` duration (`fill 0.2s`) in Tasty styles or a local `tasty()` component's `transition` prop. Suggests a configured duration token or the implicit per-name timing; zero and delays are left alone |
+| [`tasty/no-runtime-styles-mutation`](docs/rules/no-runtime-styles-mutation.md) | warn | Render-time JavaScript in Tasty style values (props, state, hook results, parameters, local bindings, calls, computed keys); use states and tokens instead. A style object no function encloses is built once at load and not checked; inside a function, module-scope constants, imports, `undefined` and static `mergeStyles(...)` calls are fixed at load and allowed |
+| [`tasty/no-style-spread`](docs/rules/no-style-spread.md) | warn | Object or array spreads inside runtime Tasty styles; recommends `mergeStyles` for multiple root spreads; intentional spreads need a per-line suppression and reason |
+| [`tasty/no-style-prop`](docs/rules/no-style-prop.md) | warn | `style` on recognized Tasty components; use token references and the `tokens` prop. The `elements` option covers every component or element, so it can replace React's `style` restriction; `values: 'static'` reports only static styles. Tasty syntax in `style` is always reported |
+| [`tasty/no-classname-prop`](docs/rules/no-classname-prop.md) | warn | `className` on recognized Tasty components; keep styling in Tasty or use `data-element` for sub-elements |
+| [`tasty/no-styles-prop`](docs/rules/no-styles-prop.md) | warn | Instance `styles` on recognized Tasty components; use `tokens`, `mods`, exposed props/variants, or `tasty(Component, { styles })` |
+| [`tasty/no-protected-restyle`](docs/rules/no-protected-restyle.md) | warn | Restyling a design system's `protectedComponents`: instance `styles` and `*Styles`, appearance style props, and `tasty()` wrappers that restyle them, followed through aliases, wrappers and relative re-exports. `usages: 'wrappers'` reports only the wrappers. Inactive without the config |
+| [`tasty/consistent-token-usage`](docs/rules/consistent-token-usage.md) | warn | Nonzero raw pixel lengths, including compounds, expressions and numeric inputs to enhanced length handlers. The `pixels: 'replaceable'` option reports only lengths with an exact unit, such as `8px` → `1x` |
+| [`tasty/prefer-auto-calc`](docs/rules/prefer-auto-calc.md) | warn | `calc(...)` instead of Tasty auto-calc `(...)` |
+| [`tasty/prefer-state-negation`](docs/rules/prefer-state-negation.md) | warn | Top-level `:not(...)` in state keys instead of the `!` prefix (autofixable; nested CSS selectors stay intact) |
+| [`tasty/prefer-custom-property-syntax`](docs/rules/prefer-custom-property-syntax.md) | warn | `var(--prop)` / `$x-color` / `transparent` / `currentColor` instead of `$prop` / `#color` / `#clear` / `#current` |
+| [`tasty/prefer-hide`](docs/rules/prefer-hide.md) | warn | `display: 'none'` instead of `hide: true` |
+| [`tasty/prefer-fill-mix`](docs/rules/prefer-fill-mix.md) | warn | Deprecated two-color `fill`, space-separated (`'#surface #dark.04'`) or comma-mixed (`'#dark 4%, #surface'`), instead of a compound color (`'#surface+#dark.04'`) or `color-mix()`, autofixed when the result is the same color; mix parts weighted by their opacity (`'#dark.04, #surface'`). Needs `@tenphi/tasty` 3.15, and 3.16 for compound colors |
+| [`tasty/prefer-directional-shorthand`](docs/rules/prefer-directional-shorthand.md) | warn | 4-value `margin`/`padding`/`inset`/`radius`/`fade`/`border` with placeholder positions instead of directional form |
+| [`tasty/prefer-longhand-property`](docs/rules/prefer-longhand-property.md) | error | Lossy `flex` shorthand instead of `flexGrow` / `flexShrink` / `flexBasis` |
 
 ### Strict (includes all recommended rules)
 
 | Rule | Severity | Description |
 |------|----------|-------------|
-| `tasty/valid-custom-property` | warn | Unknown `$name` custom properties |
-| `tasty/valid-state-definition` | warn | Invalid state definition values in `configure()` or `tasty.config` |
-| `tasty/no-unknown-state-alias` | warn | Unknown `@name` state aliases |
+| [`tasty/valid-custom-property`](docs/rules/valid-custom-property.md) | warn | Unknown `$name` custom properties |
+| [`tasty/valid-state-definition`](docs/rules/valid-state-definition.md) | warn | Invalid state definition values in `configure()` or `tasty.config` |
+| [`tasty/no-unknown-state-alias`](docs/rules/no-unknown-state-alias.md) | warn | Unknown `@name` state aliases |
 
 ### Structural selectors and state maps
 
@@ -360,7 +362,7 @@ suppressed, run ESLint with `--max-warnings=0`.
 
 ### Optional motion duration rule
 
-Enable `tasty/no-raw-motion-duration` as a warning if your design system uses
+Enable [`tasty/no-raw-motion-duration`](docs/rules/no-raw-motion-duration.md) as a warning if your design system uses
 tokens for animation timing and explicit CSS durations:
 
 ```js
@@ -634,6 +636,23 @@ them by hand:
 your installed version — and on 3.7 and below `blockPadding` is not a style tasty knows
 (an unhandled camelCase key renders through to `block-padding`, which the browser drops).
 The peer range floor is 3.8.0 for that reason.
+
+## AI agents
+
+The package ships an agent harness for [harnesspm](https://www.npmjs.com/package/@tenphi/harnesspm), as plugin `tasty-lint`. In a project that uses harnesspm, agents get:
+
+- a short always-on rule: lint the files you change and fix every `tasty/*` problem;
+- the rule pages of the installed version, in the docs index;
+- `npx harnesspm run tasty-lint:check <files> [--strict] [--json]`, which runs only the `tasty/*` rules with the project's `tasty.config.*` and prints each problem with its rule's page;
+- a Claude Code hook that lints each file the agent edits, when it imports Tasty or a configured `importSources` module, and hands the new problems back to the agent.
+
+The tool and the hook run only in projects that trust the package, in `harnesspm.json`:
+
+```json
+{ "trust": { "@tenphi/eslint-plugin-tasty": true } }
+```
+
+They need `eslint`, and `typescript-eslint` or `@typescript-eslint/parser` for TypeScript files. They do not read the project's ESLint or Oxlint config, so other plugins, rule options and settings such as `typeAwareJSX` do not apply there.
 
 ## License
 

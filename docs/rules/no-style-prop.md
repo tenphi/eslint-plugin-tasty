@@ -1,9 +1,10 @@
 # tasty/no-style-prop
 
-Warn about React's `style` prop on recognized Tasty components. Enabled as a
-warning in both presets. The [`elements`](#options) option extends the check to
+Warn about React's `style` prop on recognized Tasty components. The [`elements`](#options) option extends the check to
 every component or element, so this rule can replace React's `style`
 restriction.
+
+**Presets:** warning in recommended and strict. **Fix:** none.
 
 Define token references in the component's styles and use `tokens` for dynamic
 per-instance values:
@@ -13,10 +14,10 @@ import { tasty } from '@tenphi/tasty';
 
 const Progress = tasty({ styles: { width: '$progress' } });
 
-// Warning: move the dynamic value to a token consumed by the definition.
+// ❌ Move the dynamic value to a token consumed by the definition.
 <Progress style={{ width: `${percent}%` }} />;
 
-// Preferred.
+// ✅ Preferred.
 <Progress tokens={{ $progress: `${percent}%` }} />;
 ```
 

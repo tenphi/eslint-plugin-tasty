@@ -1,8 +1,10 @@
 # tasty/no-protected-restyle
 
 Warn when a design system's protected components are restyled rather than
-customized through their props. Enabled as a warning in both presets; it does
-nothing until a `tasty.config.*` lists `protectedComponents`.
+customized through their props. It does nothing until a `tasty.config.*` lists
+`protectedComponents`.
+
+**Presets:** warning in recommended and strict. **Fix:** none.
 
 A design system built on Tasty exposes `styles` and `*Styles` props on its
 components, but for most of them the look is a contract: a consumer picks a

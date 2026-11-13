@@ -1,6 +1,14 @@
 # tasty/consistent-token-usage
 
-Warn about pixel lengths in Tasty styles. Enabled as a warning in both presets.
+Warn about pixel lengths in Tasty styles.
+
+**Presets:** warning in recommended and strict. **Fix:** editor suggestions.
+
+## Why
+
+A design system sizes things with its units (`x`, `r`, `bw`) and tokens, so a layout follows its scale. A raw `8px` stays put when the scale changes.
+
+## Checks
 
 The rule reports every nonzero pixel length in recognized style objects and JSX
 style props: compound values, comma-separated groups, function arguments, and
@@ -23,13 +31,16 @@ without a suggestion: the rule does not invent a token. A `fontSize`,
 `lineHeight` or `letterSpacing` length never gets an `x` suggestion: it is on
 the type scale, which presets set, and `x` is the spacing scale.
 
+A suggestion keeps the rest of the value as written. It is withheld when
+JavaScript escapes or JSX entities make the source differ from the value.
+
 ```tsx
 import { tasty } from '@tenphi/tasty';
 
-// Warning: '1x' and '1bw' replace these exactly.
+// ❌ '1x' and '1bw' replace these exactly.
 const Card = tasty({ styles: { padding: '8px', border: '1px solid #border' } });
 
-// Preferred.
+// ✅ Preferred.
 const Card = tasty({ styles: { padding: '1x', border: '1bw solid #border' } });
 ```
 

@@ -1,7 +1,8 @@
 # tasty/no-classname-prop
 
-Warn about `className` on recognized Tasty components. Enabled as a warning in
-both presets.
+Warn about `className` on recognized Tasty components.
+
+**Presets:** warning in recommended and strict. **Fix:** none.
 
 Keep styling in Tasty rather than attaching external styling classes. When a
 class identifies a sub-element for its parent to style, replace that identity
@@ -13,12 +14,12 @@ import { tasty } from '@tenphi/tasty';
 const Card = tasty({ styles: { Body: { padding: '2x' } } });
 const Box = tasty({ as: 'div' });
 
-// Warning: avoid external class-based styling.
+// ❌ Avoid external class-based styling.
 <Card>
   <Box className="card-body" />
 </Card>;
 
-// Preferred: Card's Body styles target this element.
+// ✅ Preferred: Card's Body styles target this element.
 <Card>
   <Box data-element="Body" />
 </Card>;
@@ -53,3 +54,7 @@ resolve to one of these, through re-exports too; following them needs the
 `typescript` package. Native elements,
 unrelated components, type-only imports, shadowed bindings, mutable aliases, and
 opaque spread bindings are excluded.
+
+## Options
+
+None.

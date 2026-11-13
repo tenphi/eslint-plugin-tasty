@@ -1,11 +1,12 @@
 # tasty/prefer-element-selector
 
 Prefer Tasty element names over explicit `data-element` attributes in sub-element
-`$` selectors. The recommended and strict presets enable this rule as a warning.
-It provides an autofix when the shorter form preserves the generated selector.
+`$` selectors. The autofix applies when the shorter form preserves the generated selector.
+
+**Presets:** warning in recommended and strict. **Fix:** autofix.
 
 ```js
-// Before
+// ❌ Before
 const Component = tasty({
   styles: {
     Search: {
@@ -15,7 +16,7 @@ const Component = tasty({
   },
 });
 
-// After autofix
+// ✅ After autofix
 const Component = tasty({
   styles: {
     Search: {
@@ -70,3 +71,7 @@ errors. Existing state-selector rules still apply independently.
 If the JavaScript source uses escapes (for example, escaped quotes), the warning
 can still appear, but no autofix is offered: source offsets may differ from the
 string's actual value.
+
+## Options
+
+None.
