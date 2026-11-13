@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.19.1
+
+### Patch Changes
+
+- [#160](https://github.com/tenphi/eslint-plugin-tasty/pull/160) [`039dfe3`](https://github.com/tenphi/eslint-plugin-tasty/commit/039dfe318744fa6a49c886870afcdad08ba656b1) Thanks [@tenphi](https://github.com/tenphi)! - `tasty-lint:check` and the edit hook now run the `tasty/*` rules as the project's Oxlint or ESLint config sets them (levels, options, `settings.tasty`, overrides and ignored files), honor `oxlint-disable` comments, and the hook stays quiet in a project without `eslint`.
+
 ## 1.19.0
 
 ### Minor Changes
