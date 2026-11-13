@@ -28,8 +28,8 @@ options and settings such as typeAwareJSX do not apply. Disable comments such
 as // eslint-disable-next-line tasty/<rule> -- <reason> do.
 
 A path is read from the current folder, else from the project root. Each
-problem prints as file:line:col  tasty/<rule>  message, with the file relative
-to the project root. The page of each rule reported follows. Exit code: 0
+problem prints as file:line:col  tasty/<rule>  <severity>  message, with the
+file relative to the project root. The page of each rule reported follows. Exit code: 0
 without errors (warnings allowed), 1 with errors, 2 when nothing could be
 linted.
 

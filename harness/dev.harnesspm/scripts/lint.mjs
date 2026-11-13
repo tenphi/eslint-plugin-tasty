@@ -136,13 +136,16 @@ export function ruleName(rule) {
 }
 
 /**
- * One line per problem, `file:line:col  tasty/<rule>  message`, then the page
- * of each rule reported. `pageOf` turns a rule name into the path to show.
+ * One line per problem, `file:line:col  tasty/<rule>  <severity>  message`,
+ * then the page of each rule reported. Without the severity, an agent in the
+ * end-to-end run guessed it, and wrongly. `pageOf` turns a rule name into the
+ * path to show.
  */
 export function formatProblems(problems, pageOf) {
-  const lines = problems.map(
-    (p) =>
-      `${p.file}:${p.line}:${p.column}  ${p.rule ?? 'parse error'}  ${p.message}`,
+  const lines = problems.map((p) =>
+    p.rule
+      ? `${p.file}:${p.line}:${p.column}  ${p.rule}  ${p.severity}  ${p.message}`
+      : `${p.file}:${p.line}:${p.column}  parse error  ${p.message}`,
   );
   const rules = [...new Set(problems.map((p) => p.rule).filter(Boolean))];
   if (rules.length > 0) {

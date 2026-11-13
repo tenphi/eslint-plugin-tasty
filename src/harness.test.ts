@@ -220,8 +220,8 @@ describe('tasty-lint lint logic', () => {
       formatProblems(problems, (name: string) => `docs/rules/${name}.md`),
     ).toBe(
       [
-        'src/Card.tsx:5:11  tasty/no-raw-color-values  Use a token.',
-        'src/Card.tsx:9:3  tasty/no-raw-color-values  Use a token.',
+        'src/Card.tsx:5:11  tasty/no-raw-color-values  warning  Use a token.',
+        'src/Card.tsx:9:3  tasty/no-raw-color-values  warning  Use a token.',
         'src/Card.tsx:1:1  parse error  Parsing error: x',
         '',
         'Rule pages:',
@@ -358,9 +358,11 @@ describe.runIf(existsSync(BUILD))('tasty-lint CLI (needs pnpm build)', () => {
 
       expect(run.status).toBe(1);
       expect(run.stdout).toContain(
-        'Card.tsx:5:11  tasty/no-raw-color-values  Use a color token',
+        'Card.tsx:5:11  tasty/no-raw-color-values  warning  Use a color token',
       );
-      expect(run.stdout).toContain('Card.tsx:7:13  tasty/valid-preset');
+      expect(run.stdout).toContain(
+        'Card.tsx:7:13  tasty/valid-preset  error  Unknown preset',
+      );
       expect(run.stdout).toMatch(
         /tasty\/valid-preset {2}\S*docs\/rules\/valid-preset\.md/,
       );
