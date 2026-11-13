@@ -1,8 +1,9 @@
 # tasty/no-ignored-pseudo-element-state
 
 Report states that Tasty ignores because they test a pseudo-element for
-something it cannot have. Both the recommended and strict presets enable this
-rule as an error: the reported state never applies.
+something it cannot have. The reported state never applies.
+
+**Presets:** error in recommended and strict. **Fix:** none.
 
 When a sub-element's `$` ends in a pseudo-element, Tasty applies `@own(...)` to
 the pseudo-element itself: `$: '@::part(label)'` with `@own(:focus)` becomes
@@ -90,3 +91,7 @@ at-rule conditions describe other elements and are not reported.
   are left to `tasty/valid-state-key`.
 - The rule has no autofix. Moving a condition into `$` changes which element
   every property of that sub-element applies to, so the author must choose.
+
+## Options
+
+None.

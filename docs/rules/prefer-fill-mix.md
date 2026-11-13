@@ -1,8 +1,9 @@
 # tasty/prefer-fill-mix
 
 Replace deprecated two-color fills with compound colors, and catch mix parts
-that are weighted by their opacity. The recommended and strict presets enable
-this rule as a warning.
+that are weighted by their opacity.
+
+**Presets:** warning in recommended and strict. **Fix:** autofix and editor suggestions.
 
 Tasty 3.16 layers color tokens with `+`: `'#surface+#dark.04'` paints `#dark` at
 4% over `#surface` as one color,
@@ -18,7 +19,7 @@ slot. It replaces both older ways to put two colors in a `fill` (or
   3.17.
 
 ```js
-// Before
+// ❌ Before
 const Item = tasty({
   styles: {
     fill: {
@@ -29,7 +30,7 @@ const Item = tasty({
   },
 });
 
-// After autofix
+// ✅ After autofix
 const Item = tasty({
   styles: {
     fill: {
@@ -112,3 +113,7 @@ space-separated form to a comma mix (`'#base #tok.N'` to `'#tok N%, #base'`),
 leaves comma mixes alone, and suggests a weight for a translucent part
 (`'#dark 4%, #surface'`). Once the project is on 3.16, the next run fixes those
 comma mixes to compound colors.
+
+## Options
+
+None.

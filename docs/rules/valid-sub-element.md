@@ -4,8 +4,9 @@ Sub-element values must be style objects, or `false` or `null` to disable the
 sub-element. In a later `mergeStyles` layer or a `styles` prop, either one
 removes the sub-element styles below it.
 Their `$` selectors must select inner elements or pseudo-elements, rather than
-reuse the sub-element mechanism to style the component root. Both recommended
-and strict presets enable this rule as an error.
+reuse the sub-element mechanism to style the component root.
+
+**Presets:** error in recommended and strict. **Fix:** none.
 
 For a nested sub-element, `&` attaches to the containing sub-element's selector
 rather than the component root. A nested `Heading: { $: '&:is(h1)' }` inside
@@ -93,3 +94,7 @@ Malformed selectors that cannot be parsed are left to syntax validation.
 
 There is no autofix or editor suggestion: choosing between a root state map and
 a descendant selector changes which elements receive the styles.
+
+## Options
+
+None.

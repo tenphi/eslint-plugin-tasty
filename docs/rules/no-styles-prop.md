@@ -1,7 +1,8 @@
 # tasty/no-styles-prop
 
-Warn about instance `styles` props on recognized Tasty components. Enabled as a
-warning in both presets.
+Warn about instance `styles` props on recognized Tasty components.
+
+**Presets:** warning in recommended and strict. **Fix:** none.
 
 Choose the replacement according to the override:
 
@@ -15,10 +16,10 @@ import { tasty } from '@tenphi/tasty';
 
 const Box = tasty({ styles: { padding: '1x' } });
 
-// Warning: prefer a named, reusable extension.
+// ❌ Prefer a named, reusable extension.
 <Box styles={{ padding: '2x' }} />;
 
-// Preferred.
+// ✅ Preferred.
 const RoomyBox = tasty(Box, { styles: { padding: '2x' } });
 <RoomyBox />;
 ```
@@ -50,3 +51,7 @@ resolve to one of these, through re-exports too; following them needs the
 unrelated components, type-only imports, shadowed bindings, mutable aliases, and
 opaque spread bindings are excluded. Factory definition options (`tasty({ styles })`
 or `tasty(Component, { styles })`) are allowed.
+
+## Options
+
+None.
