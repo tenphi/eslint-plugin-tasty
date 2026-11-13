@@ -108,8 +108,10 @@ if (problems.length === 0) process.exit(0);
 
 const shown = problems.slice(0, LIMIT);
 const relativeFile = shown[0].file;
+// Paths print relative to the project root: the event's cwd is wherever the
+// agent's shell went last, such as a folder in node_modules.
 const pageOf = (name) =>
-  rulePage(name, { projectDir, packageRoot: PACKAGE_ROOT, cwd });
+  rulePage(name, { projectDir, packageRoot: PACKAGE_ROOT, cwd: projectDir });
 const out = [
   `tasty-lint: this edit left ${problems.length} Tasty lint problem${problems.length === 1 ? '' : 's'} in ${relativeFile}. Fix ${problems.length === 1 ? 'it' : 'them'}. For an intentional exception, put \`// eslint-disable-next-line tasty/<rule> -- <reason>\` above the line.`,
   '',

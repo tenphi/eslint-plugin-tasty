@@ -27,9 +27,11 @@ It does not read the project's ESLint or Oxlint config, so other plugins, rule
 options and settings such as typeAwareJSX do not apply. Disable comments such
 as // eslint-disable-next-line tasty/<rule> -- <reason> do.
 
-Each problem prints as file:line:col  tasty/<rule>  message. The page of each
-rule reported follows. Exit code: 0 without errors (warnings allowed), 1 with
-errors, 2 when the files cannot be linted.
+A path is read from the current folder, else from the project root. Each
+problem prints as file:line:col  tasty/<rule>  message, with the file relative
+to the project root. The page of each rule reported follows. Exit code: 0
+without errors (warnings allowed), 1 with errors, 2 when nothing could be
+linted.
 
 --strict  also run the rules only the strict preset enables
 --json    print the problems as JSON`;
@@ -58,7 +60,12 @@ if (options.help || paths.length === 0) {
   process.exit(options.help ? 0 : 2);
 }
 
-const missing = paths.filter((path) => !existsSync(resolve(path)));
+// A path is read from the current folder, else from the project root: an
+// agent's shell can be elsewhere when it names a file of the project.
+const targets = paths.map((path) =>
+  [resolve(cwd, path), resolve(projectDir, path)].find((p) => existsSync(p)),
+);
+const missing = paths.filter((_, i) => !targets[i]);
 if (missing.length > 0) fail(`cannot find ${missing.join(', ')}`);
 if (!existsSync(BUILD)) {
   fail(
@@ -87,12 +94,12 @@ const eslint = createLinter({
   plugin,
   rules: options.strict ? strict : recommended,
   parser,
-  cwd,
+  cwd: projectDir,
 });
 
 let results;
 try {
-  results = await eslint.lintFiles(paths);
+  results = await eslint.lintFiles(targets);
 } catch (error) {
   fail(error instanceof Error ? error.message : String(error));
 }
@@ -101,10 +108,12 @@ if (!parser && results.some((result) => isTypeScript(result.filePath))) {
   fail(NO_PARSER);
 }
 
-const { problems, skipped } = collectProblems(results, cwd);
+// Paths print relative to the project root, as harnesspm runs from there.
+const { problems, skipped } = collectProblems(results, projectDir);
 const pageOf = (name) =>
-  rulePage(name, { projectDir, packageRoot: PACKAGE_ROOT, cwd });
+  rulePage(name, { projectDir, packageRoot: PACKAGE_ROOT, cwd: projectDir });
 const errors = problems.filter((p) => p.severity === 'error').length;
+const linted = results.length - skipped.length;
 
 if (options.json) {
   console.log(
@@ -112,6 +121,7 @@ if (options.json) {
       {
         preset,
         files: results.map((r) => r.filePath),
+        linted,
         problems: problems.map((p) => ({
           ...p,
           page: p.rule ? pageOf(p.rule.slice('tasty/'.length)) : null,
@@ -124,8 +134,10 @@ if (options.json) {
   );
 } else {
   const out = [];
-  const count = `${results.length} file${results.length === 1 ? '' : 's'}`;
-  if (problems.length === 0) {
+  const count = `${linted} file${linted === 1 ? '' : 's'}`;
+  if (linted === 0) {
+    out.push(`Nothing linted in ${paths.join(', ')}.`);
+  } else if (problems.length === 0) {
     out.push(`No tasty/* problems in ${count} (${preset} rules).`);
   } else {
     out.push(
@@ -137,10 +149,11 @@ if (options.json) {
   for (const s of skipped) out.push(`Skipped ${s.file}: ${s.reason}`);
   if (results.length === 0) {
     out.push(
-      `No files to lint in ${paths.join(', ')}: pass .js, .jsx, .ts or .tsx files, or folders with them.`,
+      'Pass .js, .jsx, .ts or .tsx files of the project, or folders with them.',
     );
   }
   console.log(out.join('\n'));
 }
 
-process.exit(errors > 0 ? 1 : 0);
+// Nothing linted is not a pass.
+process.exit(errors > 0 ? 1 : linted === 0 ? 2 : 0);

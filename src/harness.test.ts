@@ -334,13 +334,17 @@ describe.runIf(existsSync(BUILD))('tasty-lint CLI (needs pnpm build)', () => {
   const node = (
     script: string,
     args: string[],
-    { cwd = FIXTURES, input }: { cwd?: string; input?: string } = {},
+    {
+      cwd = FIXTURES,
+      project = cwd,
+      input,
+    }: { cwd?: string; project?: string; input?: string } = {},
   ) =>
     spawnSync(process.execPath, [join(scripts, script), ...args], {
       cwd,
       input,
       encoding: 'utf8',
-      env: { ...process.env, HARNESSPM_PROJECT_DIR: cwd },
+      env: { ...process.env, HARNESSPM_PROJECT_DIR: project },
     });
   const hook = (payload: object, cwd = FIXTURES) =>
     node('check-edit.mjs', [], {
@@ -391,6 +395,25 @@ describe.runIf(existsSync(BUILD))('tasty-lint CLI (needs pnpm build)', () => {
       expect(missing.stderr).toContain('cannot find Nope.tsx');
       expect(node('check.mjs', ['Card.tsx', '--fix']).status).toBe(2);
     });
+
+    it('reads a path from the project root when the shell is elsewhere', () => {
+      // An agent's shell may have moved, such as into node_modules.
+      const run = node('check.mjs', ['Card.tsx'], {
+        cwd: ROOT,
+        project: FIXTURES,
+      });
+
+      expect(run.stdout).toContain('Card.tsx:7:13  tasty/valid-preset');
+      expect(run.stdout).not.toContain('Skipped');
+    });
+
+    it('does not pass when nothing was linted', () => {
+      const run = node('check.mjs', ['package.json']);
+
+      expect(run.status).toBe(2);
+      expect(run.stdout).toContain('Nothing linted in package.json.');
+      expect(run.stdout).toContain('Skipped package.json');
+    });
   });
 
   describe('check-edit hook', () => {
@@ -405,6 +428,22 @@ describe.runIf(existsSync(BUILD))('tasty-lint CLI (needs pnpm build)', () => {
       expect(run.stderr).toContain('2 Tasty lint problems in Card.tsx');
       expect(run.stderr).toContain('Card.tsx:7:13  tasty/valid-preset');
       expect(run.stderr).toContain('eslint-disable-next-line tasty/<rule>');
+    });
+
+    it('prints paths from the project root, wherever the shell is', () => {
+      const run = node('check-edit.mjs', [], {
+        cwd: ROOT,
+        project: FIXTURES,
+        input: JSON.stringify({
+          cwd: join(ROOT, 'node_modules'),
+          tool_input: { file_path: join(FIXTURES, 'Card.tsx') },
+        }),
+      });
+
+      expect(run.stderr).toContain('Card.tsx:7:13  tasty/valid-preset');
+      expect(run.stderr).toContain(
+        '  tasty/valid-preset  ../../../docs/rules/valid-preset.md',
+      );
     });
 
     it('lints a file that imports only a configured import source', () => {
