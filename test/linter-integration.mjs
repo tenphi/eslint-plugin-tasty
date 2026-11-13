@@ -2,9 +2,12 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
   cpSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -652,4 +655,143 @@ tasty(Button, { variants: {} });
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+}
+
+// tasty-lint:check runs the Tasty rules as the project's own lint config sets
+// them, so it reports what each linter reports in the same project: the
+// Oxlint fixture, and the same project linted with ESLint.
+{
+  const fixture = new URL('./fixtures/harness/oxlint/', import.meta.url);
+  const check = join(root, 'harness/dev.harnesspm/scripts/check.mjs');
+  const files = ['Card.tsx', 'Card.stories.tsx', 'generated/Gen.tsx'];
+  const key = (file, line, column, rule, severity) =>
+    `${file}:${line}:${column} ${rule} ${severity}`;
+  const eslintConfig = `import tasty from '@tenphi/eslint-plugin-tasty';
+import parser from ${JSON.stringify(pathToFileURL(require.resolve('@typescript-eslint/parser')).href)};
+export default [
+  { ignores: ['**/generated/**'] },
+  {
+    files: ['**/*.tsx'],
+    languageOptions: { parser },
+    plugins: { tasty },
+    settings: { tasty: { mergeFunctions: ['mergeLayers'] } },
+    rules: { 'tasty/no-raw-color-values': 'error', 'tasty/valid-preset': 'error', 'tasty/known-property': 'off' },
+  },
+  { files: ['**/*.stories.tsx'], rules: { 'tasty/no-raw-color-values': 'warn' } },
+];
+`;
+  const projects = [
+    {
+      linter: linters.find((l) => l.name === 'oxlint'),
+      problems: (output) =>
+        output.diagnostics
+          .filter((d) => d.code.startsWith('tasty('))
+          .map((d) =>
+            key(
+              d.filename,
+              d.labels[0].span.line,
+              d.labels[0].span.column,
+              `tasty/${d.code.slice('tasty('.length, -1)}`,
+              d.severity === 'error' ? 'error' : 'warning',
+            ),
+          ),
+      // Oxlint reads the oxlint-disable comment on line 9.
+      expected: [
+        'Card.stories.tsx:3:45 tasty/no-raw-color-values warning',
+        'Card.tsx:10:13 tasty/valid-preset error',
+        'Card.tsx:15:43 tasty/no-raw-color-values error',
+        'Card.tsx:7:11 tasty/no-raw-color-values error',
+      ],
+    },
+    {
+      linter: linters.find((l) => l.name === 'ESLint'),
+      setup: (dir) => {
+        rmSync(join(dir, '.oxlintrc.json'));
+        writeFileSync(join(dir, 'eslint.config.mjs'), eslintConfig);
+      },
+      problems: (output, dir) =>
+        output.flatMap((result) =>
+          result.messages
+            .filter((m) => m.ruleId?.startsWith('tasty/'))
+            .map((m) =>
+              key(
+                result.filePath.slice(dir.length + 1),
+                m.line,
+                m.column,
+                m.ruleId,
+                m.severity === 2 ? 'error' : 'warning',
+              ),
+            ),
+        ),
+      // ESLint does not read oxlint-disable comments.
+      expected: [
+        'Card.stories.tsx:3:45 tasty/no-raw-color-values warning',
+        'Card.tsx:10:13 tasty/valid-preset error',
+        'Card.tsx:15:43 tasty/no-raw-color-values error',
+        'Card.tsx:7:11 tasty/no-raw-color-values error',
+        'Card.tsx:9:12 tasty/no-raw-color-values error',
+      ],
+    },
+  ];
+  for (const project of projects) {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'tasty-lint-check-')));
+    try {
+      cpSync(fileURLToPath(fixture), dir, { recursive: true });
+      cpSync(
+        fileURLToPath(
+          new URL('./fixtures/harness/tasty.config.ts', import.meta.url),
+        ),
+        join(dir, 'tasty.config.ts'),
+      );
+      writeFileSync(join(dir, 'package.json'), '{"type":"module"}');
+      // The project installs the plugin, and the parser the tool needs.
+      for (const [name, target] of [
+        ['@tenphi/eslint-plugin-tasty', root],
+        [
+          '@typescript-eslint/parser',
+          dirname(require.resolve('@typescript-eslint/parser/package.json')),
+        ],
+      ]) {
+        mkdirSync(dirname(join(dir, 'node_modules', name)), {
+          recursive: true,
+        });
+        symlinkSync(target, join(dir, 'node_modules', name));
+      }
+      project.setup?.(dir);
+
+      const lint = spawnSync(
+        process.execPath,
+        [project.linter.bin, '--format', 'json', ...files],
+        { cwd: dir, encoding: 'utf8', timeout: 60_000 },
+      );
+      assert.ifError(lint.error);
+      const fromLinter = project.problems(JSON.parse(lint.stdout), dir).sort();
+      assert.deepEqual(
+        fromLinter,
+        project.expected,
+        `${project.linter.name}: the fixture project`,
+      );
+
+      const tool = spawnSync(process.execPath, [check, ...files, '--json'], {
+        cwd: dir,
+        encoding: 'utf8',
+        timeout: 60_000,
+        env: { ...process.env, HARNESSPM_PROJECT_DIR: dir },
+      });
+      assert.ifError(tool.error);
+      const fromTool = JSON.parse(tool.stdout)
+        .problems.map((p) => key(p.file, p.line, p.column, p.rule, p.severity))
+        .sort();
+      assert.deepEqual(
+        fromTool,
+        fromLinter,
+        `tasty-lint:check reports what ${project.linter.name} reports`,
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+  console.log(
+    'tasty-lint:check: the same problems as oxlint and ESLint with the project config',
+  );
 }

@@ -44,6 +44,8 @@ For an intentional one-off color, disable the rule for that line, with a reason:
 fill: '#1db954',
 ```
 
+With Oxlint, `// oxlint-disable-next-line` works the same way.
+
 ## Options
 
 None.

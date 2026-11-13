@@ -183,6 +183,8 @@ A justified override takes a reasoned disable on its line:
 <Button fill="#brand" />;
 ```
 
+With Oxlint, `// oxlint-disable-next-line` works the same way.
+
 ## Relation to `no-styles-prop`
 
 `tasty/no-styles-prop` reports instance `styles` on every recognized Tasty

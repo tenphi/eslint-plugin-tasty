@@ -8,6 +8,7 @@ import { existsSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { SOURCES } from './project-config.mjs';
 
 /** Files the tools lint: JavaScript and TypeScript, with or without JSX. */
 const LINTABLE = /\.(?:[cm]?[jt]s|[jt]sx)$/;
@@ -40,22 +41,71 @@ export function importsFrom(text, sources = []) {
 }
 
 /**
- * The ESLint flat config that runs only this plugin's rules. It does not read
- * the project's linter config, so `settings.tasty` is empty: in particular
- * `typeAwareJSX`, which builds a TypeScript program, stays off.
+ * Oxlint reads `oxlint-disable`, `oxlint-disable-next-line`,
+ * `oxlint-disable-line` and `oxlint-enable` comments as ESLint reads the
+ * `eslint-` ones, and also takes `eslint-disable` and `eslint-enable` in line
+ * comments, which ESLint skips. ESLint reads directives from each comment's
+ * `value`, so the parser below rewrites the value of those comments after
+ * parsing. The source text is not touched, so strings, code, lines and
+ * columns stay as they are.
  */
-export function lintConfig({ plugin, rules, parser }) {
+const OXLINT_DIRECTIVE =
+  /^(\s*)oxlint-(disable(?:-next-line|-line)?|enable)(?=\s|$)/;
+const BLOCK_DIRECTIVE = /^\s*eslint-(?:disable|enable)(?=\s|$)/;
+
+export function readOxlintComments(comment) {
+  comment.value = comment.value.replace(OXLINT_DIRECTIVE, '$1eslint-$2');
+  if (comment.type === 'Line' && BLOCK_DIRECTIVE.test(comment.value)) {
+    comment.type = 'Block';
+  }
+}
+
+/** The parser with Oxlint's disable comments read as ESLint's. */
+export function withOxlintComments(parser) {
+  return {
+    meta: { name: 'tasty-lint/oxlint-comments' },
+    parseForESLint(text, options) {
+      const result =
+        typeof parser.parseForESLint === 'function'
+          ? parser.parseForESLint(text, options)
+          : { ast: parser.parse(text, options) };
+      for (const comment of result.ast.comments ?? []) {
+        readOxlintComments(comment);
+      }
+      return result;
+    },
+  };
+}
+
+/**
+ * The ESLint flat config that runs only this plugin's rules: `rules` and
+ * `settings` (`settings.tasty`) come from the project's lint config, or the
+ * rules from a preset. `espree` is ESLint's own parser, for JavaScript, and
+ * `parser` the TypeScript one. With `oxlintComments`, Oxlint's disable
+ * comments count too.
+ */
+export function lintConfig({
+  plugin,
+  rules,
+  settings = {},
+  parser,
+  espree,
+  oxlintComments = true,
+}) {
+  const read = (p) => (oxlintComments ? withOxlintComments(p) : p);
   const config = [
     {
-      files: ['**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}'],
+      files: [SOURCES],
       plugins: { tasty: plugin },
       // Directives for other plugins' rules are not this tool's business.
       linterOptions: { reportUnusedDisableDirectives: false },
       languageOptions: {
         ecmaVersion: 'latest',
         sourceType: 'module',
+        ...(espree ? { parser: read(espree) } : {}),
         parserOptions: { ecmaFeatures: { jsx: true } },
       },
+      settings: { tasty: settings },
       rules,
     },
   ];
@@ -64,19 +114,44 @@ export function lintConfig({ plugin, rules, parser }) {
       files: ['**/*.{ts,tsx,mts,cts}'],
       // The parser prints its TypeScript version warning on stdout, which
       // would break --json. The project's own lint still shows it.
-      languageOptions: { parser, parserOptions: { loggerFn: false } },
+      languageOptions: {
+        parser: read(parser),
+        parserOptions: { loggerFn: false },
+      },
     });
   }
   return config;
 }
 
-export function createLinter({ ESLint, plugin, rules, parser, cwd }) {
+export function createLinter({ ESLint, cwd, ...options }) {
   return new ESLint({
     cwd,
     overrideConfigFile: true,
-    overrideConfig: lintConfig({ plugin, rules, parser }),
+    overrideConfig: lintConfig(options),
     errorOnUnmatchedPattern: false,
   });
+}
+
+/**
+ * What to lint a file with, from what `createConfigResolver().forFile()` found:
+ * the project's rules and settings, or the recommended preset when no config
+ * loads the plugin. `useStrict` adds the strict preset's rules that the config
+ * does not set. Rules and patterns resolve from the config's folder.
+ */
+export function lintOptions(
+  project,
+  { recommended, strict, useStrict = false, projectDir },
+) {
+  let rules = useStrict ? strict : recommended;
+  if (project.rules) {
+    rules = useStrict ? { ...strict, ...project.rules } : project.rules;
+  }
+  return {
+    rules,
+    settings: project.settings,
+    oxlintComments: project.source?.linter !== 'eslint',
+    cwd: project.source?.dir ?? projectDir,
+  };
 }
 
 /**
@@ -177,25 +252,32 @@ async function importFile(file) {
   return mod.default ?? mod;
 }
 
+export const NO_ESLINT =
+  'cannot find eslint. Install it in the project as a dev dependency: it is a peer dependency of @tenphi/eslint-plugin-tasty, and the tool runs the Tasty rules through ESLint even in a project that lints with Oxlint.';
+
 /**
- * ESLint as the project installs it, else the copy this package resolves. The
- * flat config class: ESLint 9 and later, or 8.57 through `loadESLint()`.
+ * ESLint as the project installs it, else the copy this package resolves: the
+ * flat config class (ESLint 9 and later, or 8.57 through `loadESLint()`), and
+ * espree, its JavaScript parser. Without ESLint, the error's `code` is
+ * `NO_ESLINT`.
  */
 export async function loadESLint(dirs, packageRoot) {
   for (const dir of [...dirs, packageRoot]) {
     const file = resolveFrom(dir, 'eslint');
     if (!file) continue;
     const eslint = await importFile(file);
-    if (typeof eslint.loadESLint === 'function') {
-      return eslint.loadESLint({ useFlatConfig: true });
+    if (typeof eslint.loadESLint !== 'function') {
+      throw new Error(
+        `ESLint ${eslint.ESLint?.version ?? ''} at ${dirname(file)} is too old: the tool needs ESLint 8.57 or later.`,
+      );
     }
-    throw new Error(
-      `ESLint ${eslint.ESLint?.version ?? ''} at ${dirname(file)} is too old: the tool needs ESLint 8.57 or later.`,
-    );
+    const espree = resolveFrom(dirname(file), 'espree');
+    return {
+      ESLint: await eslint.loadESLint({ useFlatConfig: true }),
+      espree: espree ? await importFile(espree) : undefined,
+    };
   }
-  throw new Error(
-    'cannot find eslint. Install it in the project: it is a peer dependency of @tenphi/eslint-plugin-tasty.',
-  );
+  throw Object.assign(new Error(NO_ESLINT), { code: 'NO_ESLINT' });
 }
 
 /**

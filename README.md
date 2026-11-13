@@ -419,6 +419,7 @@ usages still report. In multiline JSX, target the line containing the reported
 attribute or spread property. JSX child comments can use
 `{/* eslint-disable-next-line tasty/no-classname-prop -- library requires this class */}`
 immediately above the affected element when the attribute is on that next line.
+Oxlint reads these comments too, and its own `oxlint-disable-next-line` form.
 
 If `react/forbid-component-props` or `react/forbid-dom-props` also forbids
 `style`, a `style` exception has to name both rules, and the React part hides
@@ -643,7 +644,7 @@ The package ships an agent harness for [harnesspm](https://www.npmjs.com/package
 
 - a short always-on rule: lint the files you change and fix every `tasty/*` problem;
 - the rule pages of the installed version, in the docs index;
-- `npx harnesspm run tasty-lint:check <files> [--strict] [--json]`, which runs only the `tasty/*` rules with the project's `tasty.config.*` and prints each problem with its rule's page;
+- `npx harnesspm run tasty-lint:check <files> [--strict] [--json]`, which runs only the `tasty/*` rules and prints each problem with its rule's page;
 - a Claude Code hook that lints each file the agent edits, when it imports Tasty or a configured `importSources` module, and hands the new problems back to the agent.
 
 The tool and the hook run only in projects that trust the package, in `harnesspm.json`:
@@ -652,7 +653,14 @@ The tool and the hook run only in projects that trust the package, in `harnesspm
 { "trust": { "@tenphi/eslint-plugin-tasty": true } }
 ```
 
-They need `eslint`, and `typescript-eslint` or `@typescript-eslint/parser` for TypeScript files. They do not read the project's ESLint or Oxlint config, so other plugins, rule options and settings such as `typeAwareJSX` do not apply there.
+Both run the `tasty/*` rules as the project's own lint does, so they report the same problems:
+
+- **Config.** Each file gets the levels and options of the `tasty/*` rules, and `settings.tasty`, from the nearest config above it that loads the plugin: `.oxlintrc.json`, `.oxlintrc.jsonc`, `oxlint.config.ts`, `oxlint.config.mts`, or an ESLint flat config that imports `@tenphi/eslint-plugin-tasty`. Overrides and ignored files apply. Without such a config, they run the recommended preset (`--strict`: the strict one). With a config, `--strict` adds the strict preset's rules that the config does not set.
+- **Comments.** `eslint-disable` comments apply, and Oxlint's `oxlint-disable` ones unless the config is ESLint's.
+- **`typeAwareJSX`.** `tasty-lint:check` uses it. The hook skips it, since building the TypeScript program takes seconds on every edit, and reads JSX props by their names.
+- **Not covered.** Other plugins' rules do not run. A config the project's lint script names with `--config` is not found: only the names above count.
+
+They need `eslint`, even in a project that lints with Oxlint, and `typescript-eslint` or `@typescript-eslint/parser` for TypeScript files. Without `eslint`, the hook stays silent and `tasty-lint:check` says what to install.
 
 ## License
 
