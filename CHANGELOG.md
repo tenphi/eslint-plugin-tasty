@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.19.0
+
+### Minor Changes
+
+- [#158](https://github.com/tenphi/eslint-plugin-tasty/pull/158) [`b0f1d74`](https://github.com/tenphi/eslint-plugin-tasty/commit/b0f1d74cef164d935660cfb816ac76048451da0f) Thanks [@tenphi](https://github.com/tenphi)! - Every rule now has a page in `docs/rules/`, and the package ships a harnesspm harness (`tasty-lint`): an always-on rule for agents, the rule pages as docs, a `tasty-lint:check` tool that runs only the Tasty rules, and a Claude Code hook that lints each edited file that imports Tasty.
+
 ## 1.18.0
 
 ### Minor Changes
