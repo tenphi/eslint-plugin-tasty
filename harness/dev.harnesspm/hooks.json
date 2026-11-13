@@ -1,0 +1,12 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "id": "check-edit",
+        "matcher": { "claude": "Edit|Write|MultiEdit" },
+        "run": "check-edit",
+        "timeout": 30
+      }
+    ]
+  }
+}

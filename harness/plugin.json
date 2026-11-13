@@ -1,0 +1,23 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "tasty-lint",
+  "description": "Lint Tasty styles: a rule to lint what you change, a page for every tasty/* rule, a tool that runs only the Tasty rules, and a hook that lints each edited file",
+  "homepage": "https://github.com/tenphi/eslint-plugin-tasty#readme",
+  "repository": "https://github.com/tenphi/eslint-plugin-tasty",
+  "keywords": ["tasty", "eslint", "oxlint", "lint", "styles"],
+  "extensions": {
+    "dev.harnesspm": {
+      "docs": "../docs",
+      "scripts": {
+        "check": {
+          "file": "./dev.harnesspm/scripts/check.mjs",
+          "description": "Lint files or folders with only the tasty/* rules (recommended, or --strict) and the project's tasty.config, and print each problem with its rule's page",
+          "allow": true
+        },
+        "check-edit": {
+          "file": "./dev.harnesspm/scripts/check-edit.mjs"
+        }
+      }
+    }
+  }
+}

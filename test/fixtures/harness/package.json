@@ -1,0 +1,5 @@
+{
+  "name": "harness-fixture",
+  "private": true,
+  "type": "module"
+}

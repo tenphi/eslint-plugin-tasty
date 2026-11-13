@@ -45,6 +45,9 @@ jobs:
       - name: ESLint and oxlint integration
         run: pnpm test:linters
 
+      - name: Harness check
+        run: pnpm check:harness
+
       - name: Install TypeScript 6
         run: pnpm add -D --save-exact typescript@6.0.3
 

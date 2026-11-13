@@ -637,6 +637,23 @@ your installed version — and on 3.7 and below `blockPadding` is not a style ta
 (an unhandled camelCase key renders through to `block-padding`, which the browser drops).
 The peer range floor is 3.8.0 for that reason.
 
+## AI agents
+
+The package ships an agent harness for [harnesspm](https://www.npmjs.com/package/@tenphi/harnesspm), as plugin `tasty-lint`. In a project that uses harnesspm, agents get:
+
+- a short always-on rule: lint the files you change and fix every `tasty/*` problem;
+- the rule pages of the installed version, in the docs index;
+- `npx harnesspm run tasty-lint:check <files> [--strict] [--json]`, which runs only the `tasty/*` rules with the project's `tasty.config.*` and prints each problem with its rule's page;
+- a Claude Code hook that lints each file the agent edits, when it imports Tasty or a configured `importSources` module, and hands the new problems back to the agent.
+
+The tool and the hook run only in projects that trust the package, in `harnesspm.json`:
+
+```json
+{ "trust": { "@tenphi/eslint-plugin-tasty": true } }
+```
+
+They need `eslint`, and `typescript-eslint` or `@typescript-eslint/parser` for TypeScript files. They do not read the project's ESLint or Oxlint config, so other plugins, rule options and settings such as `typeAwareJSX` do not apply there.
+
 ## License
 
 MIT
