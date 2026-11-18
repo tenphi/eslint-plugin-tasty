@@ -1,5 +1,15 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.20.0
+
+### Minor Changes
+
+- [#162](https://github.com/tenphi/eslint-plugin-tasty/pull/162) [`5a5874d`](https://github.com/tenphi/eslint-plugin-tasty/commit/5a5874d62efe1a1b479b57c3a537ba63fdf19dac) Thanks [@tenphi](https://github.com/tenphi)! - A `protectedComponents` entry takes `allowedInnerStyleProps`, which maps a `*Styles` prop to the style props it may set, such as `{ popoverStyles: ['dimension'] }`. `no-protected-restyle` then lets an inline object that sets only those props through, on instances and in `tasty()` wrappers, and still reports any other key, a sub-element, a spread or a variable. A `*Styles` prop without an allowance is reported as before. Root `styles` and allowed `*Styles` props also pass as a conditional whose branches are each an allowed inline object, `undefined` or `null`, the static choice `no-runtime-styles-mutation` asks for.
+
+### Patch Changes
+
+- [#163](https://github.com/tenphi/eslint-plugin-tasty/pull/163) [`a01176c`](https://github.com/tenphi/eslint-plugin-tasty/commit/a01176cb976a5c84334e0705ef8d5abae478cc0d) Thanks [@tenphi](https://github.com/tenphi)! - `prefer-shorthand-property` no longer reports `lineHeight` in a complete style: no preset reproduces an arbitrary line height, and a preset lets `lineHeight` override its own. Extension layers still report it.
+
 ## 1.19.1
 
 ### Patch Changes
