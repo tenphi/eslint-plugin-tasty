@@ -1351,10 +1351,12 @@ export const SEMANTIC_TRANSITIONS = new Set([
 
 /**
  * Mapping of native CSS properties to tasty shorthand alternatives.
+ * `extensionOnly` reports the key only in an extension layer, where it changes
+ * one part of the base: in a complete style the longhand is the intended form.
  */
 export const SHORTHAND_MAPPING: Record<
   string,
-  { property: string; hint: string; safeFix?: boolean }
+  { property: string; hint: string; safeFix?: boolean; extensionOnly?: boolean }
 > = {
   backgroundColor: { property: 'fill', hint: "fill: '...'", safeFix: true },
   borderColor: { property: 'border', hint: "border: '...'" },
@@ -1387,9 +1389,13 @@ export const SHORTHAND_MAPPING: Record<
     property: 'preset',
     hint: "preset: 'name / strong' (with strong modifier)",
   },
+  // No preset reproduces an arbitrary line height (`tight` is `1em`, `normal`
+  // is `normal`), every preset also sets the font size, family, weight and the
+  // rest, and Tasty's preset handler lets `lineHeight` override the preset's.
   lineHeight: {
     property: 'preset',
     hint: "preset: 'name / tight' (with tight modifier)",
+    extensionOnly: true,
   },
   boxShadow: { property: 'shadow', hint: "shadow: '...'" },
   backgroundImage: { property: 'image', hint: "image: '...'" },

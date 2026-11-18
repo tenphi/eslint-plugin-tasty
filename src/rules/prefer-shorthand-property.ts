@@ -155,6 +155,8 @@ export default createRule<[], MessageIds>({
             continue;
           }
 
+          if (mapping.extensionOnly) continue;
+
           context.report({
             node: prop.key,
             messageId: 'preferShorthand',
