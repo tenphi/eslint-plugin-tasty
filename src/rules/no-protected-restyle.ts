@@ -84,21 +84,36 @@ export default createRule<[{ usages?: Usages }], MessageIds>({
     /**
      * An inline style object that sets only allowed style props: root `styles`
      * that places or sizes the component, or a `*Styles` prop within what the
-     * entry allows for that element.
+     * entry allows for that element. A conditional passes when each branch
+     * does; an `undefined` or `null` branch sets nothing.
      */
     function setsOnly(
       value: TSESTree.Node | null,
       allowed: ReadonlySet<string> | undefined,
     ): boolean {
-      const object = value && unwrapExpression(value);
+      if (!value || allowed === undefined) return false;
+      const node = unwrapExpression(value);
+      if (node.type === 'ConditionalExpression') {
+        return [node.consequent, node.alternate].every(
+          (branch) => setsNothing(branch) || setsOnly(branch, allowed),
+        );
+      }
       return (
-        allowed !== undefined &&
-        object?.type === 'ObjectExpression' &&
-        object.properties.every((prop) => {
+        node.type === 'ObjectExpression' &&
+        node.properties.every((prop) => {
           if (prop.type !== 'Property' || prop.computed) return false;
           const key = getKeyName(prop.key);
           return key !== null && allowed.has(key);
         })
+      );
+    }
+
+    /** `undefined` or `null`: a branch that leaves the element's styles alone. */
+    function setsNothing(node: TSESTree.Node): boolean {
+      const value = unwrapExpression(node);
+      return (
+        (value.type === 'Identifier' && value.name === 'undefined') ||
+        (value.type === 'Literal' && value.value === null)
       );
     }
 

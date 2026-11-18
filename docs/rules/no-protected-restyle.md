@@ -115,7 +115,10 @@ protectedComponents: [
 ```
 
 The `*Styles` prop passes under the same terms as root `styles`: an inline
-object whose every key is allowed. Keep the allowance to what places or sizes
+object whose every key is allowed, or a conditional between such objects
+(`wide ? { width: '40x' } : { width: '30x' }`), where a branch may also be
+`undefined` or `null`. To share a value, keep the value in a constant
+(`{ width: POPOVER_WIDTH }`), not the styles object. Keep the allowance to what places or sizes
 the element, or to spacing around content the consumer supplies. A prop that
 changes how the element looks belongs in the component's own API.
 
@@ -180,8 +183,9 @@ const CopyButton = tasty(Button, { type: 'clear', size: 'small' });
 ```
 
 Root `styles` passes only as an inline object whose every key is an allowed
-style prop. A sub-element key, a spread, or a variable holding the styles is
-reported. `*Styles` props style the component's inner elements, so they are
+style prop, or a conditional whose branches are each such an object or
+`undefined` or `null` (`full ? { width: '100%' } : undefined`). A sub-element
+key, a spread, or a variable holding the styles is reported. `*Styles` props style the component's inner elements, so they are
 reported unless the entry's `allowedInnerStyleProps` allows every key of that
 prop, under the same terms.
 

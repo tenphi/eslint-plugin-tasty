@@ -65,6 +65,13 @@ import { Block, Text, CloseIcon } from '@my-org/ui';
 <ComboBox popoverStyles={{}} />;
 const Wide = tasty(ComboBox, { popoverStyles: { width: 'min 40x' } });`,
     ),
+    // A conditional whose branches are each allowed, or set nothing.
+    tsx(
+      ui +
+        `<ComboBox popoverStyles={wide ? { width: '40x' } : { width: '30x', height: 'max 20x' }} />;
+<ComboBox footerStyles={hasFooter ? { padding: '1x' } : undefined} />;
+<Button styles={full ? { width: '100%' } : null} />;`,
+    ),
     // Other sources, local components, and a design system's own relative imports.
     tsx(`import { Button } from 'other-lib';
 <Button styles={{ fill: '#danger' }} fill="#danger" />;`),
@@ -171,6 +178,20 @@ tasty(ComboBox, { popoverStyles: { fill: '#dark' } });`,
         ...Array(4).fill(prop('popoverStyles', "'ComboBox'")),
         prop('footerStyles', "'ComboBox'"),
         wrapper('popoverStyles', "'ComboBox'"),
+      ],
+    },
+    {
+      // A conditional with a branch beyond the allowance, or an opaque branch.
+      ...tsx(
+        ui +
+          `<ComboBox popoverStyles={wide ? { width: '40x' } : { fill: '#dark' }} />;
+<ComboBox popoverStyles={wide ? { width: '40x' } : popover} />;
+<Button styles={danger ? { fill: '#danger' } : undefined} />;`,
+      ),
+      errors: [
+        prop('popoverStyles', "'ComboBox'"),
+        prop('popoverStyles', "'ComboBox'"),
+        prop('styles'),
       ],
     },
     {
