@@ -29,6 +29,13 @@ export interface ProtectedComponentConfig {
    * anything else is a property name.
    */
   allowedStyleProps?: string[];
+  /**
+   * Style props each `*Styles` prop may set, keyed by the prop name:
+   * `{ popoverStyles: ['dimension'] }` lets a consumer size the popover and
+   * nothing else. Same vocabulary as `allowedStyleProps`. A `*Styles` prop
+   * without an entry here is always reported.
+   */
+  allowedInnerStyleProps?: Record<string, string[]>;
 }
 
 export interface TastyValidationConfig {

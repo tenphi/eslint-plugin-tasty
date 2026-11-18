@@ -58,6 +58,20 @@ import { Block, Text, CloseIcon } from '@my-org/ui';
 <Button styles={{ width: { '': '100%', '@mobile': 'auto' }, gridArea: 'actions' }} />;
 <Button styles={{}} />;`,
     ),
+    // A `*Styles` prop within its allowedInnerStyleProps, on instances and wrappers.
+    tsx(
+      ui +
+        `<ComboBox popoverStyles={{ width: 'min 40x', height: { '': 'max 60x', '@mobile': 'auto' } }} footerStyles={{ padding: '1x', gap: '1x' }} />;
+<ComboBox popoverStyles={{}} />;
+const Wide = tasty(ComboBox, { popoverStyles: { width: 'min 40x' } });`,
+    ),
+    // A conditional whose branches are each allowed, or set nothing.
+    tsx(
+      ui +
+        `<ComboBox popoverStyles={wide ? { width: '40x' } : { width: '30x', height: 'max 20x' }} />;
+<ComboBox footerStyles={hasFooter ? { padding: '1x' } : undefined} />;
+<Button styles={full ? { width: '100%' } : null} />;`,
+    ),
     // Other sources, local components, and a design system's own relative imports.
     tsx(`import { Button } from 'other-lib';
 <Button styles={{ fill: '#danger' }} fill="#danger" />;`),
@@ -148,6 +162,43 @@ const Spaced = tasty(Button.Group, { styles: { gap: '2x' } });
         prop('inputStyles', "'ComboBox'"),
         prop('triggerStyles', "'ComboBox'"),
       ],
+    },
+    {
+      // Beyond the allowance: another key, a sub-element, or an opaque value.
+      ...tsx(
+        ui +
+          `<ComboBox popoverStyles={{ width: '40x', fill: '#dark' }} />;
+<ComboBox popoverStyles={{ Header: { width: '40x' } }} />;
+<ComboBox popoverStyles={popover} />;
+<ComboBox popoverStyles={{ ...popover }} />;
+<ComboBox footerStyles={{ padding: '1x', border: 'top' }} />;
+tasty(ComboBox, { popoverStyles: { fill: '#dark' } });`,
+      ),
+      errors: [
+        ...Array(4).fill(prop('popoverStyles', "'ComboBox'")),
+        prop('footerStyles', "'ComboBox'"),
+        wrapper('popoverStyles', "'ComboBox'"),
+      ],
+    },
+    {
+      // A conditional with a branch beyond the allowance, or an opaque branch.
+      ...tsx(
+        ui +
+          `<ComboBox popoverStyles={wide ? { width: '40x' } : { fill: '#dark' }} />;
+<ComboBox popoverStyles={wide ? { width: '40x' } : popover} />;
+<Button styles={danger ? { fill: '#danger' } : undefined} />;`,
+      ),
+      errors: [
+        prop('popoverStyles', "'ComboBox'"),
+        prop('popoverStyles', "'ComboBox'"),
+        prop('styles'),
+      ],
+    },
+    {
+      // An entry without the allowance reports the same prop.
+      ...tsx(`import { Dialog } from '@my-org/strict-ui';
+<Dialog popoverStyles={{ width: '40x' }} />;`),
+      errors: [prop('popoverStyles', "'Dialog'", "'@my-org/strict-ui'")],
     },
     {
       // Appearance style props, including config.styles and bare booleans.
@@ -335,6 +386,30 @@ describe('no-protected-restyle messages and configuration', () => {
     [
       { protectedComponents: [{ source: 'ui', exclude: 'Text' }] },
       /protectedComponents\[0\]\.exclude must be an array of strings/,
+    ],
+    [
+      {
+        protectedComponents: [
+          { source: 'ui', allowedInnerStyleProps: ['popoverStyles'] },
+        ],
+      },
+      /protectedComponents\[0\]\.allowedInnerStyleProps must map/,
+    ],
+    [
+      {
+        protectedComponents: [
+          { source: 'ui', allowedInnerStyleProps: { popover: ['width'] } },
+        ],
+      },
+      /protectedComponents\[0\]\.allowedInnerStyleProps must map/,
+    ],
+    [
+      {
+        protectedComponents: [
+          { source: 'ui', allowedInnerStyleProps: { popoverStyles: 'width' } },
+        ],
+      },
+      /protectedComponents\[0\]\.allowedInnerStyleProps must map/,
     ],
   ])('rejects a malformed entry: %j', (tastyConfig, error) => {
     const dir = mkdtempSync(join(tmpdir(), 'tasty-protected-'));

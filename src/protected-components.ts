@@ -22,6 +22,8 @@ export interface ProtectedComponent {
   /** Whether a `tasty()` wrapper sits between the reference and the export. */
   wrapped: boolean;
   allowedStyleProps: ReadonlySet<string>;
+  /** Per `*Styles` prop, the style props it may set: `popoverStyles` → `width`, … */
+  allowedInnerStyleProps: ReadonlyMap<string, ReadonlySet<string>>;
 }
 
 interface Pattern {
@@ -35,6 +37,7 @@ interface Entry {
   include: Pattern[];
   exclude: Pattern[];
   allowedStyleProps: ReadonlySet<string>;
+  allowedInnerStyleProps: ReadonlyMap<string, ReadonlySet<string>>;
 }
 
 function namePattern(pattern: string): Pattern {
@@ -45,6 +48,18 @@ const STYLE_PROP_GROUPS = new Map<string, readonly string[]>([
   ['position', POSITION_STYLES],
   ['dimension', DIMENSION_STYLES],
 ]);
+
+/** Style prop names, with `'position'` and `'dimension'` expanded to their groups. */
+function styleProps(names: readonly string[]): ReadonlySet<string> {
+  return new Set(
+    names.flatMap((name) => STYLE_PROP_GROUPS.get(name) ?? [name]),
+  );
+}
+
+/** `inputStyles`, `triggerStyles`, ...: styles for one of the component's inner elements. */
+export function isInnerStylesProp(name: string): boolean {
+  return /^[a-z][A-Za-z0-9]*Styles$/.test(name);
+}
 
 const entriesByConfig = new WeakMap<ResolvedConfig, Entry[]>();
 
@@ -77,13 +92,30 @@ function readEntries(config: ResolvedConfig): Entry[] {
       }
       return value as string[];
     };
+    const inner = entry.allowedInnerStyleProps ?? {};
+    if (
+      typeof inner !== 'object' ||
+      inner === null ||
+      Array.isArray(inner) ||
+      Object.entries(inner).some(
+        ([name, props]) =>
+          !isInnerStylesProp(name) ||
+          !Array.isArray(props) ||
+          props.some((prop) => typeof prop !== 'string'),
+      )
+    ) {
+      throw new Error(
+        `${at}.allowedInnerStyleProps must map '*Styles' prop names to arrays of strings.`,
+      );
+    }
     return {
       source: wildcardPattern(entry.source as string),
       include: strings('include').map(namePattern),
       exclude: strings('exclude').map(namePattern),
-      allowedStyleProps: new Set(
-        strings('allowedStyleProps').flatMap(
-          (name) => STYLE_PROP_GROUPS.get(name) ?? [name],
+      allowedStyleProps: styleProps(strings('allowedStyleProps')),
+      allowedInnerStyleProps: new Map(
+        Object.entries(inner as Record<string, string[]>).map(
+          ([name, props]) => [name, styleProps(props)],
         ),
       ),
     };
@@ -170,6 +202,7 @@ export class ProtectedComponents {
       source: origin.source,
       wrapped: origin.wrapped,
       allowedStyleProps: entry.allowedStyleProps,
+      allowedInnerStyleProps: entry.allowedInnerStyleProps,
     });
 
     const parts = [origin.name, ...origin.members];

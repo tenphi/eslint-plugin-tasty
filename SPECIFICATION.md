@@ -242,6 +242,12 @@ interface ProtectedComponentConfig {
    * anything else is a property name. Defaults to none.
    */
   allowedStyleProps?: string[];
+  /**
+   * Style props each `*Styles` prop may set, keyed by the prop name, in the
+   * same vocabulary as `allowedStyleProps`: `{ popoverStyles: ['dimension'] }`.
+   * A `*Styles` prop without a key here is always reported. Defaults to none.
+   */
+  allowedInnerStyleProps?: Record<string, string[]>;
 }
 ```
 
