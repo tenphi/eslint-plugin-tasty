@@ -298,7 +298,8 @@ component('Content', { styles: {
 import { Box } from '@my/ds';
 import { FocusScope } from 'react-aria';
 <Box fill="#surface" gap="1x" animationDuration="$duration" />;
-<svg fill="red" gap="17px" />;
+<svg fill="none" stroke="currentColor" gap="17px" />;
+<svg><clipPath><path fill="#fff" /></clipPath></svg>;
 <Box content={'"17px #missing $missing red"'} />;
 <FocusScope fill="red" gap="17px" />;
 <NumberInput prefix="$" suffix="$ " />;
@@ -313,6 +314,7 @@ import { Box } from '@my/ds';
 <Box padding="min(2unknownunit, 1x)" />;
 <Box gap={17} animationDuration="200ms" />;
 <Box styles={{ Deep: { Deeper: { fill: 'red', padding: '17px' } } }} />;
+<svg stroke="red" />;
 `,
     );
     assert.deepEqual(run('values-valid.tsx'), { status: 0, rules: [] });
@@ -321,6 +323,7 @@ import { Box } from '@my/ds';
       {
         status: 1,
         rules: [
+          'no-raw-color-values',
           'no-raw-color-values',
           'no-raw-color-values',
           'consistent-token-usage',
@@ -332,7 +335,7 @@ import { Box } from '@my/ds';
           'no-raw-motion-duration',
         ].sort(),
       },
-      `${linter.name}: JSX literals, numeric pixels, expressions and nested styles`,
+      `${linter.name}: JSX literals, numeric pixels, expressions, nested styles and SVG color attributes`,
     );
 
     const rewriteRules = Object.fromEntries(

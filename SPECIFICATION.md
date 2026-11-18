@@ -77,6 +77,8 @@ For individual style props, the plugin can validate the value syntax (color toke
 1. **Heuristic (implemented, no type info)** — validate JSX attributes on uppercase component/member tags whose names match a known Tasty/CSS style property or `config.styles`. Native HTML/SVG tags and singular React `style` props are excluded, as are tags whose root binding (following `const` aliases) is imported from a bare specifier outside `importSources` and `ownedSources` — `<FocusScope contain />` from `react-aria`. An entry in either list covers the paths below it (`@my/ds` covers `@my/ds/button`). Components declared in the file, `tasty()` wrappers, and relative or in-repo imports stay checked. Matching non-style props on unrelated components can still need a rule suppression. With `settings.tasty.typeAwareJSX`, prop types decide, and the package check applies only to props the types leave unclassified.
 2. **Type-aware (future enhancement)** — use the TypeScript type checker to see if the prop type originates from tasty's `Styles` interface. This also enables detecting arbitrary `Styles`-typed variables and expressions, not just call-site arguments.
 
+One rule reads native tags too: `tasty/no-raw-color-values` checks the literal color presentation attributes (`fill`, `stroke`, `color`, `stopColor`, `floodColor`, `lightingColor`, and their kebab-case spellings) of lowercase tags, outside `<clipPath>` and `<mask>`, with the same color checks as style values.
+
 Implemented value checks share discovery across static literals, templates,
 TypeScript wrappers, state maps, conditional/logical branches, and nested
 sub-elements in shared styles and JSX `styles`/`*Styles` props. Dynamic bindings,
@@ -325,7 +327,7 @@ Every rule has its own page in [`docs/rules/`](docs/rules/): what it checks, why
 | [`tasty/valid-directional-modifier`](docs/rules/valid-directional-modifier.md) | Directions a property does not take, and too many values per group |
 | [`tasty/valid-radius-shape`](docs/rules/valid-radius-shape.md) | Unknown `radius` shapes |
 | [`tasty/no-important`](docs/rules/no-important.md) | `!important` |
-| [`tasty/no-raw-color-values`](docs/rules/no-raw-color-values.md) | Raw hex, color functions and named colors |
+| [`tasty/no-raw-color-values`](docs/rules/no-raw-color-values.md) | Raw hex, color functions and named colors, in styles and SVG color attributes |
 | [`tasty/no-raw-transition-duration`](docs/rules/no-raw-transition-duration.md) | Hardcoded `transition` durations |
 | [`tasty/no-raw-motion-duration`](docs/rules/no-raw-motion-duration.md) | Hardcoded animation and duration values (opt-in) |
 | [`tasty/consistent-token-usage`](docs/rules/consistent-token-usage.md) | Raw pixel lengths |
