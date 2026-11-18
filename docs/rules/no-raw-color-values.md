@@ -1,6 +1,6 @@
 # tasty/no-raw-color-values
 
-Reports raw colors in style values: hex colors, color functions such as `rgb()` or `okhsl()`, and named colors such as `red`. Use a color token instead.
+Reports raw colors in style values and in the color attributes of SVG and other native elements: hex colors, color functions such as `rgb()` or `okhsl()`, and named colors such as `red`. Use a color token instead.
 
 **Presets:** warning in recommended and strict. **Fix:** none.
 
@@ -35,6 +35,35 @@ fill: '#danger'
 
 Not reported: values of `#name` and `$name` keys, which define tokens, values inside `tastyStatic(':root', { … })`, quoted strings and URLs.
 
+## SVG attributes
+
+A raw color in an attribute of a native element (a lowercase JSX tag) skips the palette the same way. The rule checks `fill`, `stroke`, `color`, `stopColor`, `floodColor` and `lightingColor`, and their kebab-case spellings (`stop-color`, `flood-color`, `lighting-color`), with the three checks above.
+
+To theme an SVG, write `currentColor` in the attribute and set the color from a token in Tasty styles: `color: '#token'` on the SVG or a parent. Or set `svgFill` and `stroke` in Tasty styles.
+
+```jsx
+// ❌ Raw color '#fff' in the stroke attribute does not follow the theme.
+<circle r="11" stroke="#fff" />
+
+// ❌ Raw color 'rgb()' in the fill attribute does not follow the theme.
+<svg fill="rgb(255 0 0)" />
+
+// ✅ currentColor, with the color from a token on a Tasty parent
+const Ring = tasty({ as: 'svg', styles: { color: '#surface' } });
+<Ring><circle r="11" stroke="currentColor" /></Ring>
+
+// ✅ Tasty styles on the SVG
+const Mark = tasty({ as: 'svg', styles: { svgFill: '#current', stroke: '#danger-text' } });
+```
+
+Only literal values are checked: a string, `{'…'}`, or a template literal with no substitutions. Not reported:
+
+- `none`, `currentColor` in any case, `transparent`, `inherit`, `context-fill` and `context-stroke`.
+- `url(#…)` and `var(--…)`.
+- A dynamic value, such as `fill={color}`.
+- Anything inside `<clipPath>` or `<mask>`, where a fill is geometry or luminance, not a theme color.
+- Props of components (capitalized and member tags). A Tasty component's style props are checked as style values. A third-party component's props, such as `<CartesianGrid stroke>`, are not style props and stay unchecked.
+
 ## Exceptions
 
 For an intentional one-off color, disable the rule for that line, with a reason:
@@ -44,7 +73,12 @@ For an intentional one-off color, disable the rule for that line, with a reason:
 fill: '#1db954',
 ```
 
-With Oxlint, `// oxlint-disable-next-line` works the same way.
+With Oxlint, `// oxlint-disable-next-line` works the same way. Fixed artwork in an SVG attribute, such as a third-party logo, takes the same reasoned disable:
+
+```jsx
+{/* eslint-disable-next-line tasty/no-raw-color-values -- file-type logo from Material Icon Theme */}
+<path fill="#42a5f5" d="M0 0h24v24H0z" />
+```
 
 ## Options
 

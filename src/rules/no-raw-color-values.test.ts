@@ -152,3 +152,110 @@ tester.run('no-raw-color-values', rule, {
     },
   ],
 });
+
+const jsxTester = new RuleTester({
+  languageOptions: {
+    ecmaVersion: 2024,
+    sourceType: 'module',
+    parserOptions: { ecmaFeatures: { jsx: true } },
+  },
+});
+
+const attributeError = (value: string, attribute: string) => ({
+  messageId: 'rawAttributeColor' as const,
+  data: { value, attribute },
+});
+
+jsxTester.run('no-raw-color-values (SVG attributes)', rule, {
+  valid: [
+    {
+      // Values that follow the theme or carry no color.
+      code: `
+        <svg fill="none" stroke="currentColor">
+          <path fill="CURRENTCOLOR" stroke="inherit" />
+          <rect fill="transparent" stroke="var(--success-icon-color)" />
+          <rect fill="url(#gradient)" stroke="context-stroke" />
+          <rect fill="context-fill" stopColor="currentcolor" />
+        </svg>
+      `,
+    },
+    {
+      // Dynamic values are left alone.
+      code: `
+        <svg fill={color} stroke={\`\${tone}\`}>
+          <stop stopColor={isDark ? '#000' : '#fff'} />
+        </svg>
+      `,
+    },
+    {
+      // Inside <clipPath> a fill is geometry, inside <mask> it is luminance.
+      code: `
+        <svg>
+          <clipPath id="clip"><path fill="#fff" d="M0 0h24v24H0z" /></clipPath>
+          <mask id="mask"><g><rect fill="white" /></g></mask>
+        </svg>
+      `,
+    },
+    {
+      // Other attributes are not colors.
+      code: `<svg><path id="#fff" d="M0 0" opacity="0.5" /></svg>`,
+    },
+    {
+      // Third-party components keep today's handling: their props are not
+      // style props.
+      code: `
+        import { CartesianGrid } from 'recharts';
+        <CartesianGrid stroke="#ccc" />
+      `,
+    },
+  ],
+  invalid: [
+    {
+      // The ring around a dot: the case that went unnoticed in dark mode.
+      code: `<svg><circle cx="12" r="11" stroke="#fff" strokeWidth="2" /></svg>`,
+      errors: [attributeError('#fff', 'stroke')],
+    },
+    {
+      code: `<svg viewBox="0 0 24 24" fill="rgb(255 0 0)" />`,
+      errors: [attributeError('rgb()', 'fill')],
+    },
+    {
+      // Expression containers and template literals without substitutions.
+      code: `<svg><stop stopColor={'#00ff00'} /><stop stop-color={\`red\`} /></svg>`,
+      errors: [
+        attributeError('#00ff00', 'stopColor'),
+        attributeError('red', 'stop-color'),
+      ],
+    },
+    {
+      code: `<filter><feFlood flood-color="white" /><feDiffuseLighting lightingColor="hsl(0 0% 0%)" /></filter>`,
+      errors: [
+        attributeError('white', 'flood-color'),
+        attributeError('hsl()', 'lightingColor'),
+      ],
+    },
+    {
+      code: `<span color="#123" />`,
+      errors: [attributeError('#123', 'color')],
+    },
+    {
+      // A sibling of a <clipPath> is still themed artwork.
+      code: `
+        <svg>
+          <clipPath id="clip"><path fill="#fff" d="M0 0" /></clipPath>
+          <path fill="#FBBC05" d="M0 0" />
+        </svg>
+      `,
+      errors: [attributeError('#FBBC05', 'fill')],
+    },
+    {
+      // Tasty components keep the style-value message.
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        const Block = tasty({});
+        <Block fill="#fff" />
+      `,
+      errors: [{ messageId: 'rawHexColor' }],
+    },
+  ],
+});

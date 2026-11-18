@@ -90,12 +90,24 @@ for (const [rule, property, value, messageId] of cases) {
         ]);
       });
     }
+    const native = `
+        <svg ${property}="${value}" />;
+        <div ${property}="${value}" />;`;
+    // no-raw-color-values also checks color attributes of native elements
+    // (its own tests cover them); every other rule leaves native tags alone.
+    const readsNative = rule === 'no-raw-color-values';
+    if (readsNative) {
+      it('reports native color attributes with the attribute message', () => {
+        expect(lint(native, rule).map((message) => message.messageId)).toEqual([
+          'rawAttributeColor',
+          'rawAttributeColor',
+        ]);
+      });
+    }
     it('ignores DOM, inline CSS, unrelated attributes and opaque expressions', () => {
       expect(
         lint(
-          `
-        <svg ${property}="${value}" />;
-        <div ${property}="${value}" />;
+          `${readsNative ? '' : native}
         <Box style={{ ${definition} }} unrelated="${value}" />;
         <Box ${property}={dynamicValue} />;
         <Box ${property}={getValue('${value}')} />;
