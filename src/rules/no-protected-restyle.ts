@@ -3,6 +3,7 @@ import { createRule } from '../create-rule.js';
 import { TastyContext } from '../context.js';
 import { KNOWN_TASTY_PROPERTIES } from '../constants.js';
 import {
+  isInnerStylesProp,
   type ProtectedComponent,
   ProtectedComponents,
 } from '../protected-components.js';
@@ -32,11 +33,6 @@ const WRAPPER_OPTIONS = new Set([
 interface Target extends ProtectedComponent {
   /** The tag or base as written: `UI.Button`, `CopyButton`. */
   reference: string;
-}
-
-/** `inputStyles`, `triggerStyles`, ...: styles for one of the component's inner elements. */
-function isInnerStylesProp(name: string): boolean {
-  return /^[a-z][A-Za-z0-9]*Styles$/.test(name);
 }
 
 /** A value that cannot be a style value: a callback or an element. */
@@ -85,15 +81,23 @@ export default createRule<[{ usages?: Usages }], MessageIds>({
       ...ctx.config.styles,
     ]);
 
-    /** Root `styles` that only places or sizes the component, through allowed keys. */
-    function placesOnly(value: TSESTree.Node | null, target: Target): boolean {
+    /**
+     * An inline style object that sets only allowed style props: root `styles`
+     * that places or sizes the component, or a `*Styles` prop within what the
+     * entry allows for that element.
+     */
+    function setsOnly(
+      value: TSESTree.Node | null,
+      allowed: ReadonlySet<string> | undefined,
+    ): boolean {
       const object = value && unwrapExpression(value);
       return (
+        allowed !== undefined &&
         object?.type === 'ObjectExpression' &&
         object.properties.every((prop) => {
           if (prop.type !== 'Property' || prop.computed) return false;
           const key = getKeyName(prop.key);
-          return key !== null && target.allowedStyleProps.has(key);
+          return key !== null && allowed.has(key);
         })
       );
     }
@@ -104,8 +108,12 @@ export default createRule<[{ usages?: Usages }], MessageIds>({
       target: Target,
       attribute?: TSESTree.JSXAttribute,
     ): boolean {
-      if (name === 'styles') return !placesOnly(value, target);
-      if (isInnerStylesProp(name)) return true;
+      if (name === 'styles') {
+        return !setsOnly(value, target.allowedStyleProps);
+      }
+      if (isInnerStylesProp(name)) {
+        return !setsOnly(value, target.allowedInnerStyleProps.get(name));
+      }
       if (!styleProps.has(name) || target.allowedStyleProps.has(name)) {
         return false;
       }

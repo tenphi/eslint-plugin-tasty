@@ -46,6 +46,7 @@ export default {
 | `include` | Exported names or member paths to protect. Defaults to every export. |
 | `exclude` | Exported names or member paths to leave open, usually layout and typography primitives. `*` matches any run of characters, so `*Icon` covers every icon. |
 | `allowedStyleProps` | Style props that place or size the root and stay allowed. `'position'` and `'dimension'` stand for Tasty's `POSITION_STYLES` (`gridArea`, `margin`, `inset`, `zIndex`, …) and `DIMENSION_STYLES` (`width`, `height`, `flex`, …); anything else is a property name. Defaults to none. |
+| `allowedInnerStyleProps` | Style props each `*Styles` prop may set, keyed by the prop name, in the same vocabulary as `allowedStyleProps`. Defaults to none, so every `*Styles` prop is reported. See [Inner element allowances](#inner-element-allowances). |
 
 A component matches the first entry whose `source`, `include` and `exclude` fit
 it, so a second entry for the same source can give a few components their own
@@ -85,6 +86,39 @@ excluding the path leaves it open, including it protects it with that entry's
 `allowedStyleProps`. Patterns without a dot, `*` included, only ever match the
 export name.
 
+### Inner element allowances
+
+Some inner elements need sizing from the outside. A popover that lists long
+option labels may need a wider minimum, and a list in a short dialog a lower
+maximum height. `allowedInnerStyleProps` lets the design system allow those
+props on that element and nothing else:
+
+```ts
+protectedComponents: [
+  {
+    source: '@my-org/ui',
+    include: ['ComboBox', 'Select'],
+    allowedStyleProps: ['position', 'dimension'],
+    allowedInnerStyleProps: {
+      popoverStyles: ['dimension'],
+      footerStyles: ['padding', 'gap'],
+    },
+  },
+],
+```
+
+```tsx
+<ComboBox popoverStyles={{ width: 'min 40x', height: 'max 60x' }} />; // passes
+<ComboBox footerStyles={{ padding: '1x' }} />; // passes
+<ComboBox popoverStyles={{ width: '40x', fill: '#dark' }} />; // reported: fill is not allowed
+<ComboBox inputStyles={{ width: '100%' }} />; // reported: no allowance for inputStyles
+```
+
+The `*Styles` prop passes under the same terms as root `styles`: an inline
+object whose every key is allowed. Keep the allowance to what places or sizes
+the element, or to spacing around content the consumer supplies. A prop that
+changes how the element looks belongs in the component's own API.
+
 For `extends: '@my-org/ui'` to find the list, the package has to publish its
 `tasty.config.*` at the package root.
 
@@ -114,7 +148,7 @@ On a protected component:
 import { tasty } from '@tenphi/tasty';
 import { Button, ComboBox } from '@my-org/ui';
 
-// Instance styles: `styles` and every `*Styles` prop.
+// Instance styles: `styles`, and `*Styles` props beyond their allowance.
 <Button styles={{ fill: '#danger' }} />;
 <ComboBox inputStyles={{ padding: '2x' }} />;
 
@@ -148,7 +182,8 @@ const CopyButton = tasty(Button, { type: 'clear', size: 'small' });
 Root `styles` passes only as an inline object whose every key is an allowed
 style prop. A sub-element key, a spread, or a variable holding the styles is
 reported. `*Styles` props style the component's inner elements, so they are
-always reported.
+reported unless the entry's `allowedInnerStyleProps` allows every key of that
+prop, under the same terms.
 
 A style prop is a Tasty style property or an entry in `config.styles`. Plain
 CSS property names are left out, because some of them (`size`, `orientation`)

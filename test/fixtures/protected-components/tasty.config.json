@@ -5,7 +5,11 @@
     {
       "source": "@my-org/ui",
       "exclude": ["Block", "Text", "*Icon", "ButtonGroup", "Button.Group"],
-      "allowedStyleProps": ["position", "dimension", "hide"]
+      "allowedStyleProps": ["position", "dimension", "hide"],
+      "allowedInnerStyleProps": {
+        "popoverStyles": ["dimension"],
+        "footerStyles": ["padding", "gap"]
+      }
     },
     { "source": "@my-org/strict-*" },
     {
