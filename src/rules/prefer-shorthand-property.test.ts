@@ -21,6 +21,22 @@ const PADDING_OVERRIDE_HINT =
 
 tester.run('prefer-shorthand-property', rule, {
   valid: [
+    // No preset reproduces an arbitrary line height, and the preset handler
+    // lets `lineHeight` override a preset's, so a complete style keeps it.
+    ...['0', "'0'", "'1'", "'1.5'", "'16px'", "'4x'", "'normal'"].map(
+      (value) => ({
+        code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { display: 'flex', lineHeight: ${value} } });
+      `,
+      }),
+    ),
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { preset: 't3', lineHeight: '4x' } });
+      `,
+    },
     {
       code: `
         import { tasty } from '@tenphi/tasty';
@@ -137,6 +153,33 @@ tester.run('prefer-shorthand-property', rule, {
           },
         },
       ],
+    },
+    // Beside a font size, only `fontSize` is reported: `lineHeight` can
+    // override whatever preset replaces it.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        tasty({ styles: { fontSize: '14px', lineHeight: '20px' } });
+      `,
+      errors: [
+        {
+          messageId: 'preferShorthand',
+          data: {
+            native: 'fontSize',
+            alternative: "preset: '...'",
+            overrideHint: PRESET_OVERRIDE_HINT,
+          },
+        },
+      ],
+    },
+    // An extension layer still reports `lineHeight` over an owned base.
+    {
+      code: `
+        import { tasty } from '@tenphi/tasty';
+        const Base = tasty({ styles: { preset: 't3' } });
+        tasty(Base, { styles: { lineHeight: 0 } });
+      `,
+      errors: [{ messageId: 'preferShorthandExtending' }],
     },
     // A real font stack still points at `font`.
     {

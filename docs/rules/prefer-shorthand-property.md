@@ -44,7 +44,7 @@ tasty({ styles: { paddingTop: '2x' } });
 | `paddingTop`, `paddingRight`, `paddingBottom`, `paddingLeft` | `padding: '... top'` and the other sides |
 | `marginTop`, `marginRight`, `marginBottom`, `marginLeft` | `margin: '... top'` and the other sides |
 | `fontSize`, `letterSpacing`, `textTransform` | `preset` |
-| `fontWeight`, `lineHeight`, `fontStyle` | `preset: 'name / strong'`, `'name / tight'`, `'name / italic'` |
+| `fontWeight`, `fontStyle` | `preset: 'name / strong'`, `'name / italic'` |
 | `fontFamily` | `font` (`preset` for a CSS-wide keyword such as `inherit`) |
 | `boxShadow` | `shadow` |
 | `scrollbarWidth`, `scrollbarColor`, `scrollbarGutter` | `scrollbar` |
@@ -64,6 +64,10 @@ onto the `<axis><Category>` names and left the native spellings as plain CSS:
 | `borderInlineStart`, … | `inlineBorder: '... start'`, … |
 | `minBlockSize`, `maxBlockSize` | `blockSize: 'min ...'`, `blockSize: 'max ...'` |
 | `minInlineSize`, `maxInlineSize` | `inlineSize: 'min ...'`, `inlineSize: 'max ...'` |
+
+`lineHeight` is reported only in an extension layer: no preset reproduces an
+arbitrary line height, and Tasty's preset handler reads `lineHeight` and lets it
+override a preset's, so a complete style keeps it as written.
 
 Logical corners (`borderStartStartRadius` and the like) are left out on purpose:
 `radius` sets physical corners, so pointing a logical corner at it would be wrong.

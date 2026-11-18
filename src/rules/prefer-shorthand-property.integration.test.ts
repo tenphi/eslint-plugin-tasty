@@ -92,7 +92,10 @@ describe('prefer-shorthand-property token guidance', () => {
         const code = `import { tasty } from '@tenphi/tasty'; tasty(${args}{ styles: { ${native}: '1x' } });`;
         const result = linter.verifyAndFix(code, ruleConfig);
 
-        if (mapping.safeFix && !args) {
+        if (mapping.extensionOnly && !args) {
+          expect(result.fixed).toBe(false);
+          expect(result.messages).toEqual([]);
+        } else if (mapping.safeFix && !args) {
           expect(result.fixed).toBe(true);
           expect(result.messages).toEqual([]);
         } else {
