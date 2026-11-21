@@ -3,7 +3,13 @@
  * project's own lint config sets them, with the project's tasty.config.* and
  * ESLint.
  */
-import { existsSync, readdirSync, realpathSync, statSync } from 'node:fs';
+import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  statSync,
+} from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
@@ -11,12 +17,14 @@ import {
   collectProblems,
   createLinter,
   formatProblems,
+  importsFrom,
   isLintable,
   isTypeScript,
   lintOptions,
   loadESLint,
   loadTypeScriptParser,
   rulePage,
+  styleFunctionImport,
   summarize,
 } from './lint.mjs';
 import { createConfigResolver, isOn } from './project-config.mjs';
@@ -37,9 +45,11 @@ ESLint's.
 
 A path is read from the current folder, else from the project root. Each
 problem prints as file:line:col  tasty/<rule>  <severity>  message, with the
-file relative to the project root. The page of each rule reported follows. Exit code: 0
-without errors (warnings allowed), 1 with errors, 2 when nothing could be
-linted.
+file relative to the project root. The page of each rule reported follows. A
+file named here that imports nothing from @tenphi/tasty or the importSources of
+tasty.config.* gets a note, as the rules may have found no styles in it. Exit
+code: 0 without errors (warnings allowed), 1 with errors, 2 when nothing could
+be linted.
 
 --strict  also run the strict preset's rules that the config does not set
 --json    print the problems as JSON`;
@@ -131,6 +141,7 @@ const resolver = createConfigResolver({
 const groups = new Map();
 const skipped = [];
 const configs = new Set();
+const namedFiles = [];
 for (const target of targets) {
   const named = !statSync(target).isDirectory();
   for (const file of named ? [target] : walk(target)) {
@@ -168,6 +179,7 @@ for (const target of targets) {
       continue;
     }
     if (config) configs.add(config);
+    if (named) namedFiles.push(file);
     const key = JSON.stringify(lint);
     if (!groups.has(key)) groups.set(key, { lint, files: [], config });
     groups.get(key).files.push(file);
@@ -198,6 +210,42 @@ const pageOf = (name) =>
 const errors = problems.filter((p) => p.severity === 'error').length;
 const linted = results.length - collected.skipped.length;
 
+// "No problems" in a file that imports nothing the rules track may mean that
+// they found no styles in it, such as when a package re-exports or wraps
+// Tasty. A file named on the command line gets a note; one found in a folder
+// stays quiet, as most files there are not style files. The test reads the
+// text, as the edit hook does. The rules also follow Tasty components that a
+// relative module exports, which the text does not show, so the note says
+// "may" unless it names a Tasty function imported from another package.
+const noTastyImport = [];
+const reported = new Set([
+  ...problems.map((p) => p.file),
+  ...collected.skipped.map((s) => s.file),
+]);
+let loadConfig;
+for (const file of new Set(namedFiles)) {
+  if (reported.has(show(file))) continue;
+  const text = readFileSync(file, 'utf8');
+  if (importsFrom(text)) continue;
+  loadConfig ??= (
+    await import(pathToFileURL(join(PACKAGE_ROOT, 'dist/config.js')).href)
+  ).loadConfig;
+  let importSources;
+  try {
+    ({ importSources } = loadConfig(file));
+  } catch {
+    continue;
+  }
+  if (importsFrom(text, importSources)) continue;
+  const found = styleFunctionImport(text);
+  noTastyImport.push({
+    file: show(file),
+    message: found
+      ? `${show(file)} imports ${found.name} from ${found.source}, which is not in the importSources of tasty.config.*, so the rules did not check its ${found.name}() calls. If that module wraps or re-exports Tasty, list it in importSources, or extend the tasty.config.* its package ships.`
+      : `${show(file)} imports nothing from @tenphi/tasty or the importSources of tasty.config.*, so the rules may have found no styles in it. If its styles come through a package that wraps or re-exports Tasty, list that package in importSources, or extend the tasty.config.* the package ships.`,
+  });
+}
+
 // Which rules ran: a config's, with --strict also the strict preset's others,
 // and the preset for files without a config.
 const sources = [...new Set([...groups.values()].map((g) => g.config ?? null))];
@@ -222,6 +270,7 @@ if (options.json) {
           page: p.rule ? pageOf(p.rule.slice('tasty/'.length)) : null,
         })),
         skipped,
+        noTastyImport,
       },
       null,
       2,
@@ -241,6 +290,7 @@ if (options.json) {
       `${summarize(problems)} in ${count} (${ruleset}).`,
     );
   }
+  for (const n of noTastyImport) out.push(n.message);
   for (const s of skipped) out.push(`Skipped ${s.file}: ${s.reason}`);
   if (linted === 0 && skipped.length === 0) {
     out.push(
