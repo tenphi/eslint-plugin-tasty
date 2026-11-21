@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.21.1
+
+### Patch Changes
+
+- [#168](https://github.com/tenphi/eslint-plugin-tasty/pull/168) [`6d18ca0`](https://github.com/tenphi/eslint-plugin-tasty/commit/6d18ca0ea30463011d452a8be018490d2033ded3) Thanks [@tenphi](https://github.com/tenphi)! - `tasty-lint:check` now adds a note to "No `tasty/*` problems" for a file named on the command line that imports nothing from `@tenphi/tasty` or a configured `importSources` module, as the rules may have found no styles in it. When the file imports `tasty`, `tastyStatic`, `useStyles` or `useGlobalStyles` from another package, the note names that package and says to list it in `importSources` or extend its `tasty.config.*`. `--json` lists these files in `noTastyImport`. Files found in a folder, and the edit hook, stay quiet.
+
 ## 1.21.0
 
 ### Minor Changes
