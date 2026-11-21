@@ -31,6 +31,7 @@ import {
   loadESLint,
   newProblems,
   readOxlintComments,
+  styleFunctionImport,
   summarize,
 } from '../harness/dev.harnesspm/scripts/lint.mjs';
 import {
@@ -387,6 +388,31 @@ export const view = (
     expect(importsFrom(`const tasty = 1; // @tenphi/tasty`)).toBe(false);
   });
 
+  it('finds a Tasty function imported from another package', () => {
+    expect(
+      styleFunctionImport(
+        `import { tasty } from "@tenphi/cookbook/styling";\nexport const Box = tasty({});`,
+      ),
+    ).toEqual({ name: 'tasty', source: '@tenphi/cookbook/styling' });
+    expect(
+      styleFunctionImport(
+        `import React, {\n  useMemo, // a hook\n  useStyles as styles,\n} from '@acme/styling';`,
+      ),
+    ).toEqual({ name: 'useStyles', source: '@acme/styling' });
+    expect(
+      styleFunctionImport(`import { defineComponent } from '@acme/styling';`),
+    ).toBeUndefined();
+    expect(
+      styleFunctionImport(`import type { tasty } from '@acme/styling';`),
+    ).toBeUndefined();
+    expect(
+      styleFunctionImport(`import { type tasty } from '@acme/styling';`),
+    ).toBeUndefined();
+    expect(
+      styleFunctionImport(`import { tasty } from './styling';`),
+    ).toBeUndefined();
+  });
+
   it('lints JavaScript and TypeScript sources, not declarations', () => {
     for (const file of [
       'a.ts',
@@ -693,6 +719,80 @@ describe.runIf(existsSync(BUILD))('tasty-lint CLI (needs pnpm build)', () => {
       expect(run.status).toBe(2);
       expect(run.stdout).toContain('Nothing linted in package.json.');
       expect(run.stdout).toContain('Skipped package.json');
+    });
+  });
+
+  describe('on files that import nothing from Tasty', () => {
+    let dir: string;
+
+    beforeAll(() => {
+      // Two projects: in `listed`, tasty.config.* names the package that
+      // re-exports tasty.
+      dir = realpathSync(mkdtempSync(join(tmpdir(), 'tasty-lint-wrapper-')));
+      for (const project of ['bare', 'listed']) {
+        const components = join(dir, project, 'components');
+        mkdirSync(components, { recursive: true });
+        writeFileSync(join(dir, project, 'package.json'), '{"name":"app"}');
+        writeFileSync(
+          join(components, 'box.js'),
+          "import { tasty } from '@acme/styling';\n\nexport const Box = tasty({ styles: { fill: '#ff0000' } });\n",
+        );
+        writeFileSync(
+          join(components, 'plain.js'),
+          'export const answer = 42;\n',
+        );
+      }
+      writeFileSync(
+        join(dir, 'listed/tasty.config.json'),
+        '{ "importSources": ["@acme/styling"] }',
+      );
+    });
+
+    afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+    const run = (project: string, args: string[]) =>
+      node('check.mjs', args, { cwd: join(dir, project) });
+
+    it('notes a named file, as its rules may have found no styles', () => {
+      const check = run('bare', ['components/box.js']);
+
+      expect(check.status).toBe(0);
+      expect(check.stdout).toContain(
+        'No tasty/* problems in 1 file (recommended rules).\ncomponents/box.js imports tasty from @acme/styling, which is not in the importSources of tasty.config.*, so the rules did not check its tasty() calls.',
+      );
+
+      const result = JSON.parse(
+        run('bare', ['components/box.js', 'components/plain.js', '--json'])
+          .stdout,
+      );
+      expect(result.noTastyImport).toEqual([
+        { file: 'components/box.js', message: expect.any(String) },
+        {
+          file: 'components/plain.js',
+          message: expect.stringContaining(
+            'imports nothing from @tenphi/tasty or the importSources of tasty.config.*, so the rules may have found no styles in it.',
+          ),
+        },
+      ]);
+    });
+
+    it('lints the file as usual once tasty.config.* lists the package', () => {
+      const check = run('listed', ['components/box.js']);
+
+      expect(check.status).toBe(0);
+      expect(check.stdout).toMatch(
+        /^components\/box\.js:3:\d+ {2}tasty\/no-raw-color-values {2}warning /m,
+      );
+      expect(
+        JSON.parse(run('listed', ['components/box.js', '--json']).stdout)
+          .noTastyImport,
+      ).toEqual([]);
+    });
+
+    it('stays quiet about the files it finds in a folder', () => {
+      expect(run('bare', ['components']).stdout).toBe(
+        'No tasty/* problems in 2 files (recommended rules).\n',
+      );
     });
   });
 

@@ -644,7 +644,7 @@ The package ships an agent harness for [harnesspm](https://www.npmjs.com/package
 
 - a short always-on rule: lint the files you change and fix every `tasty/*` problem;
 - the rule pages of the installed version, in the docs index;
-- `npx harnesspm run tasty-lint:check <files> [--strict] [--json]`, which runs only the `tasty/*` rules and prints each problem with its rule's page;
+- `npx harnesspm run tasty-lint:check <files> [--strict] [--json]`, which runs only the `tasty/*` rules and prints each problem with its rule's page. It also notes a file named on the command line that imports nothing from `@tenphi/tasty` or a configured `importSources` module, since the rules may have found no styles in it;
 - a Claude Code hook that lints each file the agent edits, when it imports Tasty or a configured `importSources` module, and hands the new problems back to the agent.
 
 The tool and the hook run only in projects that trust the package, in `harnesspm.json`:

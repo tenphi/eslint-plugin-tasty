@@ -40,6 +40,33 @@ export function importsFrom(text, sources = []) {
   return false;
 }
 
+/** The Tasty functions that take styles, by the names a package exports. */
+const STYLE_FUNCTIONS = new Set([
+  'tasty',
+  'tastyStatic',
+  'useStyles',
+  'useGlobalStyles',
+]);
+const NAMED_IMPORT =
+  /\bimport\s*(?:[\w$]+\s*,\s*)?\{([^}]*)\}\s*from\s*(['"])([^'"]+)\2/g;
+
+/**
+ * The first Tasty function that the text imports by name from a package, such
+ * as `{ name: 'tasty', source: '@tenphi/cookbook/styling' }`, or undefined. A
+ * text test: type-only and relative imports do not count.
+ */
+export function styleFunctionImport(text) {
+  for (const [, names, , source] of text.matchAll(NAMED_IMPORT)) {
+    if (source.startsWith('.') || source.startsWith('/')) continue;
+    const specifiers = names.replace(/\/\/.*|\/\*[\s\S]*?\*\//g, '');
+    for (const specifier of specifiers.split(',')) {
+      const name = specifier.trim().split(/\s+/)[0];
+      if (STYLE_FUNCTIONS.has(name)) return { name, source };
+    }
+  }
+  return undefined;
+}
+
 /**
  * Oxlint reads `oxlint-disable`, `oxlint-disable-next-line`,
  * `oxlint-disable-line` and `oxlint-enable` comments as ESLint reads the
