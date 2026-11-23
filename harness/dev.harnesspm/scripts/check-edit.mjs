@@ -12,7 +12,6 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
-  NO_PARSER,
   collectProblems,
   createLinter,
   formatProblems,
@@ -100,8 +99,9 @@ try {
   linter = project.source?.linter;
   const lint = lintOptions(project, { recommended, projectDir });
   if (project.ignored || !Object.values(lint.rules).some(isOn)) process.exit(0);
-  const parser = await loadTypeScriptParser(dirs);
-  if (!parser && isTypeScript(file)) setupError(NO_PARSER);
+  const parser = isTypeScript(file)
+    ? await loadTypeScriptParser(dirs)
+    : undefined;
   // typeAwareJSX builds a TypeScript program of the whole project: on UI Kit,
   // 13 s instead of 1 s for one file, on every edit. Without it, JSX props are
   // classified by name, so `tasty-lint:check` has the last word on them.

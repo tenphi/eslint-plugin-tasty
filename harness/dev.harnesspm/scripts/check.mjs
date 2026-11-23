@@ -13,7 +13,6 @@ import {
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
-  NO_PARSER,
   collectProblems,
   createLinter,
   formatProblems,
@@ -103,10 +102,8 @@ const preset = options.strict ? 'strict' : 'recommended';
 
 let ESLint;
 let espree;
-let parser;
 try {
   ({ ESLint, espree } = await loadESLint([cwd, projectDir], PACKAGE_ROOT));
-  parser = await loadTypeScriptParser([cwd, projectDir]);
 } catch (error) {
   fail(errorText(error));
 }
@@ -187,19 +184,19 @@ for (const target of targets) {
 }
 
 const results = [];
+let parser;
 for (const { lint, files } of groups.values()) {
-  const eslint = createLinter({ ESLint, plugin, parser, espree, ...lint });
   try {
+    if (!parser && files.some(isTypeScript)) {
+      parser = await loadTypeScriptParser([cwd, projectDir]);
+    }
+    const eslint = createLinter({ ESLint, plugin, parser, espree, ...lint });
     results.push(...(await eslint.lintFiles(files)));
   } catch (error) {
     fail(errorText(error));
   }
 }
 results.sort((a, b) => (a.filePath < b.filePath ? -1 : 1));
-
-if (!parser && results.some((result) => isTypeScript(result.filePath))) {
-  fail(NO_PARSER);
-}
 
 // Paths print relative to the project root, as harnesspm runs from there.
 const collected = collectProblems(results, projectDir);

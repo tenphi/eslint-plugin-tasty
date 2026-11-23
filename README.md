@@ -657,10 +657,12 @@ Both run the `tasty/*` rules as the project's own lint does, so they report the 
 
 - **Config.** Each file gets the levels and options of the `tasty/*` rules, and `settings.tasty`, from the nearest config above it that loads the plugin: `.oxlintrc.json`, `.oxlintrc.jsonc`, `oxlint.config.ts`, `oxlint.config.mts`, or an ESLint flat config that imports `@tenphi/eslint-plugin-tasty`. Overrides and ignored files apply. Without such a config, they run the recommended preset (`--strict`: the strict one). With a config, `--strict` adds the strict preset's rules that the config does not set.
 - **Comments.** `eslint-disable` comments apply, and Oxlint's `oxlint-disable` ones unless the config is ESLint's.
-- **`typeAwareJSX`.** `tasty-lint:check` uses it. The hook skips it, since building the TypeScript program takes seconds on every edit, and reads JSX props by their names.
+- **`typeAwareJSX`.** `tasty-lint:check` uses it with the TypeScript 5.6–6.x compiler API. The hook skips it, since building the TypeScript program takes seconds on every edit, and reads JSX props by their names.
 - **Not covered.** Other plugins' rules do not run. A config the project's lint script names with `--config` is not found: only the names above count.
 
-They need `eslint`, even in a project that lints with Oxlint, and `typescript-eslint` or `@typescript-eslint/parser` for TypeScript files. Without `eslint`, the hook stays silent and `tasty-lint:check` says what to install.
+They need `eslint`, even in a project that lints with Oxlint. Without it, the hook stays silent and `tasty-lint:check` says what to install.
+
+For TypeScript files, the tools use `@typescript-eslint/parser` (including the copy installed by `typescript-eslint`) if it loads, and otherwise use the plugin's optional Oxc parser. Oxc parses TypeScript syntax without the compiler, including in TypeScript 7 projects. If the Oxc dependency is unavailable on your Node version or platform, use a compatible project parser or lint JavaScript style modules such as `.js` and `.mjs`.
 
 ## License
 

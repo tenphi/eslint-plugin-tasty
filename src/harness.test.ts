@@ -994,12 +994,7 @@ export default [
       for (const part of ['package.json', 'dist', 'harness']) {
         cpSync(join(ROOT, part), join(pkg, part), { recursive: true });
       }
-      for (const dep of [
-        'jiti',
-        'semver',
-        'postcss-selector-parser',
-        '@typescript-eslint/utils',
-      ]) {
+      for (const dep of ['jiti', 'semver', 'postcss-selector-parser']) {
         mkdirSync(dirname(join(pkg, 'node_modules', dep)), { recursive: true });
         symlinkSync(
           join(ROOT, 'node_modules', dep),
@@ -1038,29 +1033,116 @@ export default [
     });
   });
 
-  describe('without a TypeScript parser in the project', () => {
-    let dir: string;
+  describe.each(['missing', 'broken', 'incompatible'])(
+    'with a %s project parser',
+    (parser) => {
+      let dir: string;
+      const source = [
+        "import { tasty } from '@tenphi/tasty';",
+        'type Styles = Record<string, string>;',
+        '// oxlint-disable-next-line tasty/no-raw-color-values',
+        "const ignored = tasty({ styles: { fill: '#ff0000' } });",
+        "const color = '🟨'; const Card = tasty({ styles: ({ fill: '#00ff00' }) satisfies Styles });",
+        "function shadow(tasty: Function) { tasty({ styles: { fill: '#0000ff' } }); }",
+      ];
 
-    beforeAll(() => {
-      dir = realpathSync(mkdtempSync(join(tmpdir(), 'tasty-lint-')));
-      writeFileSync(join(dir, 'package.json'), '{"name":"app"}');
-      writeFileSync(
-        join(dir, 'Card.tsx'),
-        "import { tasty } from '@tenphi/tasty';\nexport const Card = tasty({ styles: { fill: '#ff0000' } });\n",
-      );
-    });
+      beforeAll(() => {
+        dir = realpathSync(mkdtempSync(join(tmpdir(), 'tasty-lint-')));
+        writeFileSync(join(dir, 'package.json'), '{"name":"app"}');
+        for (const ext of ['ts', 'mts', 'cts']) {
+          writeFileSync(join(dir, `Card.${ext}`), source.join('\r\n'));
+        }
+        writeFileSync(
+          join(dir, 'Card.tsx'),
+          [...source, '<Card styles={{}} />;'].join('\r\n'),
+        );
+        writeFileSync(join(dir, 'Invalid.ts'), 'const value = ;');
+        writeFileSync(join(dir, 'Card.mjs'), source[0] + '\n' + source[3]);
+        if (parser !== 'missing') {
+          const parserDir = join(dir, 'node_modules/@typescript-eslint/parser');
+          mkdirSync(parserDir, { recursive: true });
+          writeFileSync(
+            join(parserDir, 'index.js'),
+            parser === 'broken'
+              ? 'throw new Error("Cannot load the parser");'
+              : 'console.error("typescript-eslint does not support TS 7.0."); throw new Error("Unsupported TypeScript");',
+          );
+          if (parser === 'incompatible') {
+            writeFileSync(
+              join(parserDir, 'package.json'),
+              '{"name":"@typescript-eslint/parser","peerDependencies":{"typescript":">=4.8.4 <6.1.0"}}',
+            );
+            const compiler = join(dir, 'node_modules/typescript');
+            mkdirSync(compiler);
+            writeFileSync(
+              join(compiler, 'package.json'),
+              '{"name":"typescript","version":"7.0.2"}',
+            );
+          }
+        }
+      });
 
-    afterAll(() => rmSync(dir, { recursive: true, force: true }));
+      afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
-    it('says what to install', () => {
-      const check = node('check.mjs', ['Card.tsx'], { cwd: dir });
-      expect(check.status).toBe(2);
-      expect(check.stderr).toContain('Install typescript-eslint');
+      it('lints typed styles and JSX with correct positions and scopes', () => {
+        const result = node(
+          'check.mjs',
+          ['Card.ts', 'Card.mts', 'Card.cts', 'Card.tsx', '--json'],
+          { cwd: dir },
+        );
+        expect(result.stderr).toBe('');
+        expect(result.status).toBe(0);
+        const { linted, problems } = JSON.parse(result.stdout);
+        expect(linted).toBe(4);
+        expect(
+          problems.map(({ file, rule, line, column }: Problem) => [
+            file,
+            rule,
+            line,
+            column,
+          ]),
+        ).toEqual([
+          ...['cts', 'mts', 'ts', 'tsx'].map((ext) => [
+            `Card.${ext}`,
+            'tasty/no-raw-color-values',
+            5,
+            source[4].indexOf("'#00ff00'") + 1,
+          ]),
+          ['Card.tsx', 'tasty/no-styles-prop', 7, 7],
+        ]);
+      });
 
-      // A hook reports a setup problem to the person, not to the agent.
-      const edit = hook({ tool_input: { file_path: 'Card.tsx' } }, dir);
-      expect(edit.status).toBe(1);
-      expect(edit.stderr).toContain('Install typescript-eslint');
-    });
-  });
+      it('reports only the TypeScript problems added by an edit', () => {
+        const edit = hook(
+          {
+            tool_input: { file_path: 'Card.tsx' },
+            tool_response: { originalFile: source.join('\r\n') },
+          },
+          dir,
+        );
+        expect(edit.status).toBe(2);
+        expect(edit.stderr).not.toContain('does not support TS 7.0');
+        expect(edit.stderr).toContain('this edit left 1 Tasty lint problem');
+        expect(edit.stderr).toContain('Card.tsx:7:7  tasty/no-styles-prop');
+      });
+
+      it('reports invalid TypeScript as a syntax error', () => {
+        const result = node('check.mjs', ['Invalid.ts', '--json'], {
+          cwd: dir,
+        });
+        expect(result.stderr).toBe('');
+        expect(result.status).toBe(1);
+        expect(JSON.parse(result.stdout).problems).toEqual([
+          expect.objectContaining({ rule: null, line: 1, column: 15 }),
+        ]);
+      });
+
+      it('lints JavaScript independently of the TypeScript parser', () => {
+        const result = node('check.mjs', ['Card.mjs'], { cwd: dir });
+        expect(result.status).toBe(0);
+        expect(result.stderr).toBe('');
+        expect(result.stdout).toContain('tasty/no-raw-color-values');
+      });
+    },
+  );
 });

@@ -1,6 +1,9 @@
-import type { TSESLint } from '@typescript-eslint/utils';
+type RuleLevel = 'off' | 'warn' | 'error' | 0 | 1 | 2;
+type RulesRecord = Partial<
+  Record<string, RuleLevel | [RuleLevel, ...unknown[]]>
+>;
 
-export const recommended: TSESLint.SharedConfig.RulesRecord = {
+export const recommended: RulesRecord = {
   'tasty/known-property': 'warn',
   'tasty/valid-value': 'error',
   'tasty/valid-color-token': 'error',
@@ -44,7 +47,7 @@ export const recommended: TSESLint.SharedConfig.RulesRecord = {
   'tasty/prefer-longhand-property': 'error',
 };
 
-export const strict: TSESLint.SharedConfig.RulesRecord = {
+export const strict: RulesRecord = {
   ...recommended,
   'tasty/valid-custom-property': 'warn',
   'tasty/no-unknown-state-alias': 'warn',
