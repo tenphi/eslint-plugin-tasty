@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.21.2
+
+### Patch Changes
+
+- [#172](https://github.com/tenphi/eslint-plugin-tasty/pull/172) [`41fab8a`](https://github.com/tenphi/eslint-plugin-tasty/commit/41fab8a1def249e0ecd9e3d9bb304a24630e1bd0) Thanks [@tenphi](https://github.com/tenphi)! - Lint TypeScript 7 files with `tasty-lint:check` and the edit hook via the Oxc parser fallback, and avoid pulling in TypeScript 6 through the plugin's runtime dependencies.
+
 ## 1.21.1
 
 ### Patch Changes
