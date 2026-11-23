@@ -2,7 +2,9 @@
  * The project's own Tasty lint config, so the tools report what the project's
  * lint reports: the level and options of each tasty/* rule, `settings.tasty`,
  * and the files the config ignores. It comes from the nearest Oxlint or ESLint
- * config above a file that loads this plugin.
+ * config above a file that loads this plugin: by its name, or through a package
+ * in the `importSources` of `tasty.config.*`, as a design system that re-exports
+ * Tasty for styles often re-exports this plugin for lint too.
  *
  * Both are read through ESLint's `calculateConfigForFile()`: the project's ESLint
  * config as it is, and an Oxlint config once it is turned into a flat config
@@ -16,12 +18,18 @@ const NAME = '@tenphi/eslint-plugin-tasty';
 /** The names Oxlint gives the plugin when `jsPlugins` lists it without one. */
 const OXLINT_NAMES = ['@tenphi/tasty', NAME];
 
-/** The files Oxlint 1.x finds by itself, in each folder from the file up. */
+/**
+ * The files Oxlint 1.x finds by itself, in each folder from the file up, then
+ * the JavaScript ones it reads only through `--config`.
+ */
 export const OXLINT_CONFIGS = [
   '.oxlintrc.json',
   '.oxlintrc.jsonc',
   'oxlint.config.ts',
   'oxlint.config.mts',
+  'oxlint.config.js',
+  'oxlint.config.mjs',
+  'oxlint.config.cjs',
 ];
 
 export const ESLINT_CONFIGS = [
@@ -93,13 +101,45 @@ function replaceOutsideStrings(text, pattern, replacement) {
   return out;
 }
 
-async function importConfig(file) {
-  // Loaded only for a TypeScript config: the hook starts on every edit.
+/** The package a bare specifier names, such as `@acme/kit` for `@acme/kit/lint`. */
+export function packageOf(specifier) {
+  if (specifier.startsWith('.') || isAbsolute(specifier)) return undefined;
+  const parts = specifier.split('/');
+  return parts.slice(0, specifier.startsWith('@') ? 2 : 1).join('/');
+}
+
+/**
+ * The packages that may re-export this plugin: those of the bare
+ * `importSources`, but Tasty itself.
+ */
+export function reexportingPackages(importSources) {
+  const packages = new Set();
+  for (const source of importSources ?? []) {
+    const name = typeof source === 'string' ? packageOf(source) : undefined;
+    if (name && name !== '@tenphi/tasty' && name !== NAME) packages.add(name);
+  }
+  return [...packages].sort();
+}
+
+/** Whether a config's text names this plugin or one of `packages`. */
+export function namesPlugin(text, packages = []) {
+  if (text.includes(NAME)) return true;
+  return packages.some((name) => {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+    return new RegExp(`(['"\`])${escaped}(?:/[^'"\`]*)?\\1`).test(text);
+  });
+}
+
+/** A module as `from` would import it, through jiti. */
+async function importFrom(from, specifier) {
+  // Loaded only when needed: the hook starts on every edit.
   const { createJiti } = await import('jiti');
-  const jiti = createJiti(file, { moduleCache: false });
-  const mod = await jiti.import(file);
+  const jiti = createJiti(from, { moduleCache: false });
+  const mod = await jiti.import(specifier);
   return mod?.default ?? mod;
 }
+
+const importConfig = (file) => importFrom(file, file);
 
 async function readOxlintConfig(file) {
   return /\.jsonc?$/.test(file)
@@ -130,19 +170,38 @@ async function oxlintLayers(config, dir, seen = new Set()) {
   return layers;
 }
 
-/** Whether a `jsPlugins` specifier loads this package. */
-function isThisPlugin(specifier, dir, packageRoot) {
+/**
+ * Whether a `jsPlugins` specifier of the config `file` loads this plugin: by
+ * its name, by a path into this package, or as what a module of one of
+ * `packages` exports.
+ */
+async function isThisPlugin(
+  specifier,
+  file,
+  { plugin, packageRoot, packages },
+) {
   if (specifier === NAME || specifier.startsWith(`${NAME}/`)) return true;
-  if (!specifier.startsWith('.') && !isAbsolute(specifier)) return false;
+  const name = packageOf(specifier);
+  if (!name) {
+    try {
+      return realpathSync(resolve(dirname(file), specifier)).startsWith(
+        packageRoot + sep,
+      );
+    } catch {
+      return false;
+    }
+  }
+  if (!packages.includes(name)) return false;
   try {
-    return realpathSync(resolve(dir, specifier)).startsWith(packageRoot + sep);
+    const loaded = await importFrom(file, specifier);
+    return loaded === plugin || loaded?.meta?.name === NAME;
   } catch {
     return false;
   }
 }
 
 /** The names an Oxlint config's `jsPlugins` give this plugin. */
-function oxlintNames(layers, dir, packageRoot) {
+async function oxlintNames(layers, file, options) {
   const names = new Set();
   const entries = layers.flatMap((layer) => [
     ...(layer.jsPlugins ?? []),
@@ -153,7 +212,7 @@ function oxlintNames(layers, dir, packageRoot) {
       typeof entry === 'string' ? { specifier: entry } : (entry ?? {});
     if (
       typeof specifier !== 'string' ||
-      !isThisPlugin(specifier, dir, packageRoot)
+      !(await isThisPlugin(specifier, file, options))
     ) {
       continue;
     }
@@ -209,14 +268,20 @@ export function ignoreGlobs(pattern) {
  * the overrides that change them, `settings.tasty` and `ignorePatterns`.
  * Undefined when the config does not load the plugin.
  */
-export async function oxlintFlatConfig(file, { plugin, packageRoot }) {
-  const dir = dirname(file);
+export async function oxlintFlatConfig(
+  file,
+  { plugin, packageRoot, packages = [] },
+) {
   const layers = await oxlintLayers(
     await readOxlintConfig(file),
-    dir,
+    dirname(file),
     new Set([file]),
   );
-  const names = oxlintNames(layers, dir, packageRoot);
+  const names = await oxlintNames(layers, file, {
+    plugin,
+    packageRoot,
+    packages,
+  });
   if (names.size === 0) return undefined;
   const known = new Set(Object.keys(plugin.rules));
   const settings = Object.assign(
@@ -252,17 +317,42 @@ export async function oxlintFlatConfig(file, { plugin, packageRoot }) {
  *
  * `forFile(file)` gives `{ source, rules, settings }`: `source` is the config
  * (`{ linter, file, dir }`), or null when no config above the file loads the
- * plugin, and then `rules` is null too. `ignored` is true when the config does
- * not lint the file.
+ * plugin, and then `rules` is null too, and `unused` is the nearest lint config
+ * above the file, if any. `ignored` is true when the config does not lint the
+ * file.
+ *
+ * With `loadConfig` (the plugin's), a config also loads the plugin through the
+ * packages of the `importSources` of the file's `tasty.config.*`.
  */
-export function createConfigResolver({ ESLint, plugin, packageRoot }) {
+export function createConfigResolver({
+  ESLint,
+  plugin,
+  packageRoot,
+  loadConfig,
+}) {
   const known = new Set(Object.keys(plugin.rules));
   const byDir = new Map();
 
-  async function sourceIn(dir) {
-    const oxlint = OXLINT_CONFIGS.map((n) => join(dir, n)).find(existsSync);
-    if (oxlint) {
-      const config = await oxlintFlatConfig(oxlint, { plugin, packageRoot });
+  function packagesFor(file) {
+    try {
+      return loadConfig
+        ? reexportingPackages(loadConfig(file).importSources)
+        : [];
+    } catch {
+      // A broken tasty.config.* is reported when the rules run.
+      return [];
+    }
+  }
+
+  async function sourceIn(dir, packages) {
+    let unused;
+    for (const oxlint of OXLINT_CONFIGS.map((n) => join(dir, n))) {
+      if (!existsSync(oxlint)) continue;
+      const config = await oxlintFlatConfig(oxlint, {
+        plugin,
+        packageRoot,
+        packages,
+      });
       if (config) {
         return {
           linter: 'oxlint',
@@ -275,10 +365,11 @@ export function createConfigResolver({ ESLint, plugin, packageRoot }) {
           }),
         };
       }
+      unused ??= oxlint;
     }
     // A text test first: loading an ESLint config loads every plugin it uses.
     const eslint = ESLINT_CONFIGS.map((n) => join(dir, n)).find(existsSync);
-    if (eslint && readFileSync(eslint, 'utf8').includes(NAME)) {
+    if (eslint && namesPlugin(readFileSync(eslint, 'utf8'), packages)) {
       return {
         linter: 'eslint',
         file: eslint,
@@ -286,19 +377,30 @@ export function createConfigResolver({ ESLint, plugin, packageRoot }) {
         eslint: new ESLint({ cwd: dir, overrideConfigFile: eslint }),
       };
     }
+    unused ??= eslint;
     const parent = dirname(dir);
-    return parent === dir ? null : sourceFor(parent);
+    const above = parent === dir ? null : await sourceFor(parent, packages);
+    return above?.linter ? above : { unused: unused ?? above?.unused };
   }
 
-  function sourceFor(dir) {
-    if (!byDir.has(dir)) byDir.set(dir, sourceIn(dir));
-    return byDir.get(dir);
+  function sourceFor(dir, packages) {
+    const key = `${dir}\0${packages.join(',')}`;
+    if (!byDir.has(key)) byDir.set(key, sourceIn(dir, packages));
+    return byDir.get(key);
   }
 
   return {
     async forFile(file) {
-      const source = await sourceFor(dirname(file));
-      if (!source) return { source: null, rules: null, settings: {} };
+      const found = await sourceFor(dirname(file), packagesFor(file));
+      if (!found.linter) {
+        return {
+          source: null,
+          rules: null,
+          settings: {},
+          ...(found.unused ? { unused: found.unused } : {}),
+        };
+      }
+      const source = found;
       const config = await source.eslint.calculateConfigForFile(file);
       if (!config) return { source, ignored: true, rules: {}, settings: {} };
       const names = new Set(

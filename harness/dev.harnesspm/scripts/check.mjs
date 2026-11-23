@@ -33,10 +33,13 @@ const USAGE = `Usage: npx harnesspm run tasty-lint:check <files or folders>... [
 Lints the files with the Tasty rules of @tenphi/eslint-plugin-tasty only, as
 the project's own lint runs them: each file gets the tasty/* rules, their
 options and settings.tasty (such as typeAwareJSX) from the nearest
-.oxlintrc.json, .oxlintrc.jsonc, oxlint.config.ts, oxlint.config.mts or ESLint
-flat config above it that loads the plugin, and the files that config ignores
-are skipped. Without such a config, it runs the recommended preset. The rules
-read the project's tasty.config.* too. Other plugins' rules do not run.
+.oxlintrc.json, .oxlintrc.jsonc or oxlint.config.* (.ts, .mts, .js, .mjs,
+.cjs) or ESLint flat config above it that loads the plugin, by its name or
+through a package in the importSources of tasty.config.* that re-exports it,
+and the files that config ignores are skipped. Without such a config, it runs
+the recommended preset, and says so when it found a lint config that it could
+not tell loads the plugin. The rules read the project's tasty.config.* too.
+Other plugins' rules do not run.
 
 Disable comments for the Tasty rules apply: // eslint-disable-next-line
 tasty/<rule> -- <reason>, and the oxlint-disable forms, unless the config is
@@ -98,6 +101,9 @@ const {
   recommended,
   strict,
 } = await import(pathToFileURL(BUILD).href);
+const { loadConfig } = await import(
+  pathToFileURL(join(PACKAGE_ROOT, 'dist/config.js')).href
+);
 const preset = options.strict ? 'strict' : 'recommended';
 
 let ESLint;
@@ -134,8 +140,12 @@ const resolver = createConfigResolver({
   ESLint,
   plugin,
   packageRoot: PACKAGE_ROOT,
+  loadConfig,
 });
 const groups = new Map();
+// Lint configs in the project that the tools could not tell load the plugin,
+// and the files that got a preset instead.
+const unused = new Map();
 const skipped = [];
 const configs = new Set();
 const namedFiles = [];
@@ -176,6 +186,14 @@ for (const target of targets) {
       continue;
     }
     if (config) configs.add(config);
+    if (
+      project.unused &&
+      !relative(projectDir, project.unused).startsWith('..')
+    ) {
+      const key = show(project.unused);
+      if (!unused.has(key)) unused.set(key, []);
+      unused.get(key).push(show(file));
+    }
     if (named) namedFiles.push(file);
     const key = JSON.stringify(lint);
     if (!groups.has(key)) groups.set(key, { lint, files: [], config });
@@ -219,14 +237,10 @@ const reported = new Set([
   ...problems.map((p) => p.file),
   ...collected.skipped.map((s) => s.file),
 ]);
-let loadConfig;
 for (const file of new Set(namedFiles)) {
   if (reported.has(show(file))) continue;
   const text = readFileSync(file, 'utf8');
   if (importsFrom(text)) continue;
-  loadConfig ??= (
-    await import(pathToFileURL(join(PACKAGE_ROOT, 'dist/config.js')).href)
-  ).loadConfig;
   let importSources;
   try {
     ({ importSources } = loadConfig(file));
@@ -268,6 +282,10 @@ if (options.json) {
         })),
         skipped,
         noTastyImport,
+        unusedConfigs: [...unused].map(([config, files]) => ({
+          config,
+          files,
+        })),
       },
       null,
       2,
@@ -285,6 +303,11 @@ if (options.json) {
       formatProblems(problems, pageOf),
       '',
       `${summarize(problems)} in ${count} (${ruleset}).`,
+    );
+  }
+  for (const [config, files] of unused) {
+    out.push(
+      `Found ${config}, but it does not name @tenphi/eslint-plugin-tasty or a package in the importSources of tasty.config.*, so ${files.length === 1 ? files[0] : `${files.length} files`} got the ${preset} rules, not its own. If it loads the plugin through a package that re-exports it, list that package in importSources.`,
     );
   }
   for (const n of noTastyImport) out.push(n.message);

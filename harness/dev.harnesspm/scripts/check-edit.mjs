@@ -4,12 +4,16 @@
  * ones) and hands the new problems back.
  *
  * Claude Code runs it on PostToolUse for Edit, Write and MultiEdit, with the
- * event as JSON on stdin. Exit 0 says nothing. Exit 2 puts stderr in front of
- * the agent. Any other exit shows stderr to the person only, which is how a
- * broken setup is reported: the agent cannot fix it.
+ * event as JSON on stdin. Exit 0 says nothing, unless stdout holds JSON with
+ * `hookSpecificOutput.additionalContext`, which the agent reads next to the
+ * tool result. Exit 2 puts stderr in front of the agent. Any other exit shows
+ * stderr to the person only, which is how a broken setup is reported: the
+ * agent cannot fix it.
  */
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   collectProblems,
@@ -36,6 +40,38 @@ const PACKAGE_ROOT = realpathSync(
 function setupError(message) {
   console.error(`tasty-lint (check-edit hook): ${message}`);
   process.exit(1);
+}
+
+/**
+ * Without ESLint the hook cannot lint. ESLint is a peer dependency, so this is
+ * mostly a package manager that does not install peers, such as Yarn, or else a
+ * project that lints with Oxlint alone. Silence would read as "no problems", so
+ * the agent hears it, as context rather than as a problem, once per session.
+ */
+function notLinted() {
+  const session = typeof event.session_id === 'string' ? event.session_id : '';
+  if (session) {
+    const id = createHash('sha256')
+      .update(`${session}\0${projectDir}`)
+      .digest('hex')
+      .slice(0, 16);
+    try {
+      writeFileSync(join(tmpdir(), `tasty-lint-no-eslint-${id}`), '', {
+        flag: 'wx',
+      });
+    } catch (error) {
+      // Said already in this session.
+      if (error?.code === 'EEXIST') process.exit(0);
+    }
+  }
+  const shown = relative(projectDir, file) || file;
+  const additionalContext = `tasty-lint: the edit of ${shown} was not linted, and the hook will not lint other edits in this session: it cannot find eslint, a peer dependency of @tenphi/eslint-plugin-tasty that some package managers, such as Yarn, do not install. Install eslint as a dev dependency so that the hook and \`npx harnesspm run tasty-lint:check\` work, or lint the changed files with the project's own lint command.`;
+  console.log(
+    JSON.stringify({
+      hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext },
+    }),
+  );
+  process.exit(0);
 }
 
 let event;
@@ -84,17 +120,17 @@ try {
   try {
     loaded = await loadESLint(dirs, PACKAGE_ROOT);
   } catch (error) {
-    // A project that lints with Oxlint alone may have no ESLint. Then the hook
-    // stays out of the way, and `tasty-lint:check` says what to install.
-    if (error?.code === 'NO_ESLINT') process.exit(0);
+    if (error?.code === 'NO_ESLINT') notLinted();
     throw error;
   }
   const { ESLint, espree } = loaded;
   const { default: plugin, recommended } = await import(build('index.js'));
+  const { loadConfig } = await import(build('config.js'));
   const project = await createConfigResolver({
     ESLint,
     plugin,
     packageRoot: PACKAGE_ROOT,
+    loadConfig,
   }).forFile(file);
   linter = project.source?.linter;
   const lint = lintOptions(project, { recommended, projectDir });
