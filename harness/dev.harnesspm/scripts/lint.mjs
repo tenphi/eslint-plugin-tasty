@@ -4,10 +4,11 @@
  * tools pass the project's ESLint and this package's `dist/` build, and
  * `src/harness.test.ts` passes the source, so most tests need no build.
  */
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import semver from 'semver';
 import { SOURCES } from './project-config.mjs';
 
 /** Files the tools lint: JavaScript and TypeScript, with or without JSX. */
@@ -311,7 +312,7 @@ export async function loadESLint(dirs, packageRoot) {
  * The TypeScript parser the project installs: `@typescript-eslint/parser`, or
  * the one `typescript-eslint` depends on. Undefined when there is none.
  */
-export async function loadTypeScriptParser(dirs) {
+async function loadProjectTypeScriptParser(dirs) {
   for (const dir of dirs) {
     let file = resolveFrom(dir, '@typescript-eslint/parser');
     if (!file) {
@@ -323,13 +324,60 @@ export async function loadTypeScriptParser(dirs) {
         );
       }
     }
-    if (file) return importFile(file);
+    if (!file) continue;
+    // The parser can print to stderr before throwing on native TypeScript.
+    // Check the compiler it would load, including a nested TS 6 installation.
+    const parserDir = dirname(file);
+    const compiler = resolveFrom(parserDir, 'typescript/package.json');
+    const manifest = resolveFrom(
+      parserDir,
+      '@typescript-eslint/parser/package.json',
+    );
+    if (compiler && manifest) {
+      const { version } = JSON.parse(readFileSync(compiler, 'utf8'));
+      const { peerDependencies } = JSON.parse(readFileSync(manifest, 'utf8'));
+      const supported = peerDependencies?.typescript;
+      if (
+        Number.parseInt(version, 10) >= 7 &&
+        supported &&
+        !semver.satisfies(version, supported, { includePrerelease: true })
+      ) {
+        throw new Error(
+          `typescript-eslint does not support TypeScript ${version}`,
+        );
+      }
+    }
+    return importFile(file);
   }
   return undefined;
 }
 
-export const NO_PARSER =
-  'Linting TypeScript needs a TypeScript parser, and this project has none. Install typescript-eslint (or @typescript-eslint/parser) as a dev dependency.';
+/** Prefer the project's parser and fall back to syntax-only parsing with Oxc. */
+export async function loadTypeScriptParser(dirs) {
+  let projectError;
+  try {
+    const parser = await loadProjectTypeScriptParser(dirs);
+    if (parser) return parser;
+  } catch (error) {
+    projectError = error;
+  }
+  try {
+    return await import('./oxc-eslint-parser.mjs');
+  } catch (error) {
+    throw new Error(
+      [
+        'cannot load a TypeScript parser.',
+        ...(projectError
+          ? [`The project's parser failed: ${projectError.message}.`]
+          : []),
+        `The Oxc fallback failed: ${error.message}.`,
+        "Install the plugin's optional dependencies or a compatible typescript-eslint parser.",
+        'JavaScript files such as .js and .mjs can still be linted.',
+      ].join(' '),
+      { cause: error },
+    );
+  }
+}
 
 /**
  * The path to show for a rule's page: through the stable link harnesspm keeps
