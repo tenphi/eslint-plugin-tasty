@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.21.3
+
+### Patch Changes
+
+- [#176](https://github.com/tenphi/eslint-plugin-tasty/pull/176) [`8e4bde4`](https://github.com/tenphi/eslint-plugin-tasty/commit/8e4bde4249d9d4469c8838b812df122ce5bd1296) Thanks [@tenphi](https://github.com/tenphi)! - `tasty-lint:check` and the edit hook now follow a lint config that loads the plugin through a package in `importSources` that re-exports it, or from an `oxlint.config.js`/`.mjs`/`.cjs`, and `tasty-lint:check` names a config it passed over; without `eslint`, the hook tells the agent once per session that it did not lint the edit.
+
 ## 1.21.2
 
 ### Patch Changes
