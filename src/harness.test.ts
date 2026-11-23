@@ -38,7 +38,9 @@ import {
   createConfigResolver,
   fileGlob,
   ignoreGlobs,
+  namesPlugin,
   parseJsonc,
+  reexportingPackages,
   tastyRules,
 } from '../harness/dev.harnesspm/scripts/project-config.mjs';
 import { recommended, strict } from './configs';
@@ -497,7 +499,13 @@ describe("tasty-lint and the project's lint config", () => {
 
   it('falls back to a preset without a config, and adds strict on request', async () => {
     const none = await resolver().forFile(join(FIXTURES, 'Card.tsx'));
-    expect(none).toEqual({ source: null, rules: null, settings: {} });
+    // The repository's own eslint.config.js, which does not load the plugin.
+    expect(none).toEqual({
+      source: null,
+      rules: null,
+      settings: {},
+      unused: join(ROOT, 'eslint.config.js'),
+    });
 
     const options = { recommended, strict, projectDir: FIXTURES };
     expect(lintOptions(none, options)).toEqual({
@@ -536,6 +544,26 @@ describe("tasty-lint and the project's lint config", () => {
       'tasty/known-property': 'warn',
       'tasty/valid-preset': ['error', { x: 1 }],
     });
+  });
+
+  it('looks for the packages of importSources that may re-export the plugin', () => {
+    const packages = reexportingPackages([
+      '@acme/kit/styling',
+      '@acme/kit',
+      'kit/styles',
+      '@tenphi/tasty/static',
+      './local.js',
+    ]);
+    expect(packages).toEqual(['@acme/kit', 'kit']);
+
+    expect(namesPlugin(`import t from '@tenphi/eslint-plugin-tasty';`)).toBe(
+      true,
+    );
+    expect(namesPlugin(`import t from "@acme/kit/eslint";`, packages)).toBe(
+      true,
+    );
+    expect(namesPlugin(`import t from '@acme/kitchen';`, packages)).toBe(false);
+    expect(namesPlugin(`import t from '@acme/kit/eslint';`)).toBe(false);
   });
 
   it('turns Oxlint globs into ESLint ones', () => {
@@ -983,6 +1011,136 @@ export default [
     });
   });
 
+  describe('in a project that loads the plugin through a package that re-exports it', () => {
+    let dir: string;
+    // A strict-only problem: the recommended preset does not report it.
+    const styles = `import { tasty } from '@acme/kit/styling';
+
+export const Card = tasty({
+  styles: { $cardGap: '2x', gap: '$card-gap', padding: '2x' },
+});
+`;
+
+    beforeAll(() => {
+      dir = realpathSync(mkdtempSync(join(tmpdir(), 'tasty-lint-reexport-')));
+      // A design system that re-exports Tasty for styles and the plugin for
+      // lint, and ships a tasty.config.* that lists its styles module and
+      // tokens, which turns on the existence check of custom properties. The
+      // plugin is only its dependency, so the project cannot name it.
+      const kit = join(dir, 'node_modules/@acme/kit');
+      mkdirSync(join(kit, 'node_modules/@tenphi'), { recursive: true });
+      symlinkSync(ROOT, join(kit, 'node_modules/@tenphi/eslint-plugin-tasty'));
+      writeFileSync(
+        join(kit, 'package.json'),
+        JSON.stringify({
+          name: '@acme/kit',
+          type: 'module',
+          exports: {
+            './styling': { import: './styling.js' },
+            './eslint-plugin': { import: './eslint-plugin.js' },
+          },
+        }),
+      );
+      writeFileSync(join(kit, 'styling.js'), 'export const tasty = () => {};');
+      writeFileSync(
+        join(kit, 'eslint-plugin.js'),
+        "export { default, recommended, strict } from '@tenphi/eslint-plugin-tasty';",
+      );
+      writeFileSync(
+        join(kit, 'tasty.config.mjs'),
+        "export default { importSources: ['@acme/kit/styling'], tokens: ['$gap'] };",
+      );
+
+      writeFileSync(join(dir, 'package.json'), '{"type":"module"}');
+      writeFileSync(
+        join(dir, 'tasty.config.mjs'),
+        "export default { extends: '@acme/kit' };",
+      );
+      writeFileSync(
+        join(dir, 'eslint.config.mjs'),
+        `import tasty from '@acme/kit/eslint-plugin';
+export default [{ ...tasty.configs.strict, files: ['**/*.{js,mjs}'] }];
+`,
+      );
+      writeFileSync(join(dir, 'Card.styles.js'), styles);
+
+      // An Oxlint config that Oxlint reads only through --config.
+      mkdirSync(join(dir, 'oxlint'));
+      writeFileSync(
+        join(dir, 'oxlint/oxlint.config.mjs'),
+        `import { strict } from '@acme/kit/eslint-plugin';
+export default {
+  jsPlugins: [{ name: 'tasty', specifier: '@acme/kit/eslint-plugin' }],
+  rules: strict,
+};
+`,
+      );
+      writeFileSync(join(dir, 'oxlint/Card.styles.js'), styles);
+
+      // A package whose tasty.config.* does not list the kit.
+      mkdirSync(join(dir, 'plain'));
+      writeFileSync(join(dir, 'plain/package.json'), '{"type":"module"}');
+      writeFileSync(
+        join(dir, 'plain/tasty.config.mjs'),
+        "export default { tokens: ['$gap'] };",
+      );
+      writeFileSync(
+        join(dir, 'plain/Card.styles.js'),
+        styles.replace('@acme/kit/styling', '@tenphi/tasty'),
+      );
+    });
+
+    afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+    const check = (args: string[]) => node('check.mjs', args, { cwd: dir });
+
+    it('runs the rules of an ESLint config that imports the package', () => {
+      const run = check(['Card.styles.js']);
+
+      expect(run.stdout).toMatch(
+        /^Card\.styles\.js:4:\d+ {2}tasty\/valid-custom-property {2}warning /m,
+      );
+      expect(run.stdout).toContain('(rules from eslint.config.mjs).');
+    });
+
+    it('runs the rules of an oxlint.config.mjs that loads the package', () => {
+      const run = check(['oxlint/Card.styles.js']);
+
+      expect(run.stdout).toMatch(/tasty\/valid-custom-property {2}warning /);
+      expect(run.stdout).toContain('(rules from oxlint/oxlint.config.mjs).');
+    });
+
+    it('hands the problems back from the hook', () => {
+      const edit = hook({ tool_input: { file_path: 'Card.styles.js' } }, dir);
+
+      expect(edit.status).toBe(2);
+      expect(edit.stderr).toContain(
+        'Card.styles.js:4:34  tasty/valid-custom-property',
+      );
+    });
+
+    it('says when it found a config that it cannot tell loads the plugin', () => {
+      const run = check(['plain/Card.styles.js']);
+
+      expect(run.stdout).toContain(
+        'No tasty/* problems in 1 file (recommended rules).',
+      );
+      expect(run.stdout).toContain(
+        'Found eslint.config.mjs, but it does not name @tenphi/eslint-plugin-tasty or a package in the importSources of tasty.config.*, so plain/Card.styles.js got the recommended rules, not its own.',
+      );
+      expect(
+        JSON.parse(check(['plain/Card.styles.js', '--json']).stdout)
+          .unusedConfigs,
+      ).toEqual([
+        { config: 'eslint.config.mjs', files: ['plain/Card.styles.js'] },
+      ]);
+      // --strict finds what the project's lint does.
+      expect(check(['plain/Card.styles.js', '--strict']).stdout).toMatch(
+        /tasty\/valid-custom-property {2}warning /,
+      );
+    });
+  });
+
   describe('in a project without ESLint', () => {
     let dir: string;
     let scripts: string;
@@ -1017,15 +1175,40 @@ export default [
         env: { ...process.env, NODE_PATH: '', HARNESSPM_PROJECT_DIR: dir },
       });
 
-    it('keeps the hook quiet, and says what check needs', () => {
-      const edit = run(
-        'check-edit.mjs',
-        [],
-        JSON.stringify({ cwd: dir, tool_input: { file_path: 'Card.tsx' } }),
-      );
-      expect(edit.status).toBe(0);
-      expect(edit.stderr).toBe('');
+    it('tells the agent once per session that the hook did not lint', () => {
+      const edit = (session: string) =>
+        run(
+          'check-edit.mjs',
+          [],
+          JSON.stringify({
+            session_id: session,
+            cwd: dir,
+            tool_input: { file_path: 'Card.tsx' },
+          }),
+        );
+      const session = `test-${process.pid}-${Date.now()}`;
 
+      // Context for the agent, not a problem: exit 0.
+      const first = edit(session);
+      expect(first.status).toBe(0);
+      expect(first.stderr).toBe('');
+      const { hookSpecificOutput } = JSON.parse(first.stdout);
+      expect(hookSpecificOutput.hookEventName).toBe('PostToolUse');
+      expect(hookSpecificOutput.additionalContext).toContain(
+        'the edit of Card.tsx was not linted',
+      );
+      expect(hookSpecificOutput.additionalContext).toContain(
+        'cannot find eslint',
+      );
+
+      // Not again in the same session.
+      const second = edit(session);
+      expect(second.status).toBe(0);
+      expect(second.stdout).toBe('');
+      expect(second.stderr).toBe('');
+    });
+
+    it('says what check needs', () => {
       const check = run('check.mjs', ['Card.tsx']);
       expect(check.status).toBe(2);
       expect(check.stderr).toContain('cannot find eslint');
