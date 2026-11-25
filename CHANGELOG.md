@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.21.4
+
+### Patch Changes
+
+- [#178](https://github.com/tenphi/eslint-plugin-tasty/pull/178) [`1c94945`](https://github.com/tenphi/eslint-plugin-tasty/commit/1c949453ceef0c5a1a6c3703ee0caa3554079ea2) Thanks [@tenphi](https://github.com/tenphi)! - The `no-protected-restyle` rule page links to the README by its URL, so the link also works in the copy of the docs that harnesspm gives agents.
+
 ## 1.21.3
 
 ### Patch Changes
