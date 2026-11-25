@@ -192,7 +192,7 @@ prop, under the same terms.
 A style prop is a Tasty style property or an entry in `config.styles`. Plain
 CSS property names are left out, because some of them (`size`, `orientation`)
 are common semantic props. With
-[`typeAwareJSX`](../../README.md#experimental-type-aware-jsx-props) on, a prop
+[`typeAwareJSX`](https://github.com/tenphi/eslint-plugin-tasty#experimental-type-aware-jsx-props) on, a prop
 the component declares with its own type (such as a `position: 'before' |
 'after'` prop) is not a style prop either. Callbacks and JSX values are never
 style values.

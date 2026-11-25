@@ -28,8 +28,8 @@ importers:
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.0.3(jiti@2.6.1))
       '@tenphi/harnesspm':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.13.1
+        version: 0.13.1
       '@tenphi/tasty':
         specifier: ^3.19.0
         version: 3.19.0(jiti@2.6.1)(react@19.2.8)
@@ -729,8 +729,8 @@ packages:
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
-  '@tenphi/harnesspm@0.2.0':
-    resolution: {integrity: sha512-g2vwFNMXr+UnMnKV5wn2b7isMQ1+Ex9JE39eKj9rcovbndHoOf7HKx3e9D9cisFr38pmK7Q/JeTjbREMzNzFMQ==}
+  '@tenphi/harnesspm@0.13.1':
+    resolution: {integrity: sha512-cdrE8w1rYIQrJXLKpqa5kdlPbqAe3KBSiicBoN5v+Wv2sAbEB1Bkn6zGaWB7FPIMh78YZ8RQRhV9fzLdV/Ih5w==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -2350,7 +2350,7 @@ snapshots:
 
   '@standard-schema/spec@1.1.0': {}
 
-  '@tenphi/harnesspm@0.2.0':
+  '@tenphi/harnesspm@0.13.1':
     dependencies:
       yaml: 2.9.1
 
