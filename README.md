@@ -640,11 +640,11 @@ The peer range floor is 3.8.0 for that reason.
 
 ## AI agents
 
-The package ships an agent harness for [harnesspm](https://www.npmjs.com/package/@tenphi/harnesspm), as plugin `tasty-lint`. In a project that uses harnesspm, agents get:
+The package ships an agent harness for [harnesspm](https://www.npmjs.com/package/@harnesspm/cli), as plugin `tasty-lint`. In a project that uses harnesspm, agents get:
 
 - a short always-on rule: lint the files you change and fix every `tasty/*` problem;
 - the rule pages of the installed version, in the docs index;
-- `npx harnesspm run tasty-lint:check <files> [--strict] [--json]`, which runs only the `tasty/*` rules and prints each problem with its rule's page. It also notes a file named on the command line that imports nothing from `@tenphi/tasty` or a configured `importSources` module, since the rules may have found no styles in it;
+- `npx -y @harnesspm/cli run tasty-lint:check <files> [--strict] [--json]`, which runs only the `tasty/*` rules and prints each problem with its rule's page. It also notes a file named on the command line that imports nothing from `@tenphi/tasty` or a configured `importSources` module, since the rules may have found no styles in it;
 - a Claude Code hook that lints each file the agent edits, when it imports Tasty or a configured `importSources` module, and hands the new problems back to the agent.
 
 The tool and the hook run only in projects that trust the package, in `harnesspm.json`:

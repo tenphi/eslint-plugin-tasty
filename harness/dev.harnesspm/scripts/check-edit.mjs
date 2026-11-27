@@ -65,7 +65,7 @@ function notLinted() {
     }
   }
   const shown = relative(projectDir, file) || file;
-  const additionalContext = `tasty-lint: the edit of ${shown} was not linted, and the hook will not lint other edits in this session: it cannot find eslint, a peer dependency of @tenphi/eslint-plugin-tasty that some package managers, such as Yarn, do not install. Install eslint as a dev dependency so that the hook and \`npx harnesspm run tasty-lint:check\` work, or lint the changed files with the project's own lint command.`;
+  const additionalContext = `tasty-lint: the edit of ${shown} was not linted, and the hook will not lint other edits in this session: it cannot find eslint, a peer dependency of @tenphi/eslint-plugin-tasty that some package managers, such as Yarn, do not install. Install eslint as a dev dependency so that the hook and \`npx -y @harnesspm/cli run tasty-lint:check\` work, or lint the changed files with the project's own lint command.`;
   console.log(
     JSON.stringify({
       hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext },
@@ -186,13 +186,13 @@ const out = [
 if (problems.length > LIMIT) {
   out.push(
     '',
-    `${problems.length - LIMIT} more: run \`npx harnesspm run tasty-lint:check ${relativeFile}\`.`,
+    `${problems.length - LIMIT} more: run \`npx -y @harnesspm/cli run tasty-lint:check ${relativeFile}\`.`,
   );
 }
 if (typeAware) {
   out.push(
     '',
-    `This hook skips typeAwareJSX to stay fast, so it reads JSX props by their names. If a reported JSX prop is not a style, check it with \`npx harnesspm run tasty-lint:check ${relativeFile}\`.`,
+    `This hook skips typeAwareJSX to stay fast, so it reads JSX props by their names. If a reported JSX prop is not a style, check it with \`npx -y @harnesspm/cli run tasty-lint:check ${relativeFile}\`.`,
   );
 }
 console.error(out.join('\n'));
