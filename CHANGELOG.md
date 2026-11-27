@@ -1,5 +1,11 @@
 # @tenphi/eslint-plugin-tasty
 
+## 1.21.5
+
+### Patch Changes
+
+- [#180](https://github.com/tenphi/eslint-plugin-tasty/pull/180) [`f51ff37`](https://github.com/tenphi/eslint-plugin-tasty/commit/f51ff3731d5aba351f1eadb7c4ab4b454a01bca4) Thanks [@tenphi](https://github.com/tenphi)! - The agent harness now names harnesspm by its new package, `@harnesspm/cli`: the `tasty-lint:check` usage line and the edit hook's messages print `npx -y @harnesspm/cli run tasty-lint:check`, which also works outside the project folder.
+
 ## 1.21.4
 
 ### Patch Changes
