@@ -27,9 +27,9 @@ importers:
       '@eslint/js':
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.0.3(jiti@2.6.1))
-      '@tenphi/harnesspm':
-        specifier: ^0.13.1
-        version: 0.13.1
+      '@harnesspm/cli':
+        specifier: ^0.18.2
+        version: 0.18.2
       '@tenphi/tasty':
         specifier: ^3.19.0
         version: 3.19.0(jiti@2.6.1)(react@19.2.8)
@@ -224,6 +224,11 @@ packages:
   '@eslint/plugin-kit@0.6.1':
     resolution: {integrity: sha512-iH1B076HoAshH1mLpHMgwdGeTs0CYwL0SPMkGuSebZrwBp16v415e9NZXg2jtrqPVQjf6IANe2Vtlr5KswtcZQ==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
+
+  '@harnesspm/cli@0.18.2':
+    resolution: {integrity: sha512-w+7a5hPDvhSguVgfdUBjk/GO3m6yJg3Hn8QmfrleNMa6yWdAg3HAf9jZcIQL22QTUuviluYRdMIj8xQMs07I3w==}
+    engines: {node: '>=20'}
+    hasBin: true
 
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
@@ -728,11 +733,6 @@ packages:
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
-
-  '@tenphi/harnesspm@0.13.1':
-    resolution: {integrity: sha512-cdrE8w1rYIQrJXLKpqa5kdlPbqAe3KBSiicBoN5v+Wv2sAbEB1Bkn6zGaWB7FPIMh78YZ8RQRhV9fzLdV/Ih5w==}
-    engines: {node: '>=20'}
-    hasBin: true
 
   '@tenphi/tasty@3.19.0':
     resolution: {integrity: sha512-lLYO1InS44HLteR4p4LP/3Tk7o3exI7JMsS8j2Y4aTJCFQUOlad1zQe6mPBDYqVyKCgwm/8vkCs2FUYHizeGxw==}
@@ -2062,6 +2062,10 @@ snapshots:
       '@eslint/core': 1.1.1
       levn: 0.4.1
 
+  '@harnesspm/cli@0.18.2':
+    dependencies:
+      yaml: 2.9.1
+
   '@humanfs/core@0.19.1': {}
 
   '@humanfs/node@0.16.7':
@@ -2349,10 +2353,6 @@ snapshots:
   '@rolldown/pluginutils@1.0.0-rc.9': {}
 
   '@standard-schema/spec@1.1.0': {}
-
-  '@tenphi/harnesspm@0.13.1':
-    dependencies:
-      yaml: 2.9.1
 
   '@tenphi/tasty@3.19.0(jiti@2.6.1)(react@19.2.8)':
     dependencies:

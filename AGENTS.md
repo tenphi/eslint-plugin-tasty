@@ -54,7 +54,7 @@ SPECIFICATION.md    Goals, detection scope, config, implementation notes and the
 
 ## Agent harness (`harness/`)
 
-The harness that projects get through [harnesspm](https://www.npmjs.com/package/@tenphi/harnesspm), as plugin `tasty-lint`. It is for people who **use** the plugin; contributor instructions stay in this file. Tasty's own harness (plugin `tasty`) covers how to write styles; this one covers linting them. `pnpm check:harness` validates it, and CI runs it.
+The harness that projects get through [harnesspm](https://www.npmjs.com/package/@harnesspm/cli), as plugin `tasty-lint`. It is for people who **use** the plugin; contributor instructions stay in this file. Tasty's own harness (plugin `tasty`) covers how to write styles; this one covers linting them. `pnpm check:harness` validates it, and CI runs it.
 
 | File | Description |
 | --- | --- |

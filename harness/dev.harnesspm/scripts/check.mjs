@@ -28,7 +28,7 @@ import {
 } from './lint.mjs';
 import { createConfigResolver, isOn } from './project-config.mjs';
 
-const USAGE = `Usage: npx harnesspm run tasty-lint:check <files or folders>... [--strict] [--json]
+const USAGE = `Usage: npx -y @harnesspm/cli run tasty-lint:check <files or folders>... [--strict] [--json]
 
 Lints the files with the Tasty rules of @tenphi/eslint-plugin-tasty only, as
 the project's own lint runs them: each file gets the tasty/* rules, their
